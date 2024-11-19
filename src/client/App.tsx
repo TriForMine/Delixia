@@ -2,6 +2,7 @@ import {
 	ArcRotateCamera,
 	Color3,
 	DirectionalLight,
+	GIRSM,
 	GIRSMManager,
 	HemisphericLight,
 	Mesh,
@@ -12,13 +13,13 @@ import {
 	StandardMaterial,
 	Vector3
 } from "@babylonjs/core";
-import {BabylonScene} from "./components/BabylonScene.tsx";
-import {GIRSM} from "@babylonjs/core/Rendering/GlobalIllumination/giRSM";
 import {useEffect} from "react";
 import {connectToColyseus, disconnectFromColyseus} from "./hooks/colyseus.ts";
+import {BabylonScene} from "./components/BabylonScene.tsx";
 import {ChatRoom} from "./components/UI/TestUI.tsx";
 
 let box: Mesh;
+
 
 const onSceneReady = (scene: Scene) => {
 	// This creates and positions a free camera (non-mesh)
@@ -120,7 +121,7 @@ const onRender = (scene: Scene) => {
 const App = () => {
 	useEffect(() => {
 		(async () => {
-			await connectToColyseus('my_room');
+			await connectToColyseus("my_room");
 		})();
 
 		return () => {
@@ -128,15 +129,23 @@ const App = () => {
 		};
 	}, []);
 
-	return <div className="h-screen w-screen bg-gray-800 flex">
-		<div className="flex-1">
-			<BabylonScene antialias onSceneReady={onSceneReady} onRender={onRender} id="my-canvas"
-						  className="w-full h-full"/>
+	return (
+		<div className="min-h-screen flex flex-col bg-base-200">
+			{/* Main Content */}
+			<div className="flex flex-1">
+				{/* BabylonJS Scene */}
+				<div className="flex-1 bg-base-100">
+					<BabylonScene antialias onSceneReady={onSceneReady} onRender={onRender} id="my-canvas"
+								  className="w-full h-full"/>
+				</div>
+
+				{/* ChatRoom */}
+				<div className="w-80 bg-base-300 shadow-inner overflow-y-auto">
+					<ChatRoom/>
+				</div>
+			</div>
 		</div>
-		<div className="w-100 bg-gray-900">
-			<ChatRoom/>
-		</div>
-	</div>
+	);
 };
 
 export default App;

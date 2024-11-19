@@ -3,68 +3,94 @@ import {useEffect, useState} from "react";
 
 export const ChatRoom = () => {
 	const room = useColyseusRoom();
-	const players = useColyseusState(state => state.players);
+	const players = useColyseusState((state) => state.players);
 	const [messages, setMessages] = useState<string[]>([]);
 	const [currentTab, setCurrentTab] = useState<"chat" | "players">("chat");
 
 	useEffect(() => {
 		room?.onMessage("messages", (message: string) => {
 			console.log("ChatRoom received message:", message);
-			setMessages([...messages, message]);
-		})
-	}, [room, messages]);
+			setMessages((prevMessages) => [...prevMessages, message]);
+		});
+
+		return () => {
+			room?.removeAllListeners();
+		};
+	}, [room]);
 
 	const sendMessage = () => {
-		const input = document.querySelector("input");
-		if (input) {
+		const input = document.querySelector<HTMLInputElement>("input.chat-input");
+		if (input && input.value.trim() !== "") {
 			room?.send("message", input.value);
 			input.value = "";
 		}
-	}
+	};
 
 	return (
-		<div className="flex flex-col h-screen bg-gray-800 text-white">
-			<div className="flex-1 flex">
-				{
-					currentTab === "chat" ? (
-						<div className="flex-1 flex flex-col">
-							<div className="flex flex-col h-full overflow-y-auto p-4 bg-gray-800 text-white space-y-2">
-								{messages.map((message, index) => (
-									<div key={index} className="p-2 bg-gray-700 rounded">
+		<div
+			className="flex flex-col bg-base-200 text-base-content h-screen">
+			{/* Tabs */}
+			<div className="tabs tabs-boxed bg-base-300">
+				<a
+					onClick={() => setCurrentTab("chat")}
+					className={`tab ${currentTab === "chat" ? "tab-active" : ""}`}
+				>
+					Chat
+				</a>
+				<a
+					onClick={() => setCurrentTab("players")}
+					className={`tab ${currentTab === "players" ? "tab-active" : ""}`}
+				>
+					Players
+				</a>
+			</div>
+
+			{/* Content */}
+			<div className="flex-1 p-4 overflow-y-auto">
+				{currentTab === "chat" ? (
+					<div className="flex flex-col h-full">
+						<div className="flex-1 overflow-y-auto space-y-2">
+							{messages.map((message, index) => (
+								<div key={index}
+									 className={`chat ${room?.sessionId === message.split(" ")[0].slice(1, -1) ? "chat-end" : "chat-start"}`}>
+									<div className="chat-bubble">
 										{message}
 									</div>
-								))}
-							</div>
-							<div className="flex">
-								<input className="flex-1 bg-gray-900 text-white p-2" type="text"/>
-								<button onClick={sendMessage} className="bg-gray-900 text-white p-2 ml-2">
-									Send
-								</button>
-							</div>
+								</div>
+							))}
 						</div>
-					) : (
-						<div className="flex-1 flex flex-col">
-							<div className="flex flex-col h-full overflow-y-auto p-4 bg-gray-800 text-white">
-								{[...players?.values() ?? []].map((player, index) => (
-									<div key={index} className="p-2 bg-gray-700 rounded">
-										{player.name}
-									</div>
-								))}
-							</div>
+						<div className="flex mt-2">
+							<input
+								className="chat-input input input-bordered flex-1 mr-2"
+								type="text"
+								placeholder="Type a message"
+								onKeyDown={(e) => {
+									if (e.key === "Enter") {
+										sendMessage();
+									}
+								}}
+							/>
+							<button
+								onClick={sendMessage}
+								className="btn btn-primary"
+							>
+								Send
+							</button>
 						</div>
-					)
-				}
-			</div>
-			<div className="flex bg-gray-800 pt-2">
-				<button onClick={() => setCurrentTab("chat")}
-						className="flex-1 bg-gray-900 border-r border-gray-700 rounded-l rounded-r-none text-white">
-					Chat
-				</button>
-				<button onClick={() => setCurrentTab("players")}
-						className="flex-1 bg-gray-900 text-white rounded-r rounded-l-none">
-					Players
-				</button>
+					</div>
+				) : (
+					<div className="flex flex-col h-full overflow-y-auto space-y-2">
+						{[...(players?.values() ?? [])].map((player, index) => (
+							<div
+								key={index}
+								className="card card-bordered bg-base-100 p-2 shadow"
+							>
+								<p>{player.name}</p>
+							</div>
+						))}
+					</div>
+				)}
 			</div>
 		</div>
 	);
-}
+};
