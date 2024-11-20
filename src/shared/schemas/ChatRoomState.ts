@@ -17,16 +17,21 @@ export class ChatRoomState extends Schema {
 		this.players.delete(id);
 	}
 
-	movePlayer(id: string, movement: { x: number, y: number }) {
+	updatePlayer(id: string, data: {
+		position: { x: number, y: number, z: number },
+		quaternion: { x: number, y: number, z: number, w: number },
+	}) {
 		const player = this.players.get(id);
-		if (!player) return;
+		if (!player) return
 
-		if (movement.x) {
-			player.x += movement.x * 10;
-		}
-		if (movement.y) {
-			player.y += movement.y * 10
-		}
+		player.position.x = data.position.x;
+		player.position.y = data.position.y;
+		player.position.z = data.position.z;
+
+		player.rotation.x = data.quaternion.x;
+		player.rotation.y = data.quaternion.y;
+		player.rotation.z = data.quaternion.z;
+		player.rotation.w = data.quaternion.w;
 
 		this.players.set(id, player);
 	}
