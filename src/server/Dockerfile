@@ -3,6 +3,9 @@
 FROM oven/bun:1 AS base
 WORKDIR /usr/src/app
 
+# install curl for healthcheck
+RUN apt-get update && apt-get install -y curl
+
 # install dependencies into temp directory
 # this will cache them and speed up future builds
 FROM base AS install
@@ -26,9 +29,6 @@ FROM base AS release
 COPY --from=install /temp/prod/node_modules node_modules
 COPY --from=prerelease /usr/src/app/src/server/ src/server/
 COPY --from=prerelease /usr/src/app/src/shared/ src/shared/
-
-# install curl for healthcheck
-RUN apt-get update && apt-get install -y curl
 
 # run the app
 USER bun
