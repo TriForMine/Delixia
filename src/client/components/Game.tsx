@@ -1,86 +1,50 @@
 import {BabylonScene} from "./BabylonScene.tsx";
 
 import {
-	ArcRotateCamera,
-	Color3,
 	DirectionalLight,
 	GIRSM,
 	GIRSMManager,
 	HavokPlugin,
 	HemisphericLight,
-	KeyboardEventTypes,
-	Mesh,
 	MeshBuilder,
+	PBRMetallicRoughnessMaterial,
 	PhysicsAggregate,
 	PhysicsShapeType,
-	Quaternion,
+	ReflectionProbe,
 	ReflectiveShadowMap,
 	Scene,
 	ShadowGenerator,
-	StandardMaterial,
 	Vector3
 } from "@babylonjs/core";
-import {useCallback} from "react";
+import {useCallback, useRef} from "react";
 import {useColyseusRoom} from "../hooks/colyseus.ts";
 import HavokPhysics from "@babylonjs/havok";
+import {SkyMaterial} from "@babylonjs/materials";
+import {RemoteCharacterController} from "../game/RemoteCharacterController.ts";
+import {LocalCharacterController} from "../game/LocalCharacterController.ts";
 
-let currentPlayer: Mesh;
+interface PlayerMeshes {
+	[sessionId: string]: RemoteCharacterController;
+}
 
 export const Game = () => {
 	const room = useColyseusRoom();
+	const playerControllers = useRef<PlayerMeshes>({});
+	const localController = useRef<LocalCharacterController | undefined>(undefined);
 
 	const onSceneReady = useCallback(async (scene: Scene) => {
-		if (room === undefined) {
-			return;
-		}
+		if (!room) return;
 
-		// This creates and positions a free camera (non-mesh)
-		const camera = new ArcRotateCamera('camera', -Math.PI / 2, Math.PI / 3, 10, Vector3.Zero(), scene);
-
-		const canvas = scene.getEngine().getRenderingCanvas();
-
-		// This attaches the camera to the canvas
-		camera.attachControl(canvas, true);
+		const hk = new HavokPlugin(true, await HavokPhysics())
+		scene.enablePhysics(new Vector3(0, -9.81, 0), hk);
 
 		// This creates a light, aiming 0,1,0 - to the sky (non-mesh)
 		const hemisphericLight = new HemisphericLight("light", new Vector3(0, 1, 0), scene);
 		hemisphericLight.intensity = 0.3;
 
 		// Directional Light
-		const light = new DirectionalLight("light", new Vector3(2, -1, 3), scene);
-		light.position = new Vector3(-300, 5, -300);
-		light.intensity = 0.7;
-
-		const hk = new HavokPlugin(true, await HavokPhysics())
-		scene.enablePhysics(new Vector3(0, -9.81, 0), hk);
-
-		// Our built-in 'box' shape.
-		currentPlayer = MeshBuilder.CreateBox("box", {size: 2}, scene);
-		currentPlayer.receiveShadows = true;
-
-		// Move the box upward 1/2 its height
-		currentPlayer.position.y = 1;
-
-		new PhysicsAggregate(currentPlayer, PhysicsShapeType.BOX, {mass: 1}, scene);
-
-		const otherPlayersMaterial = new StandardMaterial("material", scene);
-		otherPlayersMaterial.diffuseColor = new Color3(0, 1, 0);
-
-		const material = new StandardMaterial("material", scene);
-		material.diffuseColor = new Color3(1, 0, 0);
-		currentPlayer.material = material;
-
-		// Our built-in 'ground' shape.
-		const ground = MeshBuilder.CreateGround("ground", {width: 50, height: 50}, scene);
-		const groundMaterial = new StandardMaterial("groundMaterial", scene);
-		groundMaterial.diffuseColor = new Color3(1, 1, 1);
-		ground.material = groundMaterial;
-		ground.receiveShadows = true;
-		new PhysicsAggregate(ground, PhysicsShapeType.BOX, {
-			mass: 0,
-			friction: 0.5,
-			restitution: 0.7
-		}, scene);
+		const sun = new DirectionalLight("light", new Vector3(-5, -10, 5).normalize(), scene);
+		sun.position = sun.direction.negate().scaleInPlace(40);
 
 		// Global Illumination Manager
 		const outputDimensions = {
@@ -89,7 +53,7 @@ export const Game = () => {
 		}
 
 		// Global Illumination
-		const rsm = new ReflectiveShadowMap(scene, light, outputDimensions);
+		const rsm = new ReflectiveShadowMap(scene, sun, outputDimensions);
 		rsm.addMesh()
 
 		const defaultGITextureRatio = 2;
@@ -107,127 +71,109 @@ export const Game = () => {
 		giRSMMgr.addMaterial();
 
 		// Shadows
-		const shadowGenerator = new ShadowGenerator(1024, light);
+		const shadowGenerator = new ShadowGenerator(1024, sun);
 		shadowGenerator.useBlurExponentialShadowMap = true;
 		shadowGenerator.blurKernel = 32;
-		shadowGenerator.addShadowCaster(currentPlayer);
 		shadowGenerator.useKernelBlur = true;
 		shadowGenerator.usePercentageCloserFiltering = true;
 
-		room.state.players.onAdd((player, sessionId) => {
-			if (sessionId !== room.sessionId) {
-				const playerBox = MeshBuilder.CreateBox("player", {size: 2}, scene);
-				playerBox.position.y = player.position.y;
-				playerBox.position.x = player.position.x;
-				playerBox.position.z = player.position.z;
-				playerBox.rotationQuaternion = new Quaternion(player.rotation.x, player.rotation.y, player.rotation.z, player.rotation.w);
-				playerBox.material = otherPlayersMaterial;
-				playerBox.receiveShadows = true;
+		const hemiLight = new HemisphericLight("hemi", Vector3.Up(), scene);
+		hemiLight.intensity = 0.4;
 
-				shadowGenerator.addShadowCaster(playerBox);
+		const skyMaterial = new SkyMaterial("skyMaterial", scene);
+		skyMaterial.backFaceCulling = false;
+		skyMaterial.useSunPosition = true;
+		skyMaterial.sunPosition = sun.direction.negate();
 
+		const skybox = MeshBuilder.CreateBox("skyBox", {size: 100.0}, scene);
+		skybox.material = skyMaterial;
 
-				player.position.listen("x", (x) => {
-					playerBox.position.x = x;
-				})
-				player.position.listen("y", (y) => {
-					playerBox.position.y = y;
-				})
-				player.position.listen("z", (z) => {
-					playerBox.position.z = z;
-				})
+		// Reflection probe
+		const rp = new ReflectionProbe("ref", 512, scene);
+		rp.renderList?.push(skybox);
 
-				player.rotation.listen("x", (x) => {
-					playerBox.rotationQuaternion = new Quaternion(x, playerBox.rotationQuaternion!.y, playerBox.rotationQuaternion!.z, playerBox.rotationQuaternion!.w);
-				})
-				player.rotation.listen("y", (y) => {
-					playerBox.rotationQuaternion = new Quaternion(playerBox.rotationQuaternion!.x, y, playerBox.rotationQuaternion!.z, playerBox.rotationQuaternion!.w);
-				})
-				player.rotation.listen("z", (z) => {
-					playerBox.rotationQuaternion = new Quaternion(playerBox.rotationQuaternion!.x, playerBox.rotationQuaternion!.y, z, playerBox.rotationQuaternion!.w);
-				})
-				player.rotation.listen("w", (w) => {
-					playerBox.rotationQuaternion = new Quaternion(playerBox.rotationQuaternion!.x, playerBox.rotationQuaternion!.y, playerBox.rotationQuaternion!.z, w);
-				})
+		scene.environmentTexture = rp.cubeTexture;
 
-				player.onRemove(() => {
-					playerBox.dispose();
-				})
-			} else {
-				currentPlayer.position.x = player.position.x;
-				currentPlayer.position.y = player.position.y;
-				currentPlayer.position.z = player.position.z;
+		// Ground
+		const groundMaterial = new PBRMetallicRoughnessMaterial("groundMat", scene);
+		const ground = MeshBuilder.CreateGround("ground", {width: 50, height: 50}, scene);
+		ground.material = groundMaterial;
+		ground.receiveShadows = true;
+
+		new PhysicsAggregate(ground, PhysicsShapeType.BOX, {
+			mass: 0,
+		}, scene);
+
+		// Create local player
+
+		localController.current = await LocalCharacterController.CreateAsync(scene);
+		shadowGenerator.addShadowCaster(localController.current.model);
+
+		room.state.players.onAdd(async (player, sessionId) => {
+			if (sessionId === room.sessionId) {
+				// Initialize local player position and rotation
+				localController.current?.setPosition(
+					new Vector3(player.x, player.y, player.z)
+				);
+				localController.current?.setRotationY(player.rot);
+				return
 			}
-		})
 
-		const keyboard: { x: number, y: number, z: number } = {x: 0, y: 0, z: 0};
+			const remoteController = await RemoteCharacterController.CreateAsync(scene);
+			remoteController.setPosition(new Vector3(player.x, player.y, player.z));
+			remoteController.setRotationY(player.rot);
 
-		scene.onKeyboardObservable.add((kbInfo) => {
-			switch (kbInfo.type) {
-				case KeyboardEventTypes.KEYDOWN:
-					switch (kbInfo.event.key) {
-						case "z":
-							keyboard.z = 10;
-							break;
-						case "q":
-							keyboard.x = -10;
-							break;
-						case "s":
-							keyboard.z = -10;
-							break;
-						case "d":
-							keyboard.x = 10;
-							break;
-						case " ":
-							keyboard.y = 10;
-							break;
-					}
-					currentPlayer.physicsBody?.setLinearVelocity(new Vector3(keyboard.x, keyboard.y, keyboard.z));
-					break;
-				case KeyboardEventTypes.KEYUP:
-					switch (kbInfo.event.key) {
-						case "z":
-							keyboard.z = 0;
-							break;
-						case "q":
-							keyboard.x = 0;
-							break;
-						case "s":
-							keyboard.z = 0;
-							break;
-						case "d":
-							keyboard.x = 0;
-							break;
-						case " ":
-							keyboard.y = 0;
-							break;
-					}
-					currentPlayer.physicsBody?.setLinearVelocity(new Vector3(keyboard.x, keyboard.y, keyboard.z));
-					break;
-			}
+			shadowGenerator.addShadowCaster(remoteController.model);
+			playerControllers.current[sessionId] = remoteController;
+
+			remoteController.receiveState(player);
+
+			player.onChange(() => {
+				console.log(`Player ${sessionId} changed: ${player.x}, ${player.y}, ${player.z}, ${player.rot}, ${player.animationState}`);
+				remoteController.receiveState(player);
+			})
+
+			// Handle player removal
+			player.onRemove(() => {
+				remoteController.dispose();
+				delete playerControllers.current[sessionId];
+			});
 		})
 	}, [room]);
 
 	/**
-	 * Will run on every frame render.  We are spinning the box on y-axis.
+	 * Will run on every frame render. We are updating the local player and interpolating remote players.
 	 */
-	const onRender = useCallback((_: Scene) => {
-		if (room && currentPlayer) {
-			console.log(currentPlayer.position);
-			room.send("move", {
-				position: {
-					x: currentPlayer.position.x, y: currentPlayer.position.y, z: currentPlayer.position.z
-				},
-				quaternion: {
-					x: currentPlayer.rotationQuaternion!.x,
-					y: currentPlayer.rotationQuaternion!.y,
-					z: currentPlayer.rotationQuaternion!.z,
-					w: currentPlayer.rotationQuaternion!.w
-				}
-			});
-		}
-	}, [room, currentPlayer]);
+	const onUpdate = useCallback(
+		(scene: Scene) => {
+			const deltaSeconds = scene.getEngine().getDeltaTime() / 1000;
+			localController.current?.update(deltaSeconds);
+			if (room && localController.current) {
+				const transform = localController.current.getTransform();
+				const animationState = localController.current.getTargetAnim.name;
 
-	return <BabylonScene antialias onSceneReady={onSceneReady} onRender={onRender} id="my-canvas"
+				room.send("move", {
+					position: {
+						x: transform.position.x,
+						y: transform.position.y,
+						z: transform.position.z,
+					},
+					rotation: {
+						y: transform.rotationQuaternion?.toEulerAngles().y,
+					},
+					animationState: animationState,
+					timestamp: Date.now(),
+				});
+			}
+
+			// Update remote players with interpolation
+			Object.values(playerControllers.current).forEach((remoteController) => {
+				remoteController.update(deltaSeconds);
+			});
+		},
+		[room]
+	);
+
+	return <BabylonScene antialias onSceneReady={onSceneReady} onRender={onUpdate} id="my-canvas"
 						 className="w-full h-full"/>
 }

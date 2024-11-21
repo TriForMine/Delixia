@@ -2,6 +2,7 @@ import {useEffect} from "react";
 import {connectToColyseus, disconnectFromColyseus} from "./hooks/colyseus.ts";
 import {ChatRoom} from "./components/UI/TestUI.tsx";
 import {Game} from "./components/Game.tsx";
+import "@babylonjs/loaders/glTF"
 
 const App = () => {
 	useEffect(() => {

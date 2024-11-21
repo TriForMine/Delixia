@@ -19,19 +19,19 @@ export class ChatRoomState extends Schema {
 
 	updatePlayer(id: string, data: {
 		position: { x: number, y: number, z: number },
-		quaternion: { x: number, y: number, z: number, w: number },
+		rotation: { y: number },
+		animationState: string
 	}) {
 		const player = this.players.get(id);
 		if (!player) return
 
-		player.position.x = data.position.x;
-		player.position.y = data.position.y;
-		player.position.z = data.position.z;
+		player.x = data.position.x;
+		player.y = data.position.y;
+		player.z = data.position.z;
 
-		player.rotation.x = data.quaternion.x;
-		player.rotation.y = data.quaternion.y;
-		player.rotation.z = data.quaternion.z;
-		player.rotation.w = data.quaternion.w;
+		player.rot = data.rotation.y;
+
+		player.animationState = data.animationState;
 
 		this.players.set(id, player);
 	}

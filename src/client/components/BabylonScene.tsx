@@ -20,7 +20,7 @@ export const BabylonScene = ({
 	adaptToDeviceRatio?: boolean;
 	sceneOptions?: SceneOptions;
 	onRender?: (scene: Scene) => void;
-	onSceneReady: (scene: Scene) => void;
+	onSceneReady: (scene: Scene) => Promise<void>;
 } & React.CanvasHTMLAttributes<HTMLCanvasElement>) => {
 	const reactCanvas = useRef(null);
 	const [isEngineInitialized, setIsEngineInitialized] = React.useState(false);
@@ -35,10 +35,10 @@ export const BabylonScene = ({
 				const webgpuEngine = new WebGPUEngine(canvas, engineOptions);
 				await webgpuEngine.initAsync();
 				engine = webgpuEngine;
-				setIsEngineInitialized(true);
 			} else {
 				engine = new Engine(canvas, antialias, engineOptions, adaptToDeviceRatio);
 			}
+			setIsEngineInitialized(true);
 		};
 
 		createEngine().catch(console.error);
@@ -56,19 +56,30 @@ export const BabylonScene = ({
 
 		let scene: Scene | undefined;
 
-		const createScene = () => {
+		const createScene = async () => {
 			scene = new Scene(engine, sceneOptions);
-			if (scene.isReady()) {
-				onSceneReady(scene);
-			} else {
-				scene.onReadyObservable.addOnce((scene) => onSceneReady(scene));
+
+			const onReady = async () => {
+				console.log("Scene is ready");
+				scene?.onBeforeRenderObservable.add(() => {
+					if (!scene) return;
+					onRender?.(scene)
+				});
+				engine.runRenderLoop(() => {
+					if (!scene) return;
+					scene.render();
+				});
 			}
 
-			engine.runRenderLoop(() => {
-				if (!scene) return;
-				if (typeof onRender === "function") onRender(scene);
-				scene.render();
-			});
+			if (scene.isReady()) {
+				await onSceneReady(scene);
+				await onReady();
+			} else {
+				scene.onReadyObservable.addOnce(async (scene) => {
+					await onSceneReady(scene);
+					await onReady();
+				})
+			}
 
 			const resize = () => {
 				scene?.getEngine().resize();
@@ -86,7 +97,7 @@ export const BabylonScene = ({
 			};
 		}
 
-		createScene();
+		createScene().catch(console.error);
 
 		return () => {
 			if (scene) {
