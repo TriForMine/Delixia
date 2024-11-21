@@ -4,7 +4,7 @@ import {ChatRoomState} from "../../shared/schemas/ChatRoomState.ts";
 export class ChatRoom extends Room<ChatRoomState> {
 	maxClients = 4;
 
-	onCreate(options: any) {
+	onCreate(_options: any) {
 		this.setState(new ChatRoomState());
 
 		this.onMessage("message", (client, message) => {
