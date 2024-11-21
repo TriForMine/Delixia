@@ -36,7 +36,7 @@ export class CharacterController {
 			{height: 2, radius: 0.5},
 			scene
 		);
-		this.impostorMesh.visibility = 0.1;
+		this.impostorMesh.visibility = 0;
 		this.impostorMesh.rotationQuaternion = Quaternion.Identity();
 
 		this.model = characterMesh;
