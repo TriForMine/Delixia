@@ -27,6 +27,9 @@ COPY --from=install /temp/prod/node_modules node_modules
 COPY --from=prerelease /usr/src/app/src/server/ src/server/
 COPY --from=prerelease /usr/src/app/src/shared/ src/shared/
 
+# install curl for healthcheck
+RUN apk add --no-cache curl
+
 # run the app
 USER bun
 EXPOSE 2567/tcp
