@@ -129,7 +129,6 @@ export const Game = () => {
 			remoteController.receiveState(player);
 
 			player.onChange(() => {
-				console.log(`Player ${sessionId} changed: ${player.x}, ${player.y}, ${player.z}, ${player.rot}, ${player.animationState}`);
 				remoteController.receiveState(player);
 			})
 

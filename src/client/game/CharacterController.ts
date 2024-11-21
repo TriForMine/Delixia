@@ -120,7 +120,6 @@ export class CharacterController {
 	}
 
 	public lerpPosition(position: Vector3, alpha: number) {
-		console.log(`Lerping position from ${this.impostorMesh.position} to ${position}`);
 		this.impostorMesh.position = Vector3.Lerp(this.impostorMesh.position, position, alpha);
 	}
 

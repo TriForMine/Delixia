@@ -9,7 +9,6 @@ export const ChatRoom = () => {
 
 	useEffect(() => {
 		room?.onMessage("messages", (message: string) => {
-			console.log("ChatRoom received message:", message);
 			setMessages((prevMessages) => [...prevMessages, message]);
 		});
 

@@ -5,8 +5,6 @@ export class ChatRoom extends Room<ChatRoomState> {
 	maxClients = 4;
 
 	onCreate(options: any) {
-		console.log("ChatRoom created!", options);
-
 		this.setState(new ChatRoomState());
 
 		this.onMessage("message", (client, message) => {
@@ -32,6 +30,5 @@ export class ChatRoom extends Room<ChatRoomState> {
 
 	onDispose() {
 		console.log("Dispose ChatRoom");
-
 	}
 }
