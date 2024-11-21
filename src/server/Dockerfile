@@ -28,7 +28,7 @@ COPY --from=prerelease /usr/src/app/src/server/ src/server/
 COPY --from=prerelease /usr/src/app/src/shared/ src/shared/
 
 # install curl for healthcheck
-RUN apk add --no-cache curl
+RUN apt-get update && apt-get install -y curl
 
 # run the app
 USER bun
