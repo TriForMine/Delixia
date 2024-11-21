@@ -7,4 +7,6 @@ export const {
 	disconnectFromColyseus,
 	useColyseusRoom,
 	useColyseusState,
-} = colyseus<ChatRoomState>('ws://localhost:2567');
+} = colyseus<ChatRoomState>(
+	import.meta.env.VITE_COLYSEUS_ENDPOINT ?? "ws://localhost:2567",
+);
