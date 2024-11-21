@@ -5,7 +5,7 @@ import * as path from "node:path";
 
 // https://vite.dev/config/
 export default defineConfig({
-	base: import.meta.env.GITHUB_ACTIONS ? "/Delixia/" : "/",
+	base: process.env.GITHUB_ACTIONS ? "/Delixia/" : "/",
 	optimizeDeps: {
 		exclude: ['@babylonjs/havok'],
 	},
