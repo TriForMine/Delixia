@@ -5,6 +5,7 @@ import * as path from "node:path";
 
 // https://vite.dev/config/
 export default defineConfig({
+	base: "/Delixia/",
 	optimizeDeps: {
 		exclude: ['@babylonjs/havok'],
 	},
