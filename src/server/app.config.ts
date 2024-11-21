@@ -10,7 +10,7 @@ import {ChatRoom} from "./rooms/ChatRoom.ts";
 
 export default config({
 	options: {
-		devMode: true
+		devMode: Bun.env.NODE_ENV !== "production",
 	},
 
 	initializeTransport: function () {
