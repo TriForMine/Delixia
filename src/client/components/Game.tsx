@@ -119,24 +119,25 @@ export const Game = () => {
 				return
 			}
 
-			const remoteController = await RemoteCharacterController.CreateAsync(scene);
-			remoteController.setPosition(new Vector3(player.x, player.y, player.z));
-			remoteController.setRotationY(player.rot);
+			RemoteCharacterController.CreateAsync(scene).then(remoteController => {
+				remoteController.setPosition(new Vector3(player.x, player.y, player.z));
+				remoteController.setRotationY(player.rot);
 
-			shadowGenerator.addShadowCaster(remoteController.model);
-			playerControllers.current[sessionId] = remoteController;
+				shadowGenerator.addShadowCaster(remoteController.model);
+				playerControllers.current[sessionId] = remoteController;
 
-			remoteController.receiveState(player);
-
-			player.onChange(() => {
 				remoteController.receiveState(player);
-			})
 
-			// Handle player removal
-			player.onRemove(() => {
-				remoteController.dispose();
-				delete playerControllers.current[sessionId];
-			});
+				player.onChange(() => {
+					remoteController.receiveState(player);
+				})
+
+				// Handle player removal
+				player.onRemove(() => {
+					remoteController.dispose();
+					delete playerControllers.current[sessionId];
+				});
+			})
 		})
 	}, [room]);
 

@@ -38,6 +38,7 @@ export class CharacterController {
 		);
 		this.impostorMesh.visibility = 0;
 		this.impostorMesh.rotationQuaternion = Quaternion.Identity();
+		this.impostorMesh.position.y = 1;
 
 		this.model = characterMesh;
 		this.model.parent = this.impostorMesh;

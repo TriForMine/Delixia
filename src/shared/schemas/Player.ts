@@ -8,7 +8,7 @@ export class Player extends Schema {
 	x = Math.floor(Math.random() * 10);
 
 	@type("number")
-	y = Math.floor(3);
+	y = 1;
 
 	@type("number")
 	z = Math.floor(Math.random() * 10);
