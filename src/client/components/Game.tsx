@@ -1,6 +1,7 @@
 import {BabylonScene} from "./BabylonScene.tsx";
 
 import {
+	CascadedShadowGenerator,
 	DirectionalLight,
 	GIRSM,
 	GIRSMManager,
@@ -71,11 +72,13 @@ export const Game = () => {
 		giRSMMgr.addMaterial();
 
 		// Shadows
-		const shadowGenerator = new ShadowGenerator(1024, sun);
+		const shadowGenerator = new CascadedShadowGenerator(1024, sun);
 		shadowGenerator.useBlurExponentialShadowMap = true;
 		shadowGenerator.blurKernel = 32;
 		shadowGenerator.useKernelBlur = true;
 		shadowGenerator.usePercentageCloserFiltering = true;
+		shadowGenerator.shadowMaxZ = 200;
+		shadowGenerator.filteringQuality = ShadowGenerator.QUALITY_MEDIUM;
 
 		const hemiLight = new HemisphericLight("hemi", Vector3.Up(), scene);
 		hemiLight.intensity = 0.4;
