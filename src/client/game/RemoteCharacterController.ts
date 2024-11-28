@@ -1,5 +1,5 @@
 // RemoteCharacterController.ts
-import {AbstractMesh, AnimationGroup, Scene, SceneLoader, Vector3} from "@babylonjs/core";
+import {AbstractMesh, AnimationGroup, Scene, Vector3} from "@babylonjs/core";
 import {CharacterController} from "./CharacterController";
 import {moveTowards} from "../utils/utils";
 import {Player} from "../../shared/schemas/Player";
@@ -15,20 +15,6 @@ export class RemoteCharacterController extends CharacterController {
 	) {
 		super(characterMesh, scene, animationGroups); // Pass to superclass
 		this.physicsAggregate.dispose();
-	}
-
-	public static async CreateAsync(scene: Scene): Promise<RemoteCharacterController> {
-		const result = await SceneLoader.ImportMeshAsync(
-			"",
-			"assets/characters/",
-			"character.glb",
-			scene
-		);
-
-		const model = result.meshes[0];
-		const animationGroups = result.animationGroups; // Extract animation groups
-
-		return new RemoteCharacterController(model, scene, animationGroups); // Pass animation groups
 	}
 
 	/**

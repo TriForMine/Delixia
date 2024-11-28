@@ -1,12 +1,14 @@
 import {BabylonScene} from "./BabylonScene.tsx";
 
 import {
+	AssetsManager,
 	CascadedShadowGenerator,
 	DirectionalLight,
 	GIRSM,
 	GIRSMManager,
 	HavokPlugin,
 	HemisphericLight,
+	Mesh,
 	MeshBuilder,
 	PBRMetallicRoughnessMaterial,
 	PhysicsAggregate,
@@ -23,18 +25,25 @@ import HavokPhysics from "@babylonjs/havok";
 import {SkyMaterial} from "@babylonjs/materials";
 import {RemoteCharacterController} from "../game/RemoteCharacterController.ts";
 import {LocalCharacterController} from "../game/LocalCharacterController.ts";
+import * as GUI from '@babylonjs/gui'
 
 interface PlayerMeshes {
 	[sessionId: string]: RemoteCharacterController;
 }
 
-export const Game = () => {
+export const Game = ({onBackToMenu}: { onBackToMenu: () => void }) => {
 	const room = useColyseusRoom();
 	const playerControllers = useRef<PlayerMeshes>({});
 	const localController = useRef<LocalCharacterController | undefined>(undefined);
 
 	const onSceneReady = useCallback(async (scene: Scene) => {
 		if (!room) return;
+
+		// Initialize AssetsManager
+		const assetsManager = new AssetsManager(scene);
+
+		// Load the character model
+		const characterTask = assetsManager.addContainerTask("character task", "", "/assets/characters/", "character.glb");
 
 		const hk = new HavokPlugin(true, await HavokPhysics())
 		scene.enablePhysics(new Vector3(0, -9.81, 0), hk);
@@ -73,12 +82,11 @@ export const Game = () => {
 
 		// Shadows
 		const shadowGenerator = new CascadedShadowGenerator(1024, sun);
-		shadowGenerator.useBlurExponentialShadowMap = true;
 		shadowGenerator.blurKernel = 32;
 		shadowGenerator.useKernelBlur = true;
 		shadowGenerator.usePercentageCloserFiltering = true;
-		shadowGenerator.shadowMaxZ = 200;
-		shadowGenerator.filteringQuality = ShadowGenerator.QUALITY_MEDIUM;
+		shadowGenerator.shadowMaxZ = 20;
+		shadowGenerator.filteringQuality = ShadowGenerator.QUALITY_HIGH;
 
 		const hemiLight = new HemisphericLight("hemi", Vector3.Up(), scene);
 		hemiLight.intensity = 0.4;
@@ -107,25 +115,30 @@ export const Game = () => {
 			mass: 0,
 		}, scene);
 
-		// Create local player
+		characterTask.onSuccess = (task) => {
+			const localPlayer = task.loadedContainer.instantiateModelsToScene((name) => name);
 
-		localController.current = await LocalCharacterController.CreateAsync(scene);
-		shadowGenerator.addShadowCaster(localController.current.model);
+			// Create local player
+			localController.current = new LocalCharacterController(localPlayer.rootNodes[0] as Mesh, localPlayer.animationGroups, scene);
+			shadowGenerator.addShadowCaster(localController.current.model);
 
-		room.state.players.onAdd(async (player, sessionId) => {
-			if (sessionId === room.sessionId) {
-				// Initialize local player position and rotation
-				localController.current?.setPosition(
-					new Vector3(player.x, player.y, player.z)
-				);
-				localController.current?.setRotationY(player.rot);
-				return
-			}
+			room.state.players.onAdd(async (player, sessionId) => {
+				if (sessionId === room.sessionId) {
+					// Initialize local player position and rotation
+					localController.current?.setPosition(
+						new Vector3(player.x, player.y, player.z)
+					);
+					localController.current?.setRotationY(player.rot);
+					return
+				}
 
-			RemoteCharacterController.CreateAsync(scene).then(remoteController => {
+				const remotePlayer = task.loadedContainer.instantiateModelsToScene((name) => name);
+
+				const remoteController = new RemoteCharacterController(remotePlayer.rootNodes[0] as Mesh, scene, remotePlayer.animationGroups);
 				remoteController.setPosition(new Vector3(player.x, player.y, player.z));
 				remoteController.setRotationY(player.rot);
 
+				remoteController.model.receiveShadows = true;
 				shadowGenerator.addShadowCaster(remoteController.model);
 				playerControllers.current[sessionId] = remoteController;
 
@@ -141,7 +154,35 @@ export const Game = () => {
 					delete playerControllers.current[sessionId];
 				});
 			})
-		})
+		}
+
+		assetsManager.onFinish = _ => {
+			// Create GUI
+			const advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+
+			// Add FPS Counter
+			const fpsText = new GUI.TextBlock();
+			fpsText.text = "FPS: 0";
+			fpsText.color = "white";
+			fpsText.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+			fpsText.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+			fpsText.paddingRight = "10px";
+			fpsText.paddingTop = "10px";
+			advancedTexture.addControl(fpsText);
+
+			scene.onBeforeRenderObservable.add(() => {
+				fpsText.text = `FPS: ${scene.getEngine().getFps().toFixed()}`;
+			});
+		}
+
+		assetsManager.load();
+
+		// Lock the cursor when the game is running
+		scene.getEngine().getRenderingCanvas()?.requestPointerLock()
+			.catch(console.error);
+
+		// Make sure the canvas is focused
+		scene.getEngine().getRenderingCanvas()?.focus();
 	}, [room]);
 
 	/**
@@ -177,6 +218,14 @@ export const Game = () => {
 		[room]
 	);
 
-	return <BabylonScene antialias onSceneReady={onSceneReady} onRender={onUpdate} id="my-canvas"
-						 className="w-full h-full"/>
+	return <div className="relative w-full h-full">
+		<BabylonScene antialias onSceneReady={onSceneReady} onRender={onUpdate} id="my-canvas"
+					  className="w-full h-full"/>
+		<button
+			onClick={onBackToMenu}
+			className="absolute top-4 left-4 btn btn-primary"
+		>
+			Back to Menu
+		</button>
+	</div>
 }

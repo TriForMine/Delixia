@@ -4,7 +4,7 @@ import type {AbstractEngineOptions} from "@babylonjs/core/Engines/abstractEngine
 import {SceneOptions} from "@babylonjs/core/scene";
 import '@babylonjs/core/Engines/WebGPU/Extensions/'
 
-let engine: AbstractEngine;
+const DisableWebGPU = false;
 
 export const BabylonScene = ({
 								 antialias,
@@ -23,6 +23,7 @@ export const BabylonScene = ({
 	onSceneReady: (scene: Scene) => Promise<void>;
 } & React.CanvasHTMLAttributes<HTMLCanvasElement>) => {
 	const reactCanvas = useRef(null);
+	const engineRef = useRef<AbstractEngine | null>(null);
 	const isInitializing = useRef(false);
 	const [isEngineInitialized, setIsEngineInitialized] = React.useState(false);
 
@@ -32,15 +33,19 @@ export const BabylonScene = ({
 		if (!canvas || isEngineInitialized) return;
 
 		const createEngine = async () => {
-			if (engine || isInitializing.current) return;
+			if (engineRef.current || isInitializing.current) return;
 			isInitializing.current = true;
-			if (await WebGPUEngine.IsSupportedAsync) {
+			let engine: AbstractEngine;
+
+			if (!DisableWebGPU && await WebGPUEngine.IsSupportedAsync) {
 				const webgpuEngine = new WebGPUEngine(canvas, engineOptions);
 				await webgpuEngine.initAsync();
 				engine = webgpuEngine;
 			} else {
 				engine = new Engine(canvas, antialias, engineOptions, adaptToDeviceRatio);
 			}
+
+			engineRef.current = engine;
 			isInitializing.current = false;
 			setIsEngineInitialized(true);
 			engine.displayLoadingUI();
@@ -50,9 +55,10 @@ export const BabylonScene = ({
 
 		return () => {
 			setIsEngineInitialized(false);
-			if (engine) {
-				engine.hideLoadingUI();
-				engine.dispose();
+			if (engineRef.current) {
+				engineRef.current.hideLoadingUI();
+				engineRef.current.dispose();
+				engineRef.current = null;
 			}
 		};
 	}, [antialias, engineOptions, adaptToDeviceRatio]);
@@ -63,6 +69,7 @@ export const BabylonScene = ({
 		let scene: Scene | undefined;
 
 		const createScene = async () => {
+			const engine = engineRef.current!;
 			scene = new Scene(engine, sceneOptions);
 
 			const onReady = async () => {
@@ -88,7 +95,7 @@ export const BabylonScene = ({
 			}
 
 			const resize = () => {
-				scene?.getEngine().resize();
+				engine.resize(true);
 			};
 
 			if (window) {
@@ -112,5 +119,5 @@ export const BabylonScene = ({
 		};
 	}, [isEngineInitialized, onRender, onSceneReady, sceneOptions]);
 
-	return <canvas ref={reactCanvas} {...rest} />;
+	return <canvas ref={reactCanvas} {...rest} tabIndex={0}/>;
 };

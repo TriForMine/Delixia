@@ -6,7 +6,6 @@ import {
 	ExecuteCodeAction,
 	Quaternion,
 	Scene,
-	SceneLoader,
 	TransformNode,
 	Vector3,
 } from "@babylonjs/core";
@@ -26,11 +25,10 @@ export class LocalCharacterController extends CharacterController {
 
 	public constructor(
 		characterMesh: AbstractMesh,
-		thirdPersonCamera: ArcRotateCamera,
 		animationGroups: AnimationGroup[],
 		scene: Scene
 	) {
-		super(characterMesh, scene, animationGroups, thirdPersonCamera);
+		super(characterMesh, scene, animationGroups);
 		this.inputMap = new Map();
 
 		scene.actionManager = new ActionManager(scene);
@@ -46,21 +44,9 @@ export class LocalCharacterController extends CharacterController {
 				this.inputMap.set(key, false);
 			})
 		);
-	}
-
-	public static async CreateAsync(scene: Scene): Promise<LocalCharacterController> {
-		const result = await SceneLoader.ImportMeshAsync(
-			"",
-			"assets/characters/",
-			"character.glb",
-			scene
-		);
-
-		const model = result.meshes[0];
-		const animationGroups = result.animationGroups;
 
 		const cameraAttachPoint = new TransformNode("cameraAttachPoint", scene);
-		cameraAttachPoint.parent = model;
+		cameraAttachPoint.parent = characterMesh;
 		cameraAttachPoint.position = new Vector3(0, 1.5, 0);
 
 		const camera = new ArcRotateCamera(
@@ -78,7 +64,7 @@ export class LocalCharacterController extends CharacterController {
 		camera.lowerRadiusLimit = 3;
 		camera.upperBetaLimit = Math.PI / 2 + 0.2;
 
-		return new LocalCharacterController(model, camera, animationGroups, scene);
+		this.thirdPersonCamera = camera;
 	}
 
 	public update(deltaSeconds: number): void {

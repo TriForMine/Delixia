@@ -29,7 +29,6 @@ export class CharacterController {
 		characterMesh: AbstractMesh,
 		scene: Scene,
 		animationGroups: AnimationGroup[],
-		thirdPersonCamera?: ArcRotateCamera
 	) {
 		this.impostorMesh = MeshBuilder.CreateCapsule(
 			"CharacterTransform",
@@ -39,13 +38,11 @@ export class CharacterController {
 		this.impostorMesh.visibility = 0;
 		this.impostorMesh.rotationQuaternion = Quaternion.Identity();
 		this.impostorMesh.position.y = 1;
-
+		
 		this.model = characterMesh;
 		this.model.parent = this.impostorMesh;
 		this.model.rotate(Vector3.Up(), Math.PI);
 		this.model.position.y = -1;
-
-		this.thirdPersonCamera = thirdPersonCamera;
 
 		const walkAnimGroup = animationGroups.find(ag => ag.name === "Walking");
 		if (walkAnimGroup === undefined) throw new Error("'Walking' animation not found");
@@ -56,6 +53,7 @@ export class CharacterController {
 		if (idleAnimGroup === undefined) throw new Error("'Idle' animation not found");
 		this.idleAnim = idleAnimGroup;
 		this.idleAnim.weight = 1;
+		this.idleAnim.play(true);
 
 		const sambaAnimGroup = animationGroups.find(ag => ag.name === "SambaDancing");
 		if (sambaAnimGroup === undefined) throw new Error("'Samba' animation not found");
