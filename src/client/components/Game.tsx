@@ -43,7 +43,7 @@ export const Game = ({onBackToMenu}: { onBackToMenu: () => void }) => {
 		const assetsManager = new AssetsManager(scene);
 
 		// Load the character model
-		const characterTask = assetsManager.addContainerTask("character task", "", "/assets/characters/", "character.glb");
+		const characterTask = assetsManager.addContainerTask("character task", "", "assets/characters/", "character.glb");
 
 		const hk = new HavokPlugin(true, await HavokPhysics())
 		scene.enablePhysics(new Vector3(0, -9.81, 0), hk);
