@@ -126,10 +126,6 @@ export class LocalCharacterController extends CharacterController {
 			this.physicsAggregate.body.setTargetTransform(this.impostorMesh.absolutePosition, impostorQuaternion);
 		}
 
-		if (this.inputMap.get(this.keyDance)) {
-			this.targetAnim = this.sambaAnim;
-		}
-
 		let weightSum = 0;
 		for (const animation of this.nonIdleAnimations) {
 			if (animation === this.targetAnim) {

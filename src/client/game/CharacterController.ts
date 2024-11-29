@@ -17,7 +17,6 @@ export class CharacterController {
 	readonly rotationSpeed = 6;
 	readonly animationBlendSpeed = 4.0;
 	readonly walkAnim: AnimationGroup;
-	readonly sambaAnim: AnimationGroup;
 	readonly idleAnim: AnimationGroup;
 	readonly nonIdleAnimations: AnimationGroup[];
 	readonly thirdPersonCamera?: ArcRotateCamera;
@@ -38,7 +37,7 @@ export class CharacterController {
 		this.impostorMesh.visibility = 0;
 		this.impostorMesh.rotationQuaternion = Quaternion.Identity();
 		this.impostorMesh.position.y = 1;
-		
+
 		this.model = characterMesh;
 		this.model.parent = this.impostorMesh;
 		this.model.rotate(Vector3.Up(), Math.PI);
@@ -55,13 +54,8 @@ export class CharacterController {
 		this.idleAnim.weight = 1;
 		this.idleAnim.play(true);
 
-		const sambaAnimGroup = animationGroups.find(ag => ag.name === "SambaDancing");
-		if (sambaAnimGroup === undefined) throw new Error("'Samba' animation not found");
-		this.sambaAnim = sambaAnimGroup;
-		this.sambaAnim.weight = 0;
-
 		this.targetAnim = this.idleAnim;
-		this.nonIdleAnimations = [this.walkAnim, this.sambaAnim];
+		this.nonIdleAnimations = [this.walkAnim];
 
 		this.physicsAggregate = new PhysicsAggregate(
 			this.getTransform(),

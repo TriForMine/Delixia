@@ -120,6 +120,7 @@ export const Game = ({onBackToMenu}: { onBackToMenu: () => void }) => {
 
 			// Create local player
 			localController.current = new LocalCharacterController(localPlayer.rootNodes[0] as Mesh, localPlayer.animationGroups, scene);
+			localController.current.model.receiveShadows = true;
 			shadowGenerator.addShadowCaster(localController.current.model);
 
 			room.state.players.onAdd(async (player, sessionId) => {
@@ -133,7 +134,6 @@ export const Game = ({onBackToMenu}: { onBackToMenu: () => void }) => {
 				}
 
 				const remotePlayer = task.loadedContainer.instantiateModelsToScene((name) => name);
-
 				const remoteController = new RemoteCharacterController(remotePlayer.rootNodes[0] as Mesh, scene, remotePlayer.animationGroups);
 				remoteController.setPosition(new Vector3(player.x, player.y, player.z));
 				remoteController.setRotationY(player.rot);
