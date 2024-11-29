@@ -47,7 +47,7 @@ export class LocalCharacterController extends CharacterController {
 
 		const cameraAttachPoint = new TransformNode("cameraAttachPoint", scene);
 		cameraAttachPoint.parent = characterMesh;
-		cameraAttachPoint.position = new Vector3(0, 1.5, 0);
+		cameraAttachPoint.position = new Vector3(0, 20, 0);
 
 		const camera = new ArcRotateCamera(
 			"thirdPersonCamera",
@@ -63,6 +63,8 @@ export class LocalCharacterController extends CharacterController {
 		camera.wheelPrecision = 200;
 		camera.lowerRadiusLimit = 3;
 		camera.upperBetaLimit = Math.PI / 2 + 0.2;
+		camera.upperRadiusLimit = 10;
+		camera.lowerBetaLimit = 0.1;
 
 		this.thirdPersonCamera = camera;
 	}
@@ -124,6 +126,10 @@ export class LocalCharacterController extends CharacterController {
 			);
 			this.impostorMesh.translate(new Vector3(0, 0, -1), this.moveSpeed * deltaSeconds);
 			this.physicsAggregate.body.setTargetTransform(this.impostorMesh.absolutePosition, impostorQuaternion);
+		}
+
+		if (this.inputMap.get(this.keyDance)) {
+			this.targetAnim = this.sambaDanceAnim;
 		}
 
 		let weightSum = 0;

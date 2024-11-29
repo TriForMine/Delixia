@@ -18,6 +18,7 @@ export class CharacterController {
 	readonly animationBlendSpeed = 4.0;
 	readonly walkAnim: AnimationGroup;
 	readonly idleAnim: AnimationGroup;
+	readonly sambaDanceAnim: AnimationGroup;
 	readonly nonIdleAnimations: AnimationGroup[];
 	readonly thirdPersonCamera?: ArcRotateCamera;
 	protected targetAnim: AnimationGroup;
@@ -48,6 +49,11 @@ export class CharacterController {
 		this.walkAnim = walkAnimGroup;
 		this.walkAnim.weight = 0;
 
+		const sambaDanceAnimGroup = animationGroups.find(ag => ag.name === "SambaDancing");
+		if (sambaDanceAnimGroup === undefined) throw new Error("'SambaDancing' animation not found");
+		this.sambaDanceAnim = sambaDanceAnimGroup;
+		this.sambaDanceAnim.weight = 0;
+
 		const idleAnimGroup = animationGroups.find(ag => ag.name === "Idle");
 		if (idleAnimGroup === undefined) throw new Error("'Idle' animation not found");
 		this.idleAnim = idleAnimGroup;
@@ -55,7 +61,7 @@ export class CharacterController {
 		this.idleAnim.play(true);
 
 		this.targetAnim = this.idleAnim;
-		this.nonIdleAnimations = [this.walkAnim];
+		this.nonIdleAnimations = [this.walkAnim, this.sambaDanceAnim];
 
 		this.physicsAggregate = new PhysicsAggregate(
 			this.getTransform(),
