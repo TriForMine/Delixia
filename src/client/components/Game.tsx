@@ -120,7 +120,7 @@ export const Game = ({onBackToMenu}: { onBackToMenu: () => void }) => {
 
 			// Create local player
 			const mesh = localPlayer.rootNodes[0] as Mesh;
-			mesh.scaling = new Vector3(0.07, 0.07, 0.07);
+			mesh.scaling = new Vector3(1, 1, 1);
 			mesh.rotation = new Vector3(0, 0, 0);
 			localController.current = new LocalCharacterController(mesh, localPlayer.animationGroups, scene);
 			localController.current.model.receiveShadows = true;
@@ -138,7 +138,7 @@ export const Game = ({onBackToMenu}: { onBackToMenu: () => void }) => {
 
 				const remotePlayer = task.loadedContainer.instantiateModelsToScene((name) => name);
 				const mesh = remotePlayer.rootNodes[0] as Mesh;
-				mesh.scaling = new Vector3(0.07, 0.07, 0.07);
+				mesh.scaling = new Vector3(1, 1, 1);
 				mesh.rotation = new Vector3(0, 0, 0);
 				const remoteController = new RemoteCharacterController(mesh, scene, remotePlayer.animationGroups);
 				remoteController.setPosition(new Vector3(player.x, player.y, player.z));

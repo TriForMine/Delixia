@@ -47,7 +47,7 @@ export class LocalCharacterController extends CharacterController {
 
 		const cameraAttachPoint = new TransformNode("cameraAttachPoint", scene);
 		cameraAttachPoint.parent = characterMesh;
-		cameraAttachPoint.position = new Vector3(0, 20, 0);
+		cameraAttachPoint.position = new Vector3(0, 1, 0);
 
 		const camera = new ArcRotateCamera(
 			"thirdPersonCamera",
