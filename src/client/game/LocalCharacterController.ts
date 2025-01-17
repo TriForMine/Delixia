@@ -23,6 +23,9 @@ export class LocalCharacterController extends CharacterController {
 	readonly keyDance = "b";
 	readonly keyJump = " ";
 
+	private isJumping = false;
+	private previousJumpKeyState = false;
+
 	public constructor(
 		characterMesh: AbstractMesh,
 		animationGroups: AnimationGroup[],
@@ -31,6 +34,7 @@ export class LocalCharacterController extends CharacterController {
 		super(characterMesh, scene, animationGroups);
 		this.inputMap = new Map();
 
+		// Register input actions
 		scene.actionManager = new ActionManager(scene);
 		scene.actionManager.registerAction(
 			new ExecuteCodeAction(ActionManager.OnKeyDownTrigger, (e) => {
@@ -45,6 +49,7 @@ export class LocalCharacterController extends CharacterController {
 			})
 		);
 
+		// Camera setup (unchanged)
 		const cameraAttachPoint = new TransformNode("cameraAttachPoint", scene);
 		cameraAttachPoint.parent = characterMesh;
 		cameraAttachPoint.position = new Vector3(0, 1, 0);
@@ -72,83 +77,128 @@ export class LocalCharacterController extends CharacterController {
 	public update(deltaSeconds: number): void {
 		this.targetAnim = this.idleAnim;
 
-		const angle180 = Math.PI;
-		const angle45 = angle180 / 4;
-		const angle90 = angle180 / 2;
-		const angle135 = angle45 + angle90;
+		// Handle movement input
 		const direction = this.thirdPersonCamera.getForwardRay().direction;
 		const forward = new Vector3(direction.x, 0, direction.z).normalize();
-		const rot = Quaternion.FromLookDirectionLH(forward, Vector3.Up());
+		const right = new Vector3(forward.z, 0, -forward.x).normalize(); // Corrected Right vector
+		// Removed initialization to Identity
 
-		let rotation = 0;
+		// Input flags
 		const movingForward = this.inputMap.get(this.keyForward);
 		const movingBackward = this.inputMap.get(this.keyBackward);
 		const movingLeft = this.inputMap.get(this.keyLeft);
 		const movingRight = this.inputMap.get(this.keyRight);
 
-		if (movingBackward && !movingRight && !movingLeft) {
-			rotation = angle180;
-		}
-		if (movingLeft && !movingForward && !movingBackward) {
-			rotation = -angle90;
-		}
-		if (movingRight && !movingForward && !movingBackward) {
-			rotation = angle90;
-		}
-		if (movingForward && movingRight) {
-			rotation = angle45;
-		}
-		if (movingForward && movingLeft) {
-			rotation = -angle45;
-		}
-		if (movingBackward && movingRight) {
-			rotation = angle135;
-		}
-		if (movingBackward && movingLeft) {
-			rotation = -angle135;
+		// Calculate desired movement direction
+		let moveDirection = Vector3.Zero();
+		if (movingForward) moveDirection = moveDirection.add(forward);
+		if (movingBackward) moveDirection = moveDirection.subtract(forward);
+		if (movingLeft) moveDirection = moveDirection.subtract(right);
+		if (movingRight) moveDirection = moveDirection.add(right);
+		moveDirection = moveDirection.normalize();
+
+		// Get current rotation
+		const currentQuaternion = this.impostorMesh.rotationQuaternion;
+		if (currentQuaternion === null) {
+			throw new Error("Impostor quaternion is null");
 		}
 
-		rot.multiplyInPlace(Quaternion.RotationAxis(Vector3.Up(), rotation));
+		// Initialize rot to current rotation
+		let rot = currentQuaternion.clone();
 
+		// Calculate desired rotation based on movement direction
+		if (!moveDirection.equals(Vector3.Zero())) {
+			rot = Quaternion.FromLookDirectionLH(moveDirection, Vector3.Up());
+		}
+
+		// Set target animation based on movement
 		if (movingForward || movingBackward || movingLeft || movingRight) {
 			this.targetAnim = this.walkAnim;
-
-			const quaternion = rot;
-			const impostorQuaternion = this.impostorMesh.rotationQuaternion;
-			if (impostorQuaternion === null) {
-				throw new Error("Impostor quaternion is null");
-			}
-			Quaternion.SlerpToRef(
-				impostorQuaternion,
-				quaternion,
-				this.rotationSpeed * deltaSeconds,
-				impostorQuaternion
-			);
-			this.impostorMesh.translate(new Vector3(0, 0, -1), this.moveSpeed * deltaSeconds);
-			this.physicsAggregate.body.setTargetTransform(this.impostorMesh.absolutePosition, impostorQuaternion);
 		}
 
+		// Apply rotation using setAngularVelocity
+		if (!moveDirection.equals(Vector3.Zero())) {
+			// Calculate the shortest rotation to the desired orientation
+			const rotationDelta = Quaternion.Inverse(currentQuaternion).multiply(rot);
+			const rotationDeltaEuler = rotationDelta.toEulerAngles();
+
+			// Calculate angular velocity only on the Y-axis
+			const desiredAngularVelocityY = rotationDeltaEuler.y * this.rotationSpeed;
+
+			// Apply angular velocity smoothly
+			const angularVelocity = new Vector3(0, desiredAngularVelocityY, 0);
+			this.physicsAggregate.body.setAngularVelocity(angularVelocity);
+		} else {
+			// When not moving, stop angular velocity to prevent rotation back to default
+			this.physicsAggregate.body.setAngularVelocity(new Vector3(0, 0, 0));
+		}
+
+		// Apply movement using setLinearVelocity
+		const desiredVelocity = moveDirection.scale(this.moveSpeed);
+		// Preserve the existing Y velocity (e.g., gravity, jumping)
+		const currentVelocity = this.physicsAggregate.body.getLinearVelocity();
+		const newVelocity = new Vector3(desiredVelocity.x, currentVelocity.y, desiredVelocity.z);
+		this.physicsAggregate.body.setLinearVelocity(newVelocity);
+
+		// Handle dance input
 		if (this.inputMap.get(this.keyDance)) {
 			this.targetAnim = this.sambaDanceAnim;
 		}
 
+		// Handle jump input with edge detection
+		const currentJumpKeyState = this.inputMap.get(this.keyJump) || false;
+		if (
+			currentJumpKeyState &&
+			!this.previousJumpKeyState &&
+			this.isGrounded() &&
+			!this.isJumping
+		) {
+			this.targetAnim = this.jumpAnim;
+			this.isJumping = true;
+			this.physicsAggregate.body.applyImpulse(new Vector3(0, 20000, 0), new Vector3(0, 0, 0));
+		}
+		this.previousJumpKeyState = currentJumpKeyState;
+
+		// Update vertical velocity and detect falling
+		const verticalVelocity = this.physicsAggregate.body.getLinearVelocity().y;
+		if (verticalVelocity < -0.1) { // Threshold to avoid jitter
+			this.targetAnim = this.fallingAnim;
+		}
+
+		// Reset jump and fall states if grounded
+		if (this.isGrounded()) {
+			this.isJumping = false;
+		}
+
+		// Update animations
 		let weightSum = 0;
 		for (const animation of this.nonIdleAnimations) {
 			if (animation === this.targetAnim) {
 				animation.weight = moveTowards(animation.weight, 1, this.animationBlendSpeed * deltaSeconds);
+				if (!animation.isPlaying) animation.play(true);
 			} else {
 				animation.weight = moveTowards(animation.weight, 0, this.animationBlendSpeed * deltaSeconds);
+				if (animation.weight === 0 && animation.isPlaying) animation.pause();
 			}
-			if (animation.weight > 0 && !animation.isPlaying) animation.play(true);
-			if (animation.weight === 0 && animation.isPlaying) animation.pause();
-
 			weightSum += animation.weight;
 		}
 
+		// Update idle animation weight
 		this.idleAnim.weight = moveTowards(
 			this.idleAnim.weight,
-			Math.min(Math.max(1 - weightSum, 0.0), 1.0),
+			Math.max(1 - weightSum, 0.0),
 			this.animationBlendSpeed * deltaSeconds
 		);
+	}
+
+	public dispose() {
+		this.impostorMesh.dispose();
+		this.model.dispose();
+		this.physicsAggregate.dispose();
+	}
+
+	// New method for ground detection
+	private isGrounded(): boolean {
+		return this.physicsAggregate.body.getLinearVelocity().y === 0;
 	}
 }

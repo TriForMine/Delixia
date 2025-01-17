@@ -11,13 +11,17 @@ import {
 } from "@babylonjs/core";
 
 export class CharacterController {
+	readonly scene: Scene;
 	readonly model: AbstractMesh;
 	readonly physicsAggregate: PhysicsAggregate;
 	readonly moveSpeed = 1.8;
 	readonly rotationSpeed = 6;
 	readonly animationBlendSpeed = 4.0;
+	readonly jumpForce = 5.0;
 	readonly walkAnim: AnimationGroup;
 	readonly idleAnim: AnimationGroup;
+	readonly jumpAnim: AnimationGroup;
+	readonly fallingAnim: AnimationGroup;
 	readonly sambaDanceAnim: AnimationGroup;
 	readonly nonIdleAnimations: AnimationGroup[];
 	readonly thirdPersonCamera?: ArcRotateCamera;
@@ -30,6 +34,8 @@ export class CharacterController {
 		scene: Scene,
 		animationGroups: AnimationGroup[],
 	) {
+		this.scene = scene;
+
 		this.impostorMesh = MeshBuilder.CreateCapsule(
 			"CharacterTransform",
 			{height: 2, radius: 0.5},
@@ -54,6 +60,16 @@ export class CharacterController {
 		this.sambaDanceAnim = sambaDanceAnimGroup;
 		this.sambaDanceAnim.weight = 0;
 
+		const jumpAnimGroup = animationGroups.find(ag => ag.name === "Jump");
+		if (jumpAnimGroup === undefined) throw new Error("'Jumping' animation not found");
+		this.jumpAnim = jumpAnimGroup;
+		this.jumpAnim.weight = 0;
+
+		const fallingAnimGroup = animationGroups.find(ag => ag.name === "Fall");
+		if (fallingAnimGroup === undefined) throw new Error("'Falling' animation not found");
+		this.fallingAnim = fallingAnimGroup;
+		this.fallingAnim.weight = 0;
+
 		const idleAnimGroup = animationGroups.find(ag => ag.name === "Idle");
 		if (idleAnimGroup === undefined) throw new Error("'Idle' animation not found");
 		this.idleAnim = idleAnimGroup;
@@ -61,7 +77,7 @@ export class CharacterController {
 		this.idleAnim.play(true);
 
 		this.targetAnim = this.idleAnim;
-		this.nonIdleAnimations = [this.walkAnim, this.sambaDanceAnim];
+		this.nonIdleAnimations = [this.walkAnim, this.sambaDanceAnim, this.jumpAnim, this.fallingAnim];
 
 		this.physicsAggregate = new PhysicsAggregate(
 			this.getTransform(),

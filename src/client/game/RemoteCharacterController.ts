@@ -49,6 +49,12 @@ export class RemoteCharacterController extends CharacterController {
 			case "SambaDancing":
 				this.targetAnim = this.sambaDanceAnim;
 				break;
+			case "Jump":
+				this.targetAnim = this.jumpAnim;
+				break;
+			case "Fall":
+				this.targetAnim = this.fallingAnim;
+				break;
 			default:
 				this.targetAnim = this.idleAnim;
 		}

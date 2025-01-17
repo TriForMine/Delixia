@@ -26,6 +26,7 @@ export const LevelEditor = ({onBackToMenu}: { onBackToMenu: () => void }) => {
 			scene
 		);
 
+
 		// Enable object placement on click
 		scene.onPointerObservable.add((pointerInfo) => {
 			if (pointerInfo.type === PointerEventTypes.POINTERDOWN && pointerInfo.event.button === 0) {

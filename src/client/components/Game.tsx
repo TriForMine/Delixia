@@ -115,6 +115,13 @@ export const Game = ({onBackToMenu}: { onBackToMenu: () => void }) => {
 			mass: 0,
 		}, scene);
 
+		const cube = MeshBuilder.CreateBox("cube", {size: 0.5}, scene);
+		cube.position = new Vector3(2, 0.25, 2);
+		new PhysicsAggregate(cube, PhysicsShapeType.BOX, {
+			mass: 0
+		}, scene);
+
+
 		characterTask.onSuccess = (task) => {
 			const localPlayer = task.loadedContainer.instantiateModelsToScene((name) => name);
 
