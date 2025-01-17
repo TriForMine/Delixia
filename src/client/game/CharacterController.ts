@@ -9,6 +9,17 @@ import {
 	Scene,
 	Vector3,
 } from "@babylonjs/core";
+import {moveTowards} from "../utils/utils.ts";
+
+// Define the CharacterState enumeration
+export enum CharacterState {
+	IDLE = "IDLE",
+	WALKING = "WALKING",
+	JUMPING = "JUMPING",
+	LANDING = "LANDING",
+	FALLING = "FALLING",
+	DANCING = "DANCING",
+}
 
 export class CharacterController {
 	readonly scene: Scene;
@@ -21,13 +32,14 @@ export class CharacterController {
 	readonly walkAnim: AnimationGroup;
 	readonly idleAnim: AnimationGroup;
 	readonly jumpAnim: AnimationGroup;
+	readonly landingAnim: AnimationGroup;
 	readonly fallingAnim: AnimationGroup;
 	readonly sambaDanceAnim: AnimationGroup;
 	readonly nonIdleAnimations: AnimationGroup[];
 	readonly thirdPersonCamera?: ArcRotateCamera;
 	protected targetAnim: AnimationGroup;
-
 	protected readonly impostorMesh: AbstractMesh;
+	protected currentState: CharacterState = CharacterState.IDLE;
 
 	protected constructor(
 		characterMesh: AbstractMesh,
@@ -38,17 +50,24 @@ export class CharacterController {
 
 		this.impostorMesh = MeshBuilder.CreateCapsule(
 			"CharacterTransform",
-			{height: 2, radius: 0.5},
+			{height: 1.5, radius: 0.3},
 			scene
 		);
 		this.impostorMesh.visibility = 0;
 		this.impostorMesh.rotationQuaternion = Quaternion.Identity();
-		this.impostorMesh.position.y = 1;
+		this.impostorMesh.position.y = 0.5;
+		this.impostorMesh.isPickable = false;
 
 		this.model = characterMesh;
 		this.model.parent = this.impostorMesh;
 		this.model.rotate(Vector3.Up(), Math.PI);
-		this.model.position.y = -1;
+		this.model.position.y = -0.75;
+		characterMesh.isPickable = false;
+
+		// Make all submeshes unselectable
+		this.model.getChildMeshes().forEach(mesh => {
+			mesh.isPickable = false;
+		});
 
 		const walkAnimGroup = animationGroups.find(ag => ag.name === "Walking");
 		if (walkAnimGroup === undefined) throw new Error("'Walking' animation not found");
@@ -70,6 +89,11 @@ export class CharacterController {
 		this.fallingAnim = fallingAnimGroup;
 		this.fallingAnim.weight = 0;
 
+		const landingAnimGroup = animationGroups.find(ag => ag.name === "Land");
+		if (landingAnimGroup === undefined) throw new Error("'Landing' animation not found");
+		this.landingAnim = landingAnimGroup;
+		this.landingAnim.weight = 0;
+
 		const idleAnimGroup = animationGroups.find(ag => ag.name === "Idle");
 		if (idleAnimGroup === undefined) throw new Error("'Idle' animation not found");
 		this.idleAnim = idleAnimGroup;
@@ -77,7 +101,7 @@ export class CharacterController {
 		this.idleAnim.play(true);
 
 		this.targetAnim = this.idleAnim;
-		this.nonIdleAnimations = [this.walkAnim, this.sambaDanceAnim, this.jumpAnim, this.fallingAnim];
+		this.nonIdleAnimations = [this.walkAnim, this.sambaDanceAnim, this.jumpAnim, this.fallingAnim, this.landingAnim];
 
 		this.physicsAggregate = new PhysicsAggregate(
 			this.getTransform(),
@@ -121,23 +145,6 @@ export class CharacterController {
 		this.impostorMesh.rotationQuaternion = Quaternion.RotationAxis(Vector3.Up(), y);
 	}
 
-	public lerpRotationY(y: number, alpha: number) {
-		const gap = Math.abs(this.impostorMesh.rotationQuaternion!.toEulerAngles().y - y);
-		if (gap > Math.PI) {
-			this.impostorMesh.rotationQuaternion = Quaternion.RotationAxis(Vector3.Up(), y);
-		} else {
-			this.impostorMesh.rotationQuaternion = Quaternion.Slerp(
-				this.impostorMesh.rotationQuaternion!,
-				Quaternion.RotationAxis(Vector3.Up(), y),
-				alpha
-			);
-		}
-	}
-
-	public lerpPosition(position: Vector3, alpha: number) {
-		this.impostorMesh.position = Vector3.Lerp(this.impostorMesh.position, position, alpha);
-	}
-
 	public update(_deltaSeconds: number): void {
 		return
 	}
@@ -146,5 +153,77 @@ export class CharacterController {
 		this.impostorMesh.dispose();
 		this.model.dispose();
 		this.physicsAggregate.dispose();
+	}
+
+	/**
+	 * Performs animation blending based on the current state.
+	 * @param deltaTime Time elapsed since the last frame.
+	 */
+	protected updateAnimations(deltaTime: number): void {
+		// Determine target animation
+		let targetAnim: AnimationGroup = this.idleAnim;
+		switch (this.currentState) {
+			case CharacterState.IDLE:
+				targetAnim = this.idleAnim;
+				break;
+			case CharacterState.WALKING:
+				targetAnim = this.walkAnim;
+				break;
+			case CharacterState.JUMPING:
+				targetAnim = this.jumpAnim;
+				break;
+			case CharacterState.FALLING:
+				targetAnim = this.fallingAnim;
+				break;
+			case CharacterState.LANDING:
+				targetAnim = this.landingAnim;
+				break;
+			case CharacterState.DANCING:
+				targetAnim = this.sambaDanceAnim;
+				break;
+		}
+		this.targetAnim = targetAnim;
+
+		// Blend logic
+		let weightSum = 0;
+		for (const anim of this.nonIdleAnimations) {
+			if (anim === targetAnim) {
+				// Smoothly blend up
+				anim.weight = moveTowards(
+					anim.weight,
+					1.0,
+					this.animationBlendSpeed * deltaTime
+				);
+				// Ensure it's playing if not already
+				if (!anim.isPlaying) {
+					const shouldLoop =
+						anim === this.fallingAnim ||
+						anim === this.walkAnim ||
+						anim === this.sambaDanceAnim;
+					anim.play(shouldLoop);
+				}
+			} else {
+				// Smoothly blend down
+				anim.weight = moveTowards(
+					anim.weight,
+					0.0,
+					this.animationBlendSpeed * deltaTime
+				);
+				if (anim.weight === 0 && anim.isPlaying) {
+					anim.pause();
+				}
+			}
+			weightSum += anim.weight;
+		}
+
+		// Idle animation blends up for leftover weight
+		this.idleAnim.weight = moveTowards(
+			this.idleAnim.weight,
+			Math.max(1.0 - weightSum, 0.0),
+			this.animationBlendSpeed * deltaTime
+		);
+		if (this.idleAnim.weight > 0 && !this.idleAnim.isPlaying) {
+			this.idleAnim.play(true); // Idle loops
+		}
 	}
 }

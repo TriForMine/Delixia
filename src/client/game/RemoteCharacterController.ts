@@ -1,24 +1,30 @@
 // RemoteCharacterController.ts
-import {AbstractMesh, AnimationGroup, Scene, Vector3} from "@babylonjs/core";
-import {CharacterController} from "./CharacterController";
-import {moveTowards} from "../utils/utils";
+import {AbstractMesh, AnimationGroup, Quaternion, Scene, Vector3,} from "@babylonjs/core";
+import {CharacterController, CharacterState} from "./CharacterController";
 import {Player} from "../../shared/schemas/Player";
 
 export class RemoteCharacterController extends CharacterController {
+	// Reference to the scene for raycasting
+	readonly scene: Scene;
 	private targetPosition: Vector3 = Vector3.Zero();
 	private targetYRotation: number = 0;
 
-	public constructor(
+	constructor(
 		characterMesh: AbstractMesh,
 		scene: Scene,
-		animationGroups: AnimationGroup[] // Accept animation groups
+		animationGroups: AnimationGroup[]
 	) {
-		super(characterMesh, scene, animationGroups); // Pass to superclass
-		this.physicsAggregate.dispose();
+		super(characterMesh, scene, animationGroups);
+		this.scene = scene;
+
+		// Dispose of physics if necessary
+		if (this.physicsAggregate) {
+			this.physicsAggregate.dispose();
+		}
 	}
 
 	/**
-	 * Receives new state data from the network and updates position and rotation directly.
+	 * Receives new state data from the network and updates position, rotation, and state.
 	 * @param newPlayer The new state data for the remote player.
 	 */
 	public receiveState(newPlayer: Player): void {
@@ -28,11 +34,43 @@ export class RemoteCharacterController extends CharacterController {
 	}
 
 	/**
-	 * Update method is now simplified as interpolation is removed.
-	 * If you have other per-frame updates, include them here.
-	 * @param _ Time elapsed since the last frame.
+	 * Update method to be called every frame.
+	 * @param deltaTime Time elapsed since the last frame.
 	 */
-	public update(_: number): void {
+	public update(deltaTime: number): void {
+		this.updateMovement();
+		this.updateAnimations(deltaTime);
+	}
+
+	/**
+	 * Disposes of the character's resources.
+	 */
+	public dispose(): void {
+		super.dispose();
+		// Additional dispose logic if necessary
+	}
+
+	public lerpRotationY(y: number, alpha: number) {
+		const gap = Math.abs(this.impostorMesh.rotationQuaternion!.toEulerAngles().y - y);
+		if (gap > Math.PI) {
+			this.impostorMesh.rotationQuaternion = Quaternion.RotationAxis(Vector3.Up(), y);
+		} else {
+			this.impostorMesh.rotationQuaternion = Quaternion.Slerp(
+				this.impostorMesh.rotationQuaternion!,
+				Quaternion.RotationAxis(Vector3.Up(), y),
+				alpha
+			);
+		}
+	}
+
+	public lerpPosition(position: Vector3, alpha: number) {
+		this.impostorMesh.position = Vector3.Lerp(this.impostorMesh.position, position, alpha);
+	}
+
+	/**
+	 * Updates the character's position and rotation based on the target values.
+	 */
+	private updateMovement(): void {
 		this.lerpPosition(this.targetPosition, 0.2);
 		this.lerpRotationY(this.targetYRotation, 0.2);
 	}
@@ -44,38 +82,22 @@ export class RemoteCharacterController extends CharacterController {
 	private updateAnimationState(animationState: string): void {
 		switch (animationState) {
 			case "Walking":
-				this.targetAnim = this.walkAnim;
+				this.currentState = CharacterState.WALKING;
 				break;
 			case "SambaDancing":
-				this.targetAnim = this.sambaDanceAnim;
+				this.currentState = CharacterState.DANCING;
 				break;
 			case "Jump":
-				this.targetAnim = this.jumpAnim;
+				this.currentState = CharacterState.JUMPING;
 				break;
 			case "Fall":
-				this.targetAnim = this.fallingAnim;
+				this.currentState = CharacterState.FALLING;
+				break;
+			case "Landing":
+				this.currentState = CharacterState.LANDING;
 				break;
 			default:
-				this.targetAnim = this.idleAnim;
+				this.currentState = CharacterState.IDLE;
 		}
-
-		let weightSum = 0;
-		for (const animation of this.nonIdleAnimations) {
-			if (animation === this.targetAnim) {
-				animation.weight = moveTowards(animation.weight, 1, this.animationBlendSpeed * 0.1); // Using a smaller delta for smoother transitions
-			} else {
-				animation.weight = moveTowards(animation.weight, 0, this.animationBlendSpeed * 0.1);
-			}
-			if (animation.weight > 0 && !animation.isPlaying) animation.play(true);
-			if (animation.weight === 0 && animation.isPlaying) animation.pause();
-
-			weightSum += animation.weight;
-		}
-
-		this.idleAnim.weight = moveTowards(
-			this.idleAnim.weight,
-			Math.min(Math.max(1 - weightSum, 0.0), 1.0),
-			this.animationBlendSpeed * 0.1
-		);
 	}
 }

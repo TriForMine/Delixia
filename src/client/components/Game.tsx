@@ -110,6 +110,7 @@ export const Game = ({onBackToMenu}: { onBackToMenu: () => void }) => {
 		const ground = MeshBuilder.CreateGround("ground", {width: 50, height: 50}, scene);
 		ground.material = groundMaterial;
 		ground.receiveShadows = true;
+		ground.isPickable = true;
 
 		new PhysicsAggregate(ground, PhysicsShapeType.BOX, {
 			mass: 0,
