@@ -67,6 +67,7 @@ export class CharacterController {
 		// Make all submeshes unselectable
 		this.model.getChildMeshes().forEach(mesh => {
 			mesh.isPickable = false;
+			mesh.receiveShadows = true;
 		});
 
 		const walkAnimGroup = animationGroups.find(ag => ag.name === "Walking");
