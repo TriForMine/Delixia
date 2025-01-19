@@ -291,7 +291,7 @@ void main() {
 			});
 
 
-		const mainTexture = new Texture("http://i.imgur.com/kUJBvin.png", scene, true, false, 12);
+		const mainTexture = new Texture("https://i.imgur.com/kUJBvin.png", scene, true, false, 12);
 
 		//https://www.shadertoy.com/view/ltlSWB
 		shaderMaterial.setTexture("iChannel0", mainTexture);
