@@ -24,6 +24,7 @@ import HavokPhysics from "@babylonjs/havok";
 import {RemoteCharacterController} from "../game/RemoteCharacterController.ts";
 import {LocalCharacterController} from "../game/LocalCharacterController.ts";
 import * as GUI from '@babylonjs/gui'
+import { Inspector } from '@babylonjs/inspector';
 
 interface PlayerMeshes {
 	[sessionId: string]: RemoteCharacterController;
@@ -36,6 +37,17 @@ export const Game = ({onBackToMenu}: { onBackToMenu: () => void }) => {
 
 	const onSceneReady = useCallback(async (scene: Scene) => {
 		if (!room) return;
+
+		// On Ctrl + Alt + Shift = I open inspector
+		scene.onKeyboardObservable.add((kbInfo) => {
+			if (kbInfo.event.ctrlKey && kbInfo.event.altKey && kbInfo.event.shiftKey && kbInfo.event.key === "I") {
+				if (Inspector.IsVisible) {
+					Inspector.Hide();
+				} else {
+					Inspector.Show(scene, {});
+				}
+			}
+		});
 
 		// Initialize AssetsManager
 		const assetsManager = new AssetsManager(scene);
@@ -84,7 +96,7 @@ export const Game = ({onBackToMenu}: { onBackToMenu: () => void }) => {
 		shadowGenerator.useKernelBlur = true;
 		shadowGenerator.usePercentageCloserFiltering = true;
 		shadowGenerator.shadowMaxZ = 20;
-		shadowGenerator.filteringQuality = ShadowGenerator.QUALITY_HIGH;
+		shadowGenerator.filteringQuality = ShadowGenerator.QUALITY_MEDIUM;
 
 		const hemiLight = new HemisphericLight("hemi", Vector3.Up(), scene);
 		hemiLight.intensity = 0.4;
@@ -281,7 +293,7 @@ void main() {
 `;
 
 		// Compile
-		var shaderMaterial = new ShaderMaterial("shader", scene, {
+		const shaderMaterial = new ShaderMaterial("shader", scene, {
 				vertex: "custom",
 				fragment: "custom",
 			},
@@ -402,7 +414,7 @@ void main() {
 			if (!shaderMaterial) return;
 			shaderMaterial.setFloat("iTime", time);
 
-			time += 0.0001* scene.deltaTime;
+			time += 0.0001 * scene.deltaTime;
 		});
 
 		// Lock the cursor when the game is running
