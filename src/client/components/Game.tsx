@@ -401,8 +401,14 @@ void main() {
 			fpsText.paddingTop = "10px";
 			advancedTexture.addControl(fpsText);
 
+			let fpsUpdateTime = 0;
 			scene.onBeforeRenderObservable.add(() => {
-				fpsText.text = `FPS: ${scene.getEngine().getFps().toFixed()}`;
+				// Update FPS text only once per second
+				fpsUpdateTime += scene.deltaTime;
+				if (fpsUpdateTime > 1000) {
+					fpsText.text = `FPS: ${scene.getEngine().getFps().toFixed()}`;
+					fpsUpdateTime = 0;
+				}
 			});
 		}
 
