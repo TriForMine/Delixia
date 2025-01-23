@@ -228,7 +228,7 @@ void main() {
     vec3 sunDir = normalize(vec3(sunx, suny, 0.7)); 
     
     // Sample fractal noise
-    float cloudScale = 3.0;
+    float cloudScale = 8.0;
     float speed = 0.1;
     float n = fbm(N * cloudScale + iTime * speed);
     
@@ -258,7 +258,7 @@ void main() {
 
     // Strengthen the lit areas a bit for a more dramatic effect
     // (use an exponent or extra curve if you want more punch)
-    litCloudColor = litCloudColor * (0.9 + 0.2 * lighting);
+    litCloudColor = litCloudColor * (0.9 + 0.4 * lighting);
 
     // -----------------------------
     // Sky color gradient
@@ -402,7 +402,7 @@ void main() {
 			if (!shaderMaterial) return;
 			shaderMaterial.setFloat("iTime", time);
 
-			time += 0.0002 * scene.deltaTime;
+			time += 0.0001* scene.deltaTime;
 		});
 
 		// Lock the cursor when the game is running
