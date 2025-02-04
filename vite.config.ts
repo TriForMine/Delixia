@@ -1,4 +1,5 @@
 import {defineConfig, normalizePath} from 'vite'
+import tailwindcss from "@tailwindcss/vite";
 import react from '@vitejs/plugin-react-swc'
 import {viteStaticCopy} from "vite-plugin-static-copy";
 import * as path from "node:path";
@@ -10,6 +11,7 @@ export default defineConfig({
 		exclude: ['@babylonjs/havok'],
 	},
 	plugins: [
+		tailwindcss(),
 		viteStaticCopy({
 			targets: [
 				{

@@ -56,7 +56,7 @@ export class CustomFlyCameraInput {
 		);
 
 		// Listen to window blur and focus events
-		window.addEventListener("blur", this.onWindowBlur);
+		window.addEventListener("blur-sm", this.onWindowBlur);
 	}
 
 	public detachControl(): void {
@@ -71,7 +71,7 @@ export class CustomFlyCameraInput {
 		}
 
 		// Remove window blur listeners
-		window.removeEventListener("blur", this.onWindowBlur);
+		window.removeEventListener("blur-sm", this.onWindowBlur);
 	}
 
 	public update(): void {

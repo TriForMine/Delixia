@@ -101,6 +101,10 @@ export const Game = ({onBackToMenu}: { onBackToMenu: () => void }) => {
 		const hemiLight = new HemisphericLight("hemi", Vector3.Up(), scene);
 		hemiLight.intensity = 0.4;
 
+		const light = new DirectionalLight("dir01", new Vector3(0, -1, 0), scene);
+		light.position = new Vector3(0, 80, 0);
+		light.intensity = 0.5;
+
 		Effect.ShadersStore["customVertexShader"] = `
 precision highp float;
 

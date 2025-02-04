@@ -82,7 +82,7 @@ export const ChatRoom = () => {
 						{[...(players?.values() ?? [])].map((player, index) => (
 							<div
 								key={index}
-								className="card card-bordered bg-base-100 p-2 shadow"
+								className="card card-bordered bg-base-100 p-2 shadow-sm"
 							>
 								<p>{player.name}</p>
 							</div>
