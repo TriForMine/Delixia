@@ -1,7 +1,6 @@
 import React, {useEffect} from 'react';
 import {connectToColyseus, disconnectFromColyseus} from './hooks/colyseus.ts';
 import {Game} from './components/Game.tsx';
-import {LevelEditor} from './components/LevelEditor.tsx';
 import {useStore} from './store/useStore';
 import '@babylonjs/loaders/glTF';
 
@@ -25,10 +24,6 @@ const App: React.FC = () => {
 		setMode('game');
 	};
 
-	const handleLevelEditor = () => {
-		setMode('editor');
-	};
-
 	const handleBackToMenu = () => {
 		setMode('menu');
 	};
@@ -41,9 +36,6 @@ const App: React.FC = () => {
 					<button className="btn btn-primary mb-4" onClick={handlePlayGame}>
 						Play Game
 					</button>
-					<button className="btn btn-secondary" onClick={handleLevelEditor}>
-						Level Editor
-					</button>
 				</div>
 			)}
 			{mode === 'game' && (
@@ -51,14 +43,6 @@ const App: React.FC = () => {
 					{/* Game */}
 					<div className="flex-1 bg-base-100">
 						<Game onBackToMenu={handleBackToMenu}/>
-					</div>
-				</div>
-			)}
-			{mode === 'editor' && (
-				<div className="flex flex-1 h-full">
-					{/* Level Editor */}
-					<div className="flex-1 bg-base-100">
-						<LevelEditor onBackToMenu={handleBackToMenu}/>
 					</div>
 				</div>
 			)}

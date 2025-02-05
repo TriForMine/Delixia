@@ -18,8 +18,8 @@ import { CascadedShadowGenerator } from "@babylonjs/core";
 import { LocalCharacterController } from "./LocalCharacterController";
 import { RemoteCharacterController } from "./RemoteCharacterController";
 import {ChatRoomState} from "../../shared/schemas/ChatRoomState.ts";
-import cloudFrag from '../../../public/assets/shaders/cloud.frag?raw'
-import cloudVert from '../../../public/assets/shaders/cloud.vert?raw'
+import cloudFrag from './shaders/cloud.frag?raw'
+import cloudVert from './shaders/cloud.vert?raw'
 import {Player} from "../../shared/schemas/Player.ts";
 import {Room} from "colyseus.js";
 
