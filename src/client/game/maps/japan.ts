@@ -26,6 +26,13 @@ export const mapConfigs: MapModelConfig[] = [
 				rotation: { y: Math.PI },
 				scaling: { x: 1, y: 0.5, z: 1 },
 			},
+
+			// Table Volant
+			{
+				position: { x: 0, y: 2, z: -2 },
+				rotation: { y: Math.PI / 2 },
+				scaling: { x: 2.5, y: 0.5, z: 0.75 },
+			},
 			
 			// Table Coin Droite Devant
 			{
@@ -111,6 +118,22 @@ export const mapConfigs: MapModelConfig[] = [
 			{
 				position: { x: 6.5, y: 3.75, z: -5 },
 			},
+			// Sous Pied
+			{
+				position: { x: 5.95, y: 3.5, z: -4.2 },
+				scaling: { x: 0.1, y: 0.1, z: 0.1 }
+			},
+			{
+				position: { x: 4.07, y: 3.5, z: -4.2 },
+				scaling: { x: 0.1, y: 0.1, z: 0.1 }
+			},{
+				position: { x: 5.95, y: 3.5, z: -5.95 },
+				scaling: { x: 0.1, y: 0.1, z: 0.1 }
+			},
+			{
+				position: { x: 4.07, y: 3.5, z: -5.85 },
+				scaling: { x: 0.1, y: 0.1, z: 0.1 }
+			},
 
 			// Chaise Droite Volant
 			{
@@ -142,6 +165,45 @@ export const mapConfigs: MapModelConfig[] = [
 				position: { x: -4.07, y: 3.5, z: -5.85 },
 				scaling: { x: 0.1, y: 0.1, z: 0.1 }
 			},
+
+			// Chaise Volant
+			{
+				position: { x: 0, y: 2.25, z: -0.75 },
+			},
+			{
+				position: { x: 0, y: 2.25, z: -3.2 },
+			},
+			{
+				position: { x: -1.5, y: 2.25, z: -0.75 },
+			},
+			{
+				position: { x: -1.5, y: 2.25, z: -3.2 },
+			},
+			{
+				position: { x: 1.5, y: 2.25, z: -0.75 },
+			},
+			{
+				position: { x: 1.5, y: 2.25, z: -3.2 },
+			},
+
+			///////////////////////////////////////
+			// Sous Pied
+			{
+				position: { x: -5.95, y: 3.5, z: -4.2 },
+				scaling: { x: 0.1, y: 0.1, z: 0.1 }
+			},
+			{
+				position: { x: -4.07, y: 3.5, z: -4.2 },
+				scaling: { x: 0.1, y: 0.1, z: 0.1 }
+			},{
+				position: { x: -5.95, y: 3.5, z: -5.95 },
+				scaling: { x: 0.1, y: 0.1, z: 0.1 }
+			},
+			{
+				position: { x: -4.07, y: 3.5, z: -5.85 },
+				scaling: { x: 0.1, y: 0.1, z: 0.1 }
+			},
+			///////////////////////////////////////////
 
 			// Chaise Coin Gauche
 			{
