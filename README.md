@@ -1,79 +1,52 @@
-# Delixia
+# Delixia 🍣
 
 ## Description
 
-**Delixia** est un jeu de cuisine multijoueur inspiré du style **Overcooked**, dans lequel les joueurs doivent gérer des
-commandes à toute vitesse. Vous évoluez sur plusieurs cartes, dont une **cuisine japonaise** dotée d’un **portail
-féérique** par lequel arrivent de drôles de slimes affamés. Votre mission ? Prendre et préparer leurs commandes
-rapidement, sous peine de les voir repartir si vous tardez trop !
-
-Développé avec **Babylon.js**, **React**, et **uWs avec Bun**, **Delixia** se veut à la fois dynamique et accessible.
-Ici, pas de plateformes ou d’éléments trop fantaisistes en dehors du portail magique : le cœur du jeu repose avant tout
-sur la rapidité et la coordination en cuisine, le tout dans une ambiance conviviale.
+**Delixia** est un jeu de cuisine multijoueur inspiré de la série **Overcooked**. Vous y incarnez un(e) chef qui doit
+prendre, préparer et servir des plats à des slimes affamés. Le tout se déroule dans plusieurs cuisines, dont une
+**cuisine japonaise** reliée à un **portail féérique**… Gare à l’affluence !
 
 ## Mécaniques de jeu principales
 
-1. **Prise de commandes** : Cliquez sur les slimes (qui apparaissent via le portail féérique) pour prendre leurs
-   commandes.
-2. **Préparation des plats** : Assemblez les ingrédients selon la recette demandée, le plus vite possible.
-3. **Service rapide** : Servez les plats finis avant que les clients ne s’impatientent.
-4. **Gestion du temps** : À mesure que le nombre de slimes augmente, optimisez vos déplacements et vos priorités.
+1. **Prise de commandes** : Allez à la rencontre des slimes et récupérez leurs commandes.
+2. **Préparation des plats** : Assemblez les ingrédients le plus vite possible.
+3. **Service express** : Servez votre plat à temps avant que les slimes ne s’impatientent.
+4. **Gestion du temps** : À mesure que la difficulté augmente, organisez vos priorités et coordonnez-vous avec les autres
+   joueurs.
 
 ## Cartes disponibles
 
-- **Cuisine japonaise (avec son portail féérique)** : Préparez des sushis, des ramens, et autres spécialités nippones
-  tout en surveillant l’arrivée constante de slimes via le portail magique.
-
-*(D’autres cartes viendront s’ajouter au fil des mises à jour.)*
+- **Cuisine japonaise (avec portail féérique)** : Réalisez sushis, ramens et autres délices nippons tout en surveillant
+  l’arrivée constante de slimes.  
+  *(D’autres cartes feront leur apparition dans de futures mises à jour.)*
 
 ## Assets et inspirations
 
-Les assets (modèles 3D, textures, sons, etc.) proviennent de différentes sources **libres de droits** trouvées en ligne.
-Nous tenons à remercier ces créateurs qui partagent leurs ressources gratuitement ou sous licence ouverte, permettant de
-donner vie à **Delixia** dans un style visuel unique.
+Les assets (modèles 3D, textures, sons…) proviennent de sources **libres de droits**, et nous remercions chaleureusement
+tous les créateurs qui partagent leurs ressources. Le concept de **Delixia** s’inspire fortement de *Overcooked*, avec
+un accent sur la coopération et la rapidité au sein d’une ambiance conviviale.
 
-Pour ce qui est du gameplay, **Delixia** s’inspire fortement de la série *Overcooked*, mêlant coopération effrénée,
-hiérarchisation des tâches et convivialité.
+## Implémentation technique
 
-## Implémentation technique et développement
+- **Babylon.js** pour la 3D  
+- **React** (avec **Tailwind**) pour l’interface minimaliste  
+- **Colyseus** (intégré à **Bun**) pour la partie multijoueur et la synchronisation en temps réel  
 
-1. **Structure de projet**
-    - **Babylon.js** pour la 3D et les interactions.
-    - **React** pour l’interface (menus, HUD).
-    - **uWs avec Bun** + **Colyseus** pour la partie multijoueur et la synchronisation en temps réel.
-
-2. **Étapes de réalisation**
-    - **Conception initiale** : Choix des mécaniques de cuisine et de la thématique (portail féérique, slimes, cuisine
-      japonaise).
-    - **Développement** : Mise en place du moteur de jeu 3D et de la logique serveur/client.
-    - **Intégration des assets** : Import des modèles et animations libres de droits, configuration des shaders, etc.
-    - **Test et itération** : Ajustement de la difficulté, de la vitesse de service et du comportement des slimes.
-    - **Optimisation** : Amélioration des performances réseau et de l’interface utilisateur.
-
-3. **Technologies utilisées**  
-   | Technologie | Usage |
-   |----------------------|----------------------------------------------------------|
-   | **Babylon.js**       | Moteur 3D pour les décors et les interactions |
-   | **React & Tailwind** | Interface utilisateur (menus, HUD)                       |
-   | **uWs avec Bun**     | Serveur hautes performances pour le multijoueur |
-   | **Colyseus**         | Synchronisation en temps réel des parties |
-   | **Assets libres**    | Modèles 3D, textures, sons issus de sites de ressources |
-
-## Installation et Exécution
+## Installation et exécution
 
 ### Prérequis
 
-- Bun
-- Un navigateur compatible WebGL/WebGPU
+- **Bun** (obligatoire)  
+  > Nous utilisons un serveur Colyseus tournant sur Bun pour bénéficier de meilleures performances.  
+  > Cela signifie toutefois que le code **ne fonctionne pas** avec Node.js.
+
+- **Navigateur** compatible WebGL/WebGPU
 
 ### Installation
 
 ```sh
-# Cloner le dépôt
 git clone https://github.com/TriForMine/delixia.git
 cd delixia
-
-# Installer les dépendances
 bun install
 ```
 
@@ -83,14 +56,14 @@ bun install
 bun run dev
 ```
 
-Rendez-vous sur `http://localhost:5173` dans votre navigateur pour commencer à jouer.
+Ouvrez la page `http://localhost:5173` dans votre navigateur pour commencer à jouer !
 
 ## Remerciements
 
-Un grand merci aux créateurs d’assets libres de droits et à la communauté **Babylon.js**, dont le soutien et les
-ressources ont permis de donner vie à **Delixia**.
+Un grand merci à la communauté **Babylon.js** et aux créateurs d’assets libres de droits pour leurs ressources et leur
+soutien.
 
 ---
 
-**Delixia** vous attend : préparez vos ustensiles, enfilez votre tablier et montrez vos talents de chef pour satisfaire
-la horde de slimes ! Bon jeu et bonne cuisine ! 🍣✨
+**Delixia** n’attend plus que vous : préparez vos ustensiles, enfilez votre tablier et montrez à ces slimes qui est le
+meilleur chef ! Bon jeu et bonne cuisine ✨!
