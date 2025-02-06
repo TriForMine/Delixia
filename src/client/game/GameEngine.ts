@@ -5,11 +5,9 @@ import {
 	DirectionalLight,
 	Vector3,
 	MeshBuilder,
-	ShaderMaterial,
-	Texture,
 	ReflectionProbe,
-	PhysicsAggregate,
-	PhysicsShapeType, Mesh, HavokPlugin, Effect
+	Mesh, HavokPlugin, StandardMaterial,
+	Color3, Texture, CubeTexture
 } from "@babylonjs/core";
 import { Inspector } from "@babylonjs/inspector";
 import * as GUI from "@babylonjs/gui";
@@ -18,10 +16,10 @@ import { CascadedShadowGenerator } from "@babylonjs/core";
 import { LocalCharacterController } from "./LocalCharacterController";
 import { RemoteCharacterController } from "./RemoteCharacterController";
 import {ChatRoomState} from "../../shared/schemas/ChatRoomState.ts";
-import cloudFrag from './shaders/cloud.frag?raw'
-import cloudVert from './shaders/cloud.vert?raw'
 import {Player} from "../../shared/schemas/Player.ts";
 import {Room} from "colyseus.js";
+import {mapConfigs} from "./maps/japan.ts";
+import {MapLoader} from "./MapLoader.ts";
 
 export class GameEngine {
 	private readonly scene: Scene;
@@ -31,7 +29,6 @@ export class GameEngine {
 	private shadowGenerator!: CascadedShadowGenerator;
 	private assetsManager!: AssetsManager;
 	private fpsText?: GUI.TextBlock;
-	private time: number = 0;
 
 	constructor(scene: Scene, room: any) {
 		this.scene = scene;
@@ -95,50 +92,19 @@ export class GameEngine {
 		const extraHemi = new HemisphericLight("extraHemi", Vector3.Up(), this.scene);
 		extraHemi.intensity = 0.4;
 
-		Effect.ShadersStore["customVertexShader"] = cloudVert;
-
-
-		Effect.ShadersStore["customFragmentShader"] = cloudFrag;
-
-		const shaderMaterial = new ShaderMaterial(
-			"shader",
-			this.scene,
-			{
-				vertex: "custom",
-				fragment: "custom"
-			},
-			{
-				attributes: ["position", "normal", "uv"],
-				uniforms: ["world", "worldView", "worldViewProjection", "view", "projection", "iTime", "sunx", "suny"]
-			}
-		);
-		const mainTex = new Texture("https://i.imgur.com/kUJBvin.png", this.scene, true, false, 12);
-		shaderMaterial.setTexture("iChannel0", mainTex);
-		shaderMaterial.setFloat("iTime", 0);
-		shaderMaterial.setFloat("sunx", 2.0);
-		shaderMaterial.setFloat("suny", 5.0);
-		shaderMaterial.backFaceCulling = false;
-
-		const skybox = MeshBuilder.CreateSphere("skyBox", { diameter: 1000 }, this.scene);
-		skybox.material = shaderMaterial;
+		const skybox = MeshBuilder.CreateBox("skyBox", {size:150}, this.scene);
+		const skyboxMaterial = new StandardMaterial("skyBox", this.scene);
+		skyboxMaterial.backFaceCulling = false;
+		skyboxMaterial.reflectionTexture = new CubeTexture("assets/skybox/skybox", this.scene);
+		skyboxMaterial.reflectionTexture.coordinatesMode = Texture.SKYBOX_MODE;
+		skyboxMaterial.diffuseColor = new Color3(0, 0, 0);
+		skyboxMaterial.specularColor = new Color3(0, 0, 0);
+		skybox.material = skyboxMaterial;
 
 		// Create a reflection probe and set the environment texture
 		const rp = new ReflectionProbe("ref", 512, this.scene);
 		rp.renderList?.push(skybox);
 		this.scene.environmentTexture = rp.cubeTexture;
-
-		// Create the ground
-		const ground = MeshBuilder.CreateGround("ground", { width: 50, height: 50 }, this.scene);
-		ground.receiveShadows = true;
-		ground.isPickable = true;
-		new PhysicsAggregate(ground, PhysicsShapeType.BOX, { mass: 0 }, this.scene);
-
-		// Add a sample cube so shadows are visible
-		const cube = MeshBuilder.CreateBox("cube", { size: 0.5 }, this.scene);
-		cube.position = new Vector3(2, 0.25, 2);
-		cube.receiveShadows = true;
-		this.shadowGenerator.addShadowCaster(cube);
-		new PhysicsAggregate(cube, PhysicsShapeType.BOX, { mass: 0 }, this.scene);
 
 		// When the character model is loaded…
 		characterTask.onSuccess = (task) => {
@@ -196,6 +162,13 @@ export class GameEngine {
 		// Start asset loading.
 		this.assetsManager.load();
 
+		const kitchenFolder = "assets/map/";
+		const kitchenLoader = new MapLoader(this.scene);
+
+		kitchenLoader.loadAndPlaceModels(kitchenFolder, mapConfigs, () => {
+			console.log("All map models loaded and placed!");
+		});
+
 		// Request pointer lock (and focus) for immersive controls.
 		this.scene.getEngine().getRenderingCanvas()?.requestPointerLock().catch(console.error);
 		this.scene.getEngine().getRenderingCanvas()?.focus();
@@ -229,12 +202,6 @@ export class GameEngine {
 		this.remoteControllers.forEach((controller) => {
 			controller.update(deltaSeconds);
 		});
-
-		const shaderMat = this.scene.getMaterialByName("shader") as ShaderMaterial;
-		if (shaderMat) {
-			shaderMat.setFloat("iTime", this.time);
-		}
-		this.time += 0.0001 * deltaTime;
 
 		// Update FPS counter.
 		if (this.fpsText) {

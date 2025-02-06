@@ -5,13 +5,13 @@ export class Player extends Schema {
 	name: string = "Unknown";
 
 	@type("number")
-	x = Math.floor(Math.random() * 10);
+	x = 7;
 
 	@type("number")
 	y = 1;
 
 	@type("number")
-	z = Math.floor(Math.random() * 10);
+	z = 7;
 
 	@type("number")
 	rot = 0;

@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "client:dev": "vite",
+    "client:dev": "vite --host",
     "client:build": "tsc -b && vite build",
     "client:preview": "vite preview",
     "dev": "concurrently --kill-others --prefix-colors \"blue,green\" --names \"CLIENT,SERVER\" \"bun run client:dev\" \"bun run server:dev\"",
