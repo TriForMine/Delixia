@@ -20,6 +20,7 @@ import {Player} from "../../shared/schemas/Player.ts";
 import {Room} from "colyseus.js";
 import {mapConfigs} from "./maps/japan.ts";
 import {MapLoader} from "./MapLoader.ts";
+import {InteractableObject} from "./InteractableObject.ts";
 
 export class GameEngine {
 	private readonly scene: Scene;
@@ -29,6 +30,7 @@ export class GameEngine {
 	private shadowGenerator!: CascadedShadowGenerator;
 	private assetsManager!: AssetsManager;
 	private fpsText?: GUI.TextBlock;
+	private interactables: InteractableObject[] = [];
 
 	constructor(scene: Scene, room: any) {
 		this.scene = scene;
@@ -163,10 +165,11 @@ export class GameEngine {
 		this.assetsManager.load();
 
 		const kitchenFolder = "assets/map/";
-		const kitchenLoader = new MapLoader(this.scene);
+		const kitchenLoader = new MapLoader(this.scene, this.shadowGenerator);
 
 		kitchenLoader.loadAndPlaceModels(kitchenFolder, mapConfigs, () => {
 			console.log("All map models loaded and placed!");
+			this.interactables = kitchenLoader.interactables;
 		});
 
 		// Request pointer lock (and focus) for immersive controls.
@@ -182,6 +185,31 @@ export class GameEngine {
 		const deltaSeconds = deltaTime / 1000;
 
 		this.localController?.update(deltaSeconds);
+
+		if (this.localController) {
+			const playerPos = this.localController.position;
+			let nearest: InteractableObject | null = null;
+			let nearestDist = Infinity;
+
+			// 1. Find the nearest interactable within range
+			for (const obj of this.interactables) {
+				const dist = Vector3.Distance(obj.mesh.position, playerPos);
+				if (dist < obj.interactionDistance && dist < nearestDist) {
+					nearestDist = dist;
+					nearest = obj;
+				}
+			}
+
+			// 2. Hide all billboards
+			for (const obj of this.interactables) {
+				obj.showPrompt(false);
+			}
+
+			// 3. If we found a valid nearest object, show it
+			if (nearest) {
+				nearest.showPrompt(true);
+			}
+		}
 
 		if (this.room && this.localController) {
 			const transform = this.localController.getTransform();

@@ -5,13 +5,13 @@ export class Player extends Schema {
 	name: string = "Unknown";
 
 	@type("number")
-	x = 7;
+	x = 0;
 
 	@type("number")
 	y = 1;
 
 	@type("number")
-	z = 7;
+	z = 5;
 
 	@type("number")
 	rot = 0;

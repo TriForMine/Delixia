@@ -1,16 +1,18 @@
 import {
-	Animation,
 	AssetContainer,
 	AssetsManager,
 	Mesh,
 	PhysicsShapeType,
 	Scene,
-	PhysicsAggregate, ParticleSystem,
-	Texture,
-	Vector3, Color4, TransformNode, PointLight, Color3
+	PhysicsAggregate, CascadedShadowGenerator, Vector3,
 } from "@babylonjs/core";
-import type {AbstractMesh} from "@babylonjs/core/Meshes/abstractMesh";
+import { InteractableObject } from "./InteractableObject";
 
+export enum InteractType {
+	Fridge,
+	Oven,
+	Counter
+}
 
 export interface PhysicsConfig {
 	shapeType: PhysicsShapeType;    // e.g. PhysicsShapeType.BOX, PhysicsShapeType.MESH, etc.
@@ -20,8 +22,15 @@ export interface PhysicsConfig {
 }
 
 export interface MapModelConfig {
+	map: string;
 	fileName: string;
 	defaultScaling?: { x?: number; y?: number; z?: number };
+
+	billboardOffset?: {
+		x: number;
+		y: number;
+		z: number;
+	};
 
 	/** Default physics if no per-instance physics is specified */
 	defaultPhysics?: PhysicsConfig;
@@ -33,17 +42,22 @@ export interface MapModelConfig {
 
 		/** Optional override for physics */
 		physics?: PhysicsConfig;
+		interactable?: boolean;
+		interactType?: InteractType;
 	}>;
 }
 
 export class MapLoader {
 	private readonly scene: Scene;
+	private readonly cascadedShadowGenerator: CascadedShadowGenerator;
 	private assetsManager: AssetsManager;
 	private loadedContainers: { [fileName: string]: AssetContainer } = {};
+	public interactables: InteractableObject[] = [];
 
-	constructor(scene: Scene) {
+	constructor(scene: Scene, cascadedShadowGenerator: CascadedShadowGenerator) {
 		this.scene = scene;
 		this.assetsManager = new AssetsManager(this.scene);
+		this.cascadedShadowGenerator = cascadedShadowGenerator;
 	}
 
 	public loadAndPlaceModels(
@@ -55,7 +69,8 @@ export class MapLoader {
 		modelConfigs.forEach((modelConfig) => {
 			const { fileName } = modelConfig;
 			if (!this.loadedContainers[fileName]) {
-				const task = this.assetsManager.addContainerTask(fileName, "", folder, fileName);
+				const mapFolder = folder + modelConfig.map + "/";
+				const task = this.assetsManager.addContainerTask(fileName, "", mapFolder, fileName);
 
 				task.onSuccess = (task) => {
 					this.loadedContainers[fileName] = task.loadedContainer;
@@ -88,88 +103,6 @@ export class MapLoader {
 					const root = instance.rootNodes[0] as Mesh;
 					if (!root) return;
 
-					if (modelConfig.fileName === "Fantasy Portal 3D LowPoly Model.glb") {
-						// Create a transform node for the emitter, positioned at the top center of the portal’s stand
-						const emitterNode = new TransformNode("portalEmitter", this.scene);
-						emitterNode.parent = root;
-						emitterNode.position = new Vector3(0, 0.7, 0); // Adjust this Y-offset as needed
-
-						// Animate the emitter node to continuously rotate, enhancing the vortex feel
-						const rotateAnimation = new Animation(
-							"rotateEmitter",
-							"rotation.y",
-							30,
-							Animation.ANIMATIONTYPE_FLOAT,
-							Animation.ANIMATIONLOOPMODE_CYCLE
-						);
-						rotateAnimation.setKeys([
-							{ frame: 0, value: 0 },
-							{ frame: 360, value: 2 * Math.PI }
-						]);
-						emitterNode.animations = [rotateAnimation];
-						this.scene.beginAnimation(emitterNode, 0, 360, true);
-
-						// Optionally, add a point light to further enhance the magical glow
-						// (Be sure to import Color3 from "@babylonjs/core")
-						const portalLight = new PointLight("portalLight", emitterNode.getAbsolutePosition(), this.scene);
-						portalLight.diffuse = new Color3(0.4, 0.2, 0.8);
-						portalLight.intensity = 1.5;
-						portalLight.parent = emitterNode;
-
-						// Configure the particle system for a swirling vortex effect
-						const particleSystem = new ParticleSystem("portalVortex", 2000, this.scene);
-						particleSystem.particleTexture = new Texture("assets/particles/DarkMagicSmoke.png", this.scene);
-
-						// Use the alpha channel of the texture so non-opaque parts stay transparent
-						particleSystem.emitter = emitterNode as AbstractMesh;
-						particleSystem.billboardMode = ParticleSystem.BILLBOARDMODE_ALL;
-
-						// Limit emission to a small disc area at the emitter’s location
-						particleSystem.minEmitBox = new Vector3(-0.5, 0, -0.5);
-						particleSystem.maxEmitBox = new Vector3(0.5, 0, 0.5);
-
-						// Create a swirling vortex effect by computing a tangent direction based on the particle’s initial position
-						particleSystem.startDirectionFunction = (_worldMatrix, directionToUpdate, particle) => {
-							// Determine the particle's position relative to the emitter
-							const emitterPos = emitterNode.getAbsolutePosition();
-							const relativePos = particle.position.subtract(emitterPos);
-
-							// If the particle starts very near the center, choose a random direction
-							if (relativePos.length() < 0.001) {
-								const angle = Math.random() * 2 * Math.PI;
-								relativePos.x = Math.cos(angle);
-								relativePos.z = Math.sin(angle);
-							}
-							// Compute the tangent vector (perpendicular on the XZ plane) to create a swirling motion
-							const tangent = new Vector3(-relativePos.z, 0, relativePos.x).normalize();
-							const horizontalSpeed = 0.5 + Math.random() * 0.5;
-							const verticalSpeed = 2 + Math.random();
-
-							directionToUpdate.x = tangent.x * horizontalSpeed;
-							directionToUpdate.y = verticalSpeed;
-							directionToUpdate.z = tangent.z * horizontalSpeed;
-							directionToUpdate.normalize();
-						};
-
-						// Set colors for that magical, bluish-purplish effect
-						particleSystem.color1 = new Color4(0.2, 0.5, 1.0, 1.0); // Bright blue
-						particleSystem.color2 = new Color4(0.1, 0.3, 0.8, 1.0); // Slightly darker blue
-						particleSystem.colorDead = new Color4(0.0, 0.1, 0.5, 0.0); // Fade out to a deep blue
-
-						// Adjust sizes, lifetimes, and other parameters for a smoother vortex effect
-						particleSystem.minSize = 0.3;
-						particleSystem.maxSize = 0.5;
-						particleSystem.minLifeTime = 1.2;
-						particleSystem.maxLifeTime = 1.4;
-						particleSystem.emitRate = 250;
-						particleSystem.blendMode = ParticleSystem.BLENDMODE_ONEONE;
-						particleSystem.gravity = new Vector3(0, 0, 0); // No gravity so particles don't fall prematurely
-						particleSystem.minAngularSpeed = 0;
-						particleSystem.maxAngularSpeed = Math.PI;
-
-						particleSystem.start();
-					}
-
 					// Apply default scaling
 					if (modelConfig.defaultScaling) {
 						root.scaling.set(
@@ -177,6 +110,16 @@ export class MapLoader {
 							modelConfig.defaultScaling.y ?? 1,
 							modelConfig.defaultScaling.z ?? 1
 						);
+					}
+
+					if (placement.interactable) {
+						const offset =
+							modelConfig.billboardOffset
+								? new Vector3(modelConfig.billboardOffset.x, modelConfig.billboardOffset.y, modelConfig.billboardOffset.z)
+								: undefined;
+						const interactableObj = new InteractableObject(root, this.scene, offset);
+						interactableObj.interactionDistance = 2;
+						this.interactables.push(interactableObj);
 					}
 
 					if (placement.rotation) {
@@ -224,6 +167,8 @@ export class MapLoader {
 						}, this.scene);
 
 						mesh.receiveShadows = true;
+
+						this.cascadedShadowGenerator.addShadowCaster(mesh);
 					});
 				});
 			});

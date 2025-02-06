@@ -55,7 +55,9 @@ export class CharacterController {
 		);
 		this.impostorMesh.visibility = 0;
 		this.impostorMesh.rotationQuaternion = Quaternion.Identity();
-		this.impostorMesh.position.y = 0.5;
+		this.impostorMesh.position.y = 1;
+		this.impostorMesh.position.x = 0;
+		this.impostorMesh.position.z = 5;
 		this.impostorMesh.isPickable = false;
 
 		this.model = characterMesh;
