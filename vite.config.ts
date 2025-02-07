@@ -10,6 +10,13 @@ export default defineConfig({
 	optimizeDeps: {
 		exclude: ['@babylonjs/havok'],
 	},
+	resolve: {
+		alias: {
+			'@client': path.resolve(__dirname, './src/client'),
+			'@shared': path.resolve(__dirname, './src/shared'),
+			'@server': path.resolve(__dirname, './src/server'),
+		}
+	},
 	plugins: [
 		tailwindcss(),
 		viteStaticCopy({

@@ -2,50 +2,12 @@ import {
 	AssetContainer,
 	AssetsManager,
 	Mesh,
-	PhysicsShapeType,
 	Scene,
 	PhysicsAggregate, CascadedShadowGenerator, Vector3, StandardMaterial,
     Color3,
 } from "@babylonjs/core";
 import { InteractableObject } from "./InteractableObject";
-import { InteractType } from "../../shared/types/enums";
-
-export interface PhysicsConfig {
-	shapeType: PhysicsShapeType;    // e.g. PhysicsShapeType.BOX, PhysicsShapeType.MESH, etc.
-	mass?: number;                   // e.g. 0 for static, > 0 for dynamic
-	restitution?: number;
-	friction?: number;
-}
-
-export interface InteractionConfig {
-	id: number;
-	interactType: InteractType;
-}
-
-export interface MapModelConfig {
-	map: string;
-	fileName: string;
-	defaultScaling?: { x?: number; y?: number; z?: number };
-
-	billboardOffset?: {
-		x: number;
-		y: number;
-		z: number;
-	};
-
-	/** Default physics if no per-instance physics is specified */
-	defaultPhysics?: PhysicsConfig;
-
-	instances: Array<{
-		position: { x: number; y: number; z: number };
-		rotation?: { x?: number; y?: number; z?: number };
-		scaling?: { x?: number; y?: number; z?: number };
-
-		/** Optional override for physics */
-		physics?: PhysicsConfig;
-		interaction?: InteractionConfig;
-	}>;
-}
+import {MapModelConfig} from "@shared/types/map.ts";
 
 export class MapLoader {
 	private readonly scene: Scene;

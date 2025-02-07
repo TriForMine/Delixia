@@ -1,4 +1,5 @@
-import {InteractionConfig, MapModelConfig} from "../../client/game/MapLoader.ts";
+import { InteractionConfig } from "@shared/types/map";
+import {MapModelConfig} from "@shared/types/map.ts";
 
 export class ServerMapLoader {
 	private readonly configs: MapModelConfig[];

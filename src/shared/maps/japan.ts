@@ -1,6 +1,6 @@
 import { PhysicsShapeType } from "@babylonjs/core";
-import {MapModelConfig} from "../MapLoader.ts";
-import {InteractType} from "../../../shared/types/enums.ts";
+import {InteractType} from "../types/enums.ts";
+import {MapModelConfig} from "../types/map.ts";
 
 export const mapConfigs: MapModelConfig[] = [
 	{

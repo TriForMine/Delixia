@@ -1,7 +1,7 @@
 import {Client, Room} from "colyseus";
-import {ChatRoomState} from "../../shared/schemas/ChatRoomState.ts";
+import {ChatRoomState} from "@shared/schemas/ChatRoomState.ts";
 import {ServerMapLoader} from "../utils/ServerMapLoader.ts";
-import { mapConfigs } from "../../client/game/maps/japan.ts";
+import {mapConfigs} from "@shared/maps/japan.ts";
 
 const serverMapLoader = new ServerMapLoader(mapConfigs);
 

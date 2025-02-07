@@ -1,5 +1,5 @@
 import {colyseus} from "use-colyseus";
-import {ChatRoomState} from "../../shared/schemas/ChatRoomState.ts";
+import {ChatRoomState} from "@shared/schemas/ChatRoomState.ts";
 
 export const {
 	client,

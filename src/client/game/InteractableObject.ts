@@ -8,7 +8,7 @@ import {
 	ParticleSystem,
 	Color4
 } from "@babylonjs/core";
-import {InteractType} from "../../shared/types/enums.ts";
+import {InteractType} from "@shared/types/enums.ts";
 
 export class InteractableObject {
 	public mesh: Mesh;
@@ -42,7 +42,7 @@ export class InteractableObject {
 		this.promptPlane.billboardMode = Mesh.BILLBOARDMODE_ALL;
 
 		// Setup material/texture for the prompt
-		const dt = new Texture("assets/input/keyboard2/keyboard_e.png", scene);
+		const dt = new Texture("assets/input/keyboard/keyboard_e.png", scene);
 		dt.hasAlpha = true;
 		const mat = new StandardMaterial("promptMat", scene);
 		mat.diffuseTexture = dt;

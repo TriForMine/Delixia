@@ -15,12 +15,12 @@ import HavokPhysics from "@babylonjs/havok";
 import { CascadedShadowGenerator } from "@babylonjs/core";
 import { LocalCharacterController } from "./LocalCharacterController";
 import { RemoteCharacterController } from "./RemoteCharacterController";
-import {ChatRoomState} from "../../shared/schemas/ChatRoomState.ts";
-import {Player} from "../../shared/schemas/Player.ts";
+import {ChatRoomState} from "@shared/schemas/ChatRoomState.ts";
+import {Player} from "@shared/schemas/Player.ts";
 import {Room} from "colyseus.js";
-import {mapConfigs} from "./maps/japan.ts";
 import {MapLoader} from "./MapLoader.ts";
 import {InteractableObject} from "./InteractableObject.ts";
+import {mapConfigs} from "@shared/maps/japan.ts";
 
 export class GameEngine {
 	private readonly scene: Scene;

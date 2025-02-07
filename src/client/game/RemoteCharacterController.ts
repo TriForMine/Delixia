@@ -1,7 +1,6 @@
-// RemoteCharacterController.ts
 import {AbstractMesh, AnimationGroup, Quaternion, Scene, Vector3,} from "@babylonjs/core";
 import {CharacterController, CharacterState} from "./CharacterController";
-import {Player} from "../../shared/schemas/Player";
+import {Player} from "@shared/schemas/Player";
 
 export class RemoteCharacterController extends CharacterController {
 	// Reference to the scene for raycasting
