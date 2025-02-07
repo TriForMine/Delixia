@@ -4,21 +4,22 @@ import {
 	Mesh,
 	PhysicsShapeType,
 	Scene,
-	PhysicsAggregate, CascadedShadowGenerator, Vector3,
+	PhysicsAggregate, CascadedShadowGenerator, Vector3, StandardMaterial,
+    Color3,
 } from "@babylonjs/core";
 import { InteractableObject } from "./InteractableObject";
-
-export enum InteractType {
-	Fridge,
-	Oven,
-	Counter
-}
+import { InteractType } from "../../shared/types/enums";
 
 export interface PhysicsConfig {
 	shapeType: PhysicsShapeType;    // e.g. PhysicsShapeType.BOX, PhysicsShapeType.MESH, etc.
 	mass?: number;                   // e.g. 0 for static, > 0 for dynamic
 	restitution?: number;
 	friction?: number;
+}
+
+export interface InteractionConfig {
+	id: number;
+	interactType: InteractType;
 }
 
 export interface MapModelConfig {
@@ -42,8 +43,7 @@ export interface MapModelConfig {
 
 		/** Optional override for physics */
 		physics?: PhysicsConfig;
-		interactable?: boolean;
-		interactType?: InteractType;
+		interaction?: InteractionConfig;
 	}>;
 }
 
@@ -52,12 +52,19 @@ export class MapLoader {
 	private readonly cascadedShadowGenerator: CascadedShadowGenerator;
 	private assetsManager: AssetsManager;
 	private loadedContainers: { [fileName: string]: AssetContainer } = {};
+	private cloudMaterial: StandardMaterial;
 	public interactables: InteractableObject[] = [];
 
 	constructor(scene: Scene, cascadedShadowGenerator: CascadedShadowGenerator) {
 		this.scene = scene;
 		this.assetsManager = new AssetsManager(this.scene);
 		this.cascadedShadowGenerator = cascadedShadowGenerator;
+		const material = new StandardMaterial("cloud", this.scene);
+		material.disableLighting = false;
+		material.emissiveColor = new Color3(0.5, 0.5, 0.5);
+		material.alpha = 0.85;
+		material.backFaceCulling = true;
+		this.cloudMaterial = material;
 	}
 
 	public loadAndPlaceModels(
@@ -103,6 +110,8 @@ export class MapLoader {
 					const root = instance.rootNodes[0] as Mesh;
 					if (!root) return;
 
+					root.name = modelConfig.fileName.replace(".glb", "");
+
 					// Apply default scaling
 					if (modelConfig.defaultScaling) {
 						root.scaling.set(
@@ -112,12 +121,12 @@ export class MapLoader {
 						);
 					}
 
-					if (placement.interactable) {
+					if (placement.interaction) {
 						const offset =
 							modelConfig.billboardOffset
 								? new Vector3(modelConfig.billboardOffset.x, modelConfig.billboardOffset.y, modelConfig.billboardOffset.z)
 								: undefined;
-						const interactableObj = new InteractableObject(root, this.scene, offset);
+						const interactableObj = new InteractableObject(root, this.scene, placement.interaction.interactType, placement.interaction.id, offset);
 						interactableObj.interactionDistance = 2;
 						this.interactables.push(interactableObj);
 					}
@@ -167,6 +176,10 @@ export class MapLoader {
 						}, this.scene);
 
 						mesh.receiveShadows = true;
+
+						if (modelConfig.fileName == "cloud1.glb") {
+							mesh.material = this.cloudMaterial;
+						}
 
 						this.cascadedShadowGenerator.addShadowCaster(mesh);
 					});

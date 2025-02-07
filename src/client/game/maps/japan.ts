@@ -1,5 +1,6 @@
 import { PhysicsShapeType } from "@babylonjs/core";
-import {InteractType, MapModelConfig} from "../MapLoader.ts";
+import {MapModelConfig} from "../MapLoader.ts";
+import {InteractType} from "../../../shared/types/enums.ts";
 
 export const mapConfigs: MapModelConfig[] = [
 	{
@@ -48,6 +49,13 @@ export const mapConfigs: MapModelConfig[] = [
 				scaling: { x: 0.75, y: 0.5, z: 0.75 },
 			},
 
+			// Table Devant
+			{
+				position: { x: 0, y: 0, z: -7.85 },
+				rotation: { y: Math.PI },
+				scaling: { x: 1, y: 0.5, z: 1 },
+			},
+
 			// Table Coin Droite
 			{
 				position: { x: -8, y: 0, z: 8 },
@@ -64,14 +72,14 @@ export const mapConfigs: MapModelConfig[] = [
 
 			// Table Sortie Droite
 			{
-				position: { x: -8, y: 0, z: 0 },
+				position: { x: -7.85, y: 0, z: 0 },
 				rotation: { y: Math.PI },
 				scaling: { x: 1, y: 0.5, z: 1 },
 			},
 
 			// Table Sortie Gauche
 			{
-				position: { x: 8, y: 0, z: 0 },
+				position: { x: 7.85, y: 0, z: 0 },
 				rotation: { y: Math.PI },
 				scaling: { x: 1, y: 0.5, z: 1 },
 			},
@@ -185,25 +193,23 @@ export const mapConfigs: MapModelConfig[] = [
 			{
 				position: { x: 1.5, y: 2.25, z: -3.2 },
 			},
-
-			///////////////////////////////////////
 			// Sous Pied
 			{
-				position: { x: -5.95, y: 3.5, z: -4.2 },
-				scaling: { x: 0.1, y: 0.1, z: 0.1 }
+				position: { x: -2.2, y: 2, z: -1.3 },
+				scaling: { x: 0.2, y: 0.1, z: 0.1 }
 			},
 			{
-				position: { x: -4.07, y: 3.5, z: -4.2 },
-				scaling: { x: 0.1, y: 0.1, z: 0.1 }
-			},{
-				position: { x: -5.95, y: 3.5, z: -5.95 },
-				scaling: { x: 0.1, y: 0.1, z: 0.1 }
+				position: { x: 2.1, y: 2, z: -1.3 },
+				scaling: { x: 0.2, y: 0.1, z: 0.1 }
 			},
 			{
-				position: { x: -4.07, y: 3.5, z: -5.85 },
-				scaling: { x: 0.1, y: 0.1, z: 0.1 }
+				position: { x: -2.2, y: 2, z: -2.7 },
+				scaling: { x: 0.2, y: 0.1, z: 0.1 }
 			},
-			///////////////////////////////////////////
+			{
+				position: { x: 2.1, y: 2, z: -2.7 },
+				scaling: { x: 0.2, y: 0.1, z: 0.1 }
+			},
 
 			// Chaise Coin Gauche
 			{
@@ -225,26 +231,38 @@ export const mapConfigs: MapModelConfig[] = [
 
 			// Chaise Sortie Droite
 			{
-				position: { x: -8, y: 0.4, z: 1.5 },
+				position: { x: -7.8, y: 0.4, z: 1.35 },
 			},
 			{
 				position: { x: -6.5, y: 0.4, z: 0 },
 				rotation: { y: Math.PI },
 			},
 			{
-				position: { x: -8, y: 0.4, z: -1.5 },
+				position: { x: -7.8, y: 0.4, z: -1.35 },
 			},
 
 			// Chaise Sortie Gauche
 			{
-				position: { x: 8, y: 0.4, z: 1.5 },
+				position: { x: 7.8, y: 0.4, z: 1.35 },
 			},
 			{
 				position: { x: 6.5, y: 0.4, z: 0 },
 				rotation: { y: Math.PI },
 			},
 			{
-				position: { x: 8, y: 0.4, z: -1.5 },
+				position: { x: 7.8, y: 0.4, z: -1.35 },
+			},
+
+			// Chaise Devant
+			{
+				position: { x: 1.35, y: 0.4, z: -7.8 },
+			},
+			{
+				position: { x: 0, y: 0.4, z: -6.5 },
+				rotation: { y: Math.PI },
+			},
+			{
+				position: { x: -1.35, y: 0.4, z: -7.8 },
 			},
 		],
 	},
@@ -293,6 +311,9 @@ export const mapConfigs: MapModelConfig[] = [
 			{ position: { x: -2, y: 0.1, z: 8 } },
 			{ position: { x: -6, y: 0.1, z: 8 } },
 
+			{ position: { x: 4, y: 0.1, z: 8 } },
+			{ position: { x: -4, y: 0.1, z: 8 } },
+
 			{ position: { x: 2, y: 0.1, z: -8 }, rotation: { y: Math.PI } },
 			{ position: { x: 6, y: 0.1, z: -8 }, rotation: { y: Math.PI } },
 			{ position: { x: -2, y: 0.1, z: -8 }, rotation: { y: Math.PI } },
@@ -320,9 +341,6 @@ export const mapConfigs: MapModelConfig[] = [
 			restitution: 0.1,
 		},
 		instances: [
-			{ position: { x: 4, y: 0.1, z: 8 } },
-			{ position: { x: -4, y: 0.1, z: 8 } },
-
 			{ position: { x: 4, y: 0.1, z: -8 }, rotation: { y: Math.PI } },
 			{ position: { x: -4, y: 0.1, z: -8 }, rotation: { y: Math.PI } },
 
@@ -335,25 +353,17 @@ export const mapConfigs: MapModelConfig[] = [
 	},
 	{
 		map: 'japan',
-		fileName: "Fridge.glb",
-		defaultScaling: { x: 0.5, y: 0.5, z: 0.5 },
+		fileName: "Cabinet Shelves.glb",
+		defaultScaling: { x: 0.9, y: 0.5, z: 0.5 },
 		defaultPhysics: {
 			shapeType: PhysicsShapeType.BOX,
 			mass: 0,
 			friction: 0.8,
 			restitution: 0.1,
 		},
-		billboardOffset: {
-			x: 0,
-			y: 5,
-			z: 0,
-		},
 		instances: [
-			{
-				position: { x: 2, y: 0.1, z: 8.2 },
-				interactable: true,
-				interactType: InteractType.Fridge,
-			},
+			{ position: { x: 2.9, y: 1.15, z: 8.6 }, rotation: { z: Math.PI / 2 } },
+			{ position: { x: -2.9, y: 1.15, z: 8.6 }, rotation: { z: Math.PI / 2 } },
 		],
 	},
 	{
@@ -368,14 +378,57 @@ export const mapConfigs: MapModelConfig[] = [
 		},
 		billboardOffset: {
 			x: 0,
-			y: 3,
+			y: 1.5,
 			z: 0,
 		},
 		instances: [
 			{
-				interactable: true,
-				interactType: InteractType.Oven,
-				position: { x: -2, y: 0.1, z: 8.2 }
+				interaction: {
+					id: 1,
+					interactType: InteractType.Oven,
+				},
+				position: { x: -1.75, y: 0.1, z: 8.5 },
+			},
+			{
+				interaction: {
+					id: 2,
+					interactType: InteractType.Oven,
+				},
+				position: { x: 1.75, y: 0.1, z: 8.5 },
+			},
+		],
+	},
+	{
+		map: 'japan',
+		fileName: "Chopping board.glb",
+		defaultScaling: { x: 0.4, y: 0.4, z: 0.4 },
+		defaultPhysics: {
+			shapeType: PhysicsShapeType.BOX,
+			mass: 0,
+			friction: 0.8,
+			restitution: 0.1,
+		},
+		billboardOffset: {
+			x: 0,
+			y: 0.5,
+			z: 0,
+		},
+		instances: [
+			{
+				position: { x: 0.5, y: 1.05, z: 8.5 },
+				rotation: { x: 0, y: 0, z: 0 },
+				interaction: {
+					id: 3,
+					interactType: InteractType.ChoppingBoard,
+				}
+			},
+			{
+				position: { x: -0.5, y: 1.05, z: 8.5 },
+				rotation: { x: 0, y: 0, z: 0 },
+				interaction: {
+					id: 4,
+					interactType: InteractType.ChoppingBoard,
+				}
 			},
 		],
 	},
@@ -390,7 +443,6 @@ export const mapConfigs: MapModelConfig[] = [
 			restitution: 0.1,
 		},
 		instances: [
-			{ position: { x: 2, y: 0.1, z: 2 } },
 			{ position: { x: 0, y: 0.1, z: 2 }, rotation: { y: Math.PI } },
 
 			{ position: { x: 4, y: 0.1, z: 6 }, rotation: { y: Math.PI / 2 } },
@@ -400,6 +452,10 @@ export const mapConfigs: MapModelConfig[] = [
 			{ position: { x: -4, y: 0.1, z: 6 }, rotation: { y: - Math.PI / 2 } },
 			{ position: { x: -4, y: 0.1, z: 8 }, rotation: { y: - Math.PI / 2 } },
 			{ position: { x: -4, y: 0.1, z: 3 }, rotation: { y: - Math.PI / 2 } },
+
+			{ position: { x: 0, y: 0.1, z: 8.6 }, rotation: { y: Math.PI }, scaling: { x: 0.75, y: 0.5, z: 0.6 }},
+
+			{ position: { x: 0, y: 0.1, z: 5.25 }, scaling: { x: 0.9, y: 0.5, z: 1.25 } },
 		],
 	},
 	{
@@ -428,8 +484,28 @@ export const mapConfigs: MapModelConfig[] = [
 			friction: 0.8,
 			restitution: 0.1,
 		},
+		billboardOffset: {
+			x: 0,
+			y: 1.5,
+			z: 0,
+		},
 		instances: [
-			{ position: { x: -2, y: 0.1, z: 2 }, rotation: { y: Math.PI } },
+			{
+				position: { x: -2, y: 0.1, z: 2 },
+				rotation: { y: Math.PI },
+				interaction: {
+					id: 5,
+					interactType: InteractType.Sink,
+				}
+			},
+			{
+				position: { x: 2, y: 0.1, z: 2 },
+				rotation: { y: Math.PI },
+				interaction: {
+					id: 6,
+					interactType: InteractType.Sink,
+				}
+			},
 		],
 	},
 	{

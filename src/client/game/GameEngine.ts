@@ -30,7 +30,7 @@ export class GameEngine {
 	private shadowGenerator!: CascadedShadowGenerator;
 	private assetsManager!: AssetsManager;
 	private fpsText?: GUI.TextBlock;
-	private interactables: InteractableObject[] = [];
+	public interactables: InteractableObject[] = [];
 
 	constructor(scene: Scene, room: any) {
 		this.scene = scene;
@@ -88,7 +88,7 @@ export class GameEngine {
 		this.shadowGenerator.blurKernel = 32;
 		this.shadowGenerator.useKernelBlur = true;
 		this.shadowGenerator.usePercentageCloserFiltering = true;
-		this.shadowGenerator.shadowMaxZ = 20;
+		this.shadowGenerator.shadowMaxZ = 30;
 
 		// Additional lights (if needed)
 		const extraHemi = new HemisphericLight("extraHemi", Vector3.Up(), this.scene);
@@ -115,7 +115,7 @@ export class GameEngine {
 			const mesh = localInstance.rootNodes[0] as Mesh;
 			mesh.scaling = new Vector3(1, 1, 1);
 			mesh.rotation = new Vector3(0, 0, 0);
-			this.localController = new LocalCharacterController(mesh, localInstance.animationGroups, this.scene);
+			this.localController = new LocalCharacterController(this, mesh, localInstance.animationGroups, this.scene);
 			this.localController.model.receiveShadows = true;
 			this.shadowGenerator.addShadowCaster(this.localController.model);
 
@@ -147,6 +147,30 @@ export class GameEngine {
 				});
 			});
 		};
+
+		this.room.state.objects.onAdd((objState, key) => {
+			// Listen for property changes on this object
+			objState.onChange(() => {
+				const interactable = this.interactables.find((obj) => obj.id === Number(key));
+
+				if (!interactable) return;
+
+				if (objState.isActive) {
+					interactable.activate(objState.activeSince);  // e.g. start fire ParticleSystem
+				} else {
+					interactable.deactivate(); // e.g. stop the effect
+				}
+			});
+
+			const interactable = this.interactables.find((obj) => obj.id === Number(key));
+			if (!interactable) return;
+
+			if (objState.isActive) {
+				interactable.activate(objState.activeSince);  // e.g. start fire ParticleSystem
+			} else {
+				interactable.deactivate(); // e.g. stop the effect
+			}
+		});
 
 		// When all assets are loaded, create a simple full‐screen GUI (e.g. an FPS counter)
 		this.assetsManager.onFinish = () => {
@@ -234,6 +258,30 @@ export class GameEngine {
 		// Update FPS counter.
 		if (this.fpsText) {
 			this.fpsText.text = `FPS: ${this.scene.getEngine().getFps().toFixed()}`;
+		}
+	}
+
+	public tryInteract(characterController: LocalCharacterController): void {
+		let nearest: InteractableObject | null = null;
+		let nearestDist = Infinity;
+
+		// 1. Find the nearest interactable within range
+		for (const obj of this.interactables) {
+			const dist = Vector3.Distance(obj.mesh.position, characterController.position);
+			if (dist < obj.interactionDistance && dist < nearestDist) {
+				nearestDist = dist;
+				nearest = obj;
+			}
+		}
+
+		if (nearest) {
+			// Trigger interaction
+			nearest.interact(Date.now());
+
+			this.room.send("interact", {
+				objectId: nearest.id,
+				timestamp: Date.now()
+			})
 		}
 	}
 }

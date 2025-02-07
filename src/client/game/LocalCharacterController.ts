@@ -10,29 +10,11 @@ import {
 	TransformNode,
 	Vector3,
 } from "@babylonjs/core";
-import {CharacterController} from "./CharacterController";
-import {KBCode} from "../utils/keys.ts";
+import { CharacterController, CharacterState } from "./CharacterController";
+import { KBCode } from "../utils/keys.ts";
+import { GameEngine } from "./GameEngine.ts";
 
-/**
- * Basic state enumeration so we can represent the character’s primary “action.”
- */
-enum CharacterState {
-	IDLE = "IDLE",
-	WALKING = "WALKING",
-	JUMPING = "JUMPING",
-	LANDING = "LANDING",
-	FALLING = "FALLING",
-	DANCING = "DANCING",
-}
-
-/**
- * A refactored controller class that uses a “lightweight state machine”
- * and organizes animation/physics updates more cleanly.
- */
 export class LocalCharacterController extends CharacterController {
-	declare readonly thirdPersonCamera: ArcRotateCamera;
-
-	// Input handling
 	readonly inputMap: Map<string, boolean>;
 	readonly keyForward = KBCode.KeyW;
 	readonly keyBackward = KBCode.KeyS;
@@ -40,23 +22,29 @@ export class LocalCharacterController extends CharacterController {
 	readonly keyRight = KBCode.KeyD;
 	readonly keyDance = KBCode.KeyB;
 	readonly keyJump = KBCode.Space;
+	readonly keyInteract = KBCode.KeyE;
 
-	// State variables
 	private isJumping = false;
 	private isFalling = false;
-
-	// Used for jump input edge detection
 	private previousJumpKeyState = false;
+	private previousInteractKeyState = false;
+
+	private readonly cameraAttachPoint: TransformNode;
+	private readonly gameEngine: GameEngine;
+	readonly thirdPersonCamera: ArcRotateCamera;
 
 	constructor(
+		gameEngine: GameEngine,
 		characterMesh: AbstractMesh,
 		animationGroups: AnimationGroup[],
 		scene: Scene
 	) {
 		super(characterMesh, scene, animationGroups);
+
+		this.gameEngine = gameEngine;
 		this.inputMap = new Map();
 
-		// Register input actions
+		// Setup keyboard events
 		scene.actionManager = new ActionManager(scene);
 		scene.actionManager.registerAction(
 			new ExecuteCodeAction(ActionManager.OnKeyDownTrigger, (e) => {
@@ -66,61 +54,55 @@ export class LocalCharacterController extends CharacterController {
 		);
 		scene.actionManager.registerAction(
 			new ExecuteCodeAction(ActionManager.OnKeyUpTrigger, (e) => {
-				const code = (e.sourceEvent as KeyboardEvent).code;
-				this.inputMap.set(code, false);
+				const key = (e.sourceEvent as KeyboardEvent).code;
+				this.inputMap.set(key, false);
 			})
 		);
 
-		// Camera setup (unchanged)
-		const cameraAttachPoint = new TransformNode("cameraAttachPoint", scene);
-		cameraAttachPoint.parent = characterMesh;
-		cameraAttachPoint.position = new Vector3(0, 1, 0);
+		// Create a transform for the camera to follow
+		this.cameraAttachPoint = new TransformNode("cameraAttachPoint", scene);
+		this.cameraAttachPoint.parent = this.getTransform();
+		this.cameraAttachPoint.position = new Vector3(0, 0.4, 0);
 
+		// Create the ArcRotateCamera
 		const camera = new ArcRotateCamera(
 			"thirdPersonCamera",
 			-Math.PI / 2,
 			Math.PI / 3,
 			5,
-			Vector3.Zero(),
+			this.cameraAttachPoint.getAbsolutePosition(),
 			scene
 		);
 		camera.attachControl(scene.getEngine().getRenderingCanvas(), true);
 
-		camera.setTarget(cameraAttachPoint);
-		camera.wheelPrecision = 200;
-		camera.lowerRadiusLimit = 3;
-		camera.upperBetaLimit = Math.PI / 2 + 0.2;
+		// Configure camera angles/zoom
+		camera.lowerRadiusLimit = 1.5;
 		camera.upperRadiusLimit = 10;
 		camera.lowerBetaLimit = 0.1;
+		camera.upperBetaLimit = Math.PI / 2 + 0.2;
+		camera.wheelPrecision = 30;
+		// Adjust near/far plane to avoid near‐clipping
+		camera.minZ = 0.7;
+		camera.maxZ = 1000;
+
+		// Make it look at the attach point
+		camera.setTarget(this.cameraAttachPoint);
 
 		this.thirdPersonCamera = camera;
 	}
 
-	/**
-	 * Main update loop, invoked every frame.
-	 */
 	public update(deltaSeconds: number): void {
 		this.handleInput();
 		this.updateState();
 		this.updateMovement();
 		this.updateAnimations(deltaSeconds);
+
+		// Check for collisions behind the character every frame
+		this.updateCameraCollision();
 	}
 
-	/**
-	 * Disposes of the character’s meshes and physics references.
-	 */
-	public dispose(): void {
-		this.impostorMesh.dispose();
-		this.model.dispose();
-		this.physicsAggregate.dispose();
-	}
-
-	/**
-	 * Reads the current keyboard inputs and sets flags or triggers
-	 * (like “jump” edge detection).
-	 */
 	private handleInput(): void {
-		// Jump edge detection
+		// Handle jump (once on key press)
 		const currentJumpKeyState = this.inputMap.get(this.keyJump) || false;
 		if (
 			currentJumpKeyState &&
@@ -132,96 +114,84 @@ export class LocalCharacterController extends CharacterController {
 			this.jumpAnim.reset();
 			this.jumpAnim.play(false);
 
-			// Apply upward impulse
 			this.physicsAggregate.body.applyImpulse(
 				new Vector3(0, 5000, 0),
 				new Vector3(0, 0, 0)
 			);
 		}
 		this.previousJumpKeyState = currentJumpKeyState;
+
+		// Handle interact (once on key press)
+		const currentInteractKeyState = this.inputMap.get(this.keyInteract) || false;
+		if (currentInteractKeyState && !this.previousInteractKeyState) {
+			this.gameEngine.tryInteract(this);
+		}
+		this.previousInteractKeyState = currentInteractKeyState;
 	}
 
-	/**
-	 * Determines the current overall “CharacterState” (idle, walking, jumping, etc.)
-	 * based on input, velocity, and other conditions.
-	 */
 	private updateState(): void {
-		// Falling check
 		const verticalVelocity = this.physicsAggregate.body.getLinearVelocity().y;
 		this.isFalling = verticalVelocity < -0.1;
 
-		// If we’re on the ground, reset jumping state
 		if (this.isGrounded() && verticalVelocity <= 0) {
 			this.isJumping = false;
 		}
 
-		// If dancing key pressed, override everything else
 		if (this.inputMap.get(this.keyDance)) {
 			this.currentState = CharacterState.DANCING;
 			return;
 		}
-
 		if (this.isFalling && this.isLanding()) {
 			this.currentState = CharacterState.LANDING;
 			return;
 		}
-
-		// If falling
 		if (this.isFalling) {
 			this.currentState = CharacterState.FALLING;
 			return;
 		}
-
-		// If jumping
 		if (this.isJumping) {
 			this.currentState = CharacterState.JUMPING;
 			return;
 		}
-
-		// Otherwise, decide between walking or idle
-		if (this.isAnyMovementKeyDown()) {
-			this.currentState = CharacterState.WALKING;
-		} else {
-			this.currentState = CharacterState.IDLE;
-		}
+		this.currentState = this.isAnyMovementKeyDown()
+			? CharacterState.WALKING
+			: CharacterState.IDLE;
 	}
 
-	/**
-	 * Applies movement logic (direction, rotation, velocity)
-	 * based on current input.
-	 */
 	private updateMovement(): void {
-		const direction = this.thirdPersonCamera.getForwardRay().direction;
-		const forward = new Vector3(direction.x, 0, direction.z).normalize();
+		// Get camera-forward direction (ignoring vertical)
+		const cameraForward = this.thirdPersonCamera.getForwardRay().direction;
+		const forward = new Vector3(cameraForward.x, 0, cameraForward.z).normalize();
 		const right = new Vector3(forward.z, 0, -forward.x).normalize();
 
-		// Movement input
 		let moveDirection = Vector3.Zero();
-		if (this.inputMap.get(this.keyForward)) moveDirection = moveDirection.add(forward);
-		if (this.inputMap.get(this.keyBackward)) moveDirection = moveDirection.subtract(forward);
-		if (this.inputMap.get(this.keyLeft)) moveDirection = moveDirection.subtract(right);
-		if (this.inputMap.get(this.keyRight)) moveDirection = moveDirection.add(right);
+		if (this.inputMap.get(this.keyForward)) {
+			moveDirection = moveDirection.add(forward);
+		}
+		if (this.inputMap.get(this.keyBackward)) {
+			moveDirection = moveDirection.subtract(forward);
+		}
+		if (this.inputMap.get(this.keyLeft)) {
+			moveDirection = moveDirection.subtract(right);
+		}
+		if (this.inputMap.get(this.keyRight)) {
+			moveDirection = moveDirection.add(right);
+		}
 		moveDirection = moveDirection.normalize();
 
-		// If no rotationQuaternion (shouldn’t happen if set up properly)
-		const currentQuaternion = this.impostorMesh.rotationQuaternion;
+		// Rotate the character
+		const currentQuaternion = this.getTransform().rotationQuaternion;
 		if (!currentQuaternion) {
-			throw new Error("Impostor quaternion is null");
+			throw new Error("Character rotation quaternion is null");
 		}
 
-		// Desired rotation
 		let desiredRotation = currentQuaternion.clone();
 		if (!moveDirection.equals(Vector3.Zero())) {
-			desiredRotation = Quaternion.FromLookDirectionLH(
-				moveDirection,
-				Vector3.Up()
-			);
+			desiredRotation = Quaternion.FromLookDirectionLH(moveDirection, Vector3.Up());
 		}
-
-		// Apply rotation
 		this.applySmoothRotation(currentQuaternion, desiredRotation);
 
-		// Apply movement (preserving existing y-velocity for jump, gravity, etc.)
+		// Apply movement
 		const desiredVelocity = moveDirection.scale(this.moveSpeed);
 		const currentVelocity = this.physicsAggregate.body.getLinearVelocity();
 		const newVelocity = new Vector3(
@@ -232,36 +202,18 @@ export class LocalCharacterController extends CharacterController {
 		this.physicsAggregate.body.setLinearVelocity(newVelocity);
 	}
 
-	// --------------
-	// Helper methods
-	// --------------
-
-	private isAnyMovementKeyDown(): boolean {
-		return (
-			this.inputMap.get(this.keyForward) ||
-			this.inputMap.get(this.keyBackward) ||
-			this.inputMap.get(this.keyLeft) ||
-			this.inputMap.get(this.keyRight)
-		) === true;
-	}
-
 	private applySmoothRotation(
 		currentQuaternion: Quaternion,
 		desiredQuaternion: Quaternion
 	): void {
 		if (!desiredQuaternion.equals(currentQuaternion)) {
-			// Shortest rotation
-			const rotationDelta = Quaternion.Inverse(currentQuaternion).multiply(
-				desiredQuaternion
-			);
+			const rotationDelta = Quaternion.Inverse(currentQuaternion).multiply(desiredQuaternion);
 			const rotationDeltaEuler = rotationDelta.toEulerAngles();
-			// Only rotate around Y
 			const desiredAngularVelocityY = rotationDeltaEuler.y * this.rotationSpeed;
 			this.physicsAggregate.body.setAngularVelocity(
 				new Vector3(0, desiredAngularVelocityY, 0)
 			);
 		} else {
-			// If not moving, stop rotating
 			this.physicsAggregate.body.setAngularVelocity(Vector3.Zero());
 		}
 	}
@@ -275,13 +227,81 @@ export class LocalCharacterController extends CharacterController {
 	}
 
 	private checkGround(distance: number): boolean {
-		const origin = this.impostorMesh.position.clone();
-		origin.y += 1; // Adjust based on character’s height
-		const direction = new Vector3(0, -1, 0);
-
-		const ray = new Ray(origin, direction, distance);
+		const origin = this.getTransform().position.clone();
+		origin.y += 1;
+		const ray = new Ray(origin, Vector3.Down(), distance);
 		const hit = this.scene.pickWithRay(ray, (mesh) => mesh.isPickable);
-
 		return hit?.hit ?? false;
+	}
+
+	/**
+	 * updateCameraCollision():
+	 *
+	 * - We do a ray pick behind the character (from the attach point to the camera).
+	 * - If there's an obstacle that's closer than where the camera currently is,
+	 *   we clamp the camera's radius to that obstacle distance, effectively
+	 *   blocking the user from zooming out into the wall.
+	 * - If there's no obstacle, the user can zoom freely, up to camera.upperRadiusLimit.
+	 *
+	 * NOTE: We remove smoothing/lerping for an "immediate" clamp so it's
+	 * truly impossible to zoom out behind an object.
+	 */
+	private updateCameraCollision(): void {
+		const camera = this.thirdPersonCamera;
+		const targetPos = this.cameraAttachPoint.getAbsolutePosition();
+		const cameraPos = camera.position;
+		const direction = cameraPos.subtract(targetPos);
+		const distanceToCamera = direction.length();
+
+		if (distanceToCamera < 0.0001) return; // avoid zero-length direction
+
+		const normalizedDirection = direction.normalize();
+		const ray = new Ray(targetPos, normalizedDirection, distanceToCamera);
+
+		// Ray pick ignoring the character itself
+		const hit = this.scene.pickWithRay(ray, (mesh) => {
+			return mesh.isPickable && mesh !== this.getTransform();
+		});
+
+		// We'll assume no obstacle if pick fails
+		let obstacleRadius = Number.POSITIVE_INFINITY;
+		const collisionOffset = 0.01;
+
+		// If there's an obstacle behind the character, determine how far away it is
+		if (hit && hit.hit && hit.distance < distanceToCamera) {
+			// The farthest we can place the camera is 'hit.distance - offset'
+			obstacleRadius = Math.max(
+				hit.distance - collisionOffset,
+				camera.lowerRadiusLimit ?? 1
+			);
+		}
+
+		// The maximum we allow the camera radius to be is the lesser of
+		// (a) user’s desired radius (camera.radius),
+		// (b) the obstacle's limit, and
+		// (c) the camera's upperRadiusLimit.
+		let clampedRadius = Math.min(camera.radius, obstacleRadius);
+		clampedRadius = Math.min(
+			clampedRadius,
+			camera.upperRadiusLimit ?? 9999999
+		);
+
+		// And it can't go below the lowerRadiusLimit
+		clampedRadius = Math.max(
+			clampedRadius,
+			camera.lowerRadiusLimit ?? 1
+		);
+
+		// Finally, set the camera radius to this clamped value
+		camera.radius = clampedRadius;
+	}
+
+	private isAnyMovementKeyDown(): boolean {
+		return (
+			this.inputMap.get(this.keyForward) ||
+			this.inputMap.get(this.keyBackward) ||
+			this.inputMap.get(this.keyLeft) ||
+			this.inputMap.get(this.keyRight)
+		) === true;
 	}
 }

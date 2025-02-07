@@ -1,9 +1,14 @@
 import {MapSchema, Schema, type} from "@colyseus/schema";
 import {Player} from "./Player.ts";
+import { InteractableObjectState } from "./InteractableObjectState.ts";
+import {InteractType} from "../types/enums.ts";
 
 export class ChatRoomState extends Schema {
 	@type({map: Player})
 	players = new MapSchema<Player>();
+
+	@type({ map: InteractableObjectState })
+	objects = new MapSchema<InteractableObjectState>();
 
 	@type("string") mySynchronizedProperty: string = "Hello world";
 
@@ -34,5 +39,32 @@ export class ChatRoomState extends Schema {
 		player.animationState = data.animationState;
 
 		this.players.set(id, player);
+	}
+
+	createInteractableObject(
+		id: number,
+		type: InteractType
+	) {
+		const obj = new InteractableObjectState();
+		obj.id = id;
+		obj.type = type;
+		obj.isActive = false;
+		// use the object's “key” as a string
+		this.objects.set(String(id), obj);
+	}
+
+	updateInteractableObject(id: number, changes: Partial<InteractableObjectState>) {
+		const key = String(id);
+		const obj = this.objects.get(key);
+		if (!obj) return;
+
+		if (typeof changes.isActive !== "undefined") {
+			obj.isActive = changes.isActive;
+			obj.activeSince = Date.now();
+
+			setTimeout(() => {
+				obj.isActive = false;
+			}, 5000);
+		}
 	}
 }
