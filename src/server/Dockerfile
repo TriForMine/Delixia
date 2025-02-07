@@ -29,7 +29,7 @@ FROM base AS release
 COPY --from=install /temp/prod/node_modules node_modules
 COPY --from=prerelease /usr/src/app/src/server/ src/server/
 COPY --from=prerelease /usr/src/app/src/shared/ src/shared/
-COPY --from=prerelease /usr/src/app/src/tsconfig.json src/
+COPY --from=prerelease /usr/src/app/tsconfig.json src/
 
 # run the app
 USER bun
