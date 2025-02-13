@@ -34,7 +34,7 @@ export const mapConfigs: MapModelConfig[] = [
 				rotation: { y: Math.PI / 2 },
 				scaling: { x: 2.5, y: 0.5, z: 0.75 },
 			},
-			
+
 			// Table Coin Droite Devant
 			{
 				position: { x: -8, y: 0, z: -8 },
@@ -353,8 +353,8 @@ export const mapConfigs: MapModelConfig[] = [
 	},
 	{
 		map: 'japan',
-		fileName: "Cabinet Shelves.glb",
-		defaultScaling: { x: 0.9, y: 0.5, z: 0.5 },
+		fileName: "Plate.glb",
+		defaultScaling: { x: 0.5, y: 1.5, z: 0.5 },
 		defaultPhysics: {
 			shapeType: PhysicsShapeType.BOX,
 			mass: 0,
@@ -362,8 +362,39 @@ export const mapConfigs: MapModelConfig[] = [
 			restitution: 0.1,
 		},
 		instances: [
-			{ position: { x: 2.9, y: 1.15, z: 8.6 }, rotation: { z: Math.PI / 2 } },
-			{ position: { x: -2.9, y: 1.15, z: 8.6 }, rotation: { z: Math.PI / 2 } },
+			{ position: { x: 2.9, y: 1.15, z: 8.6 } },
+		],
+	},
+	{
+		map: 'japan',
+		fileName: "Fridge.glb",
+		defaultScaling: { x: 0.5, y: 0.5, z: 0.5 },
+		defaultPhysics: {
+			shapeType: PhysicsShapeType.BOX,
+			mass: 0,
+			friction: 0.8,
+			restitution: 0.1,
+		},
+		billboardOffset: {
+			x: 0,
+			y: 1.0,
+			z: -0.8,
+		},
+		instances: [
+			{
+				position: { x: 2.9, y: 0.15, z: 8.6 },
+				interaction: {
+					id: 8,
+					interactType: InteractType.Fridge,
+				},
+			},
+			{
+				position: { x: -2.9, y: 0.15, z: 8.6 },
+				interaction: {
+					id: 9,
+					interactType: InteractType.Fridge,
+				},
+			},
 		],
 	},
 	{
@@ -396,6 +427,32 @@ export const mapConfigs: MapModelConfig[] = [
 				},
 				position: { x: 1.75, y: 0.1, z: 8.5 },
 			},
+		],
+	},
+	{
+		map: 'japan',
+		fileName: "Nori.glb",
+		defaultScaling: {x: 0.4, y: 0.4, z: 0.4},
+		defaultPhysics: {
+			shapeType: PhysicsShapeType.BOX,
+			mass: 0,
+			friction: 0.8,
+			restitution: 0.1,
+		},
+		billboardOffset: {
+			x: 0,
+			y: 0.5,
+			z: 0,
+		},
+		instances: [
+			{
+				interaction: {
+					id: 7,
+					interactType: InteractType.Ingredient,
+				},
+				position: {x: 4, y: 1.15, z: 6},
+				rotation: {x: 0, y: 0, z: 0}
+			}
 		],
 	},
 	{

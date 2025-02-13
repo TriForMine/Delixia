@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import {useCallback, useEffect, useRef} from "react";
 import { Scene } from "@babylonjs/core";
 import { BabylonScene } from "./BabylonScene";
 import { useColyseusRoom } from "../hooks/colyseus";
@@ -20,6 +20,22 @@ export const Game = ({ onBackToMenu }: { onBackToMenu: () => void }) => {
 		const deltaTime = scene.getEngine().getDeltaTime();
 		gameEngineRef.current?.update(deltaTime);
 	}, []);
+
+	useEffect(() => {
+		if (!room)
+			return;
+
+		room.onLeave((code) => {
+			console.log("Room leave", code);
+			gameEngineRef.current?.dispose();
+			onBackToMenu();
+		})
+		room.onError((code, message) => {
+			console.error("Room error", code, message);
+			gameEngineRef.current?.dispose();
+			onBackToMenu();
+		});
+	}, [room]);
 
 	return (
 		<div className="relative w-full h-full">

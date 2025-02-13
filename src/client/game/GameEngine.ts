@@ -21,10 +21,11 @@ import {Room} from "colyseus.js";
 import {MapLoader} from "./MapLoader.ts";
 import {InteractableObject} from "./InteractableObject.ts";
 import {mapConfigs} from "@shared/maps/japan.ts";
+import {CustomLoadingScreen} from "@client/components/BabylonScene.tsx";
 
 export class GameEngine {
 	private readonly scene: Scene;
-	private readonly room: Room<ChatRoomState>;
+	private room: Room<ChatRoomState>;
 	private localController?: LocalCharacterController;
 	private remoteControllers = new Map<string, RemoteCharacterController>();
 	private shadowGenerator!: CascadedShadowGenerator;
@@ -35,6 +36,13 @@ export class GameEngine {
 	constructor(scene: Scene, room: any) {
 		this.scene = scene;
 		this.room = room;
+	}
+
+	/**
+	 * Disposes of all resources used by the game engine.
+	 */
+	dispose(): void {
+		this.scene.dispose();
 	}
 
 	/**
@@ -172,6 +180,16 @@ export class GameEngine {
 			}
 		});
 
+		this.assetsManager.onProgress = (remainingCount, totalCount, _) => {
+			const percentage = (totalCount - remainingCount) / totalCount;
+
+			// If we’re using our CustomLoadingScreen instance
+			const engine = this.scene.getEngine();
+			if (engine.loadingScreen instanceof CustomLoadingScreen) {
+				engine.loadingScreen.updateProgress(percentage * 100);
+			}
+		}
+
 		// When all assets are loaded, create a simple full‐screen GUI (e.g. an FPS counter)
 		this.assetsManager.onFinish = () => {
 			const advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
@@ -283,5 +301,9 @@ export class GameEngine {
 				timestamp: Date.now()
 			})
 		}
+	}
+
+	public setRoom(room: Room<ChatRoomState>): void {
+		this.room = room;
 	}
 }

@@ -3,5 +3,10 @@ export enum InteractType {
 	Oven,
 	Counter,
 	ChoppingBoard,
-	Sink
+	Sink,
+	Ingredient,
+}
+
+export enum Ingredient {
+	Nori
 }
