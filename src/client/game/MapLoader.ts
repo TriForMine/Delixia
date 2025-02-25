@@ -20,6 +20,8 @@ export class MapLoader {
 	constructor(scene: Scene, cascadedShadowGenerator: CascadedShadowGenerator) {
 		this.scene = scene;
 		this.assetsManager = new AssetsManager(this.scene);
+		this.assetsManager.autoHideLoadingUI = false;
+		this.assetsManager.useDefaultLoadingScreen = false;
 		this.cascadedShadowGenerator = cascadedShadowGenerator;
 		const material = new StandardMaterial("cloud", this.scene);
 		material.disableLighting = false;
@@ -32,7 +34,8 @@ export class MapLoader {
 	public loadAndPlaceModels(
 		folder: string,
 		modelConfigs: MapModelConfig[],
-		onFinish: () => void
+		onFinish: () => void,
+		onProgress?: (progress: number) => void
 	): void {
 		// 1. Create a unique loading task for each distinct `fileName`
 		modelConfigs.forEach((modelConfig) => {
@@ -51,7 +54,16 @@ export class MapLoader {
 			}
 		});
 
-		// 2. After all loading tasks are done, instantiate each config’s placements
+		// 2. Set up progress tracking if provided
+		if (onProgress && typeof onProgress === "function") {
+			this.assetsManager.onProgress = (remainingCount, totalCount) => {
+				const loadedCount = totalCount - remainingCount;
+				const progress = (loadedCount / totalCount) * 100;
+				onProgress(progress);
+			};
+		}
+
+		// 3. After all loading tasks are done, instantiate each config’s placements
 		this.assetsManager.onFinish = () => {
 			modelConfigs.forEach((modelConfig) => {
 				const container = this.loadedContainers[modelConfig.fileName];
@@ -147,7 +159,7 @@ export class MapLoader {
 					});
 				});
 			});
-
+			
 			onFinish();
 		};
 

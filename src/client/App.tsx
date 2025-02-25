@@ -31,11 +31,29 @@ const App: React.FC = () => {
 	return (
 		<div className="min-h-screen h-screen flex flex-col bg-base-200 overflow-hidden">
 			{mode === 'menu' && (
-				<div className="flex flex-col items-center justify-center flex-1">
-					<h1 className="text-4xl mb-8">Main Menu</h1>
-					<button className="btn btn-primary mb-4" onClick={handlePlayGame}>
-						Play Game
-					</button>
+				<div className="flex flex-col items-center justify-center flex-1 bg-base-200 bg-opacity-90">
+					<h1 className="text-6xl font-bold mb-2 text-primary">Delixia</h1>
+					<p className="text-xl mb-8 text-base-content opacity-80">Un jeu de cuisine multijoueur</p>
+					
+					<div className="flex flex-col gap-4 w-64">
+						<button
+							className="btn btn-primary btn-lg w-full"
+							onClick={handlePlayGame}
+						>
+							Jouer
+						</button>
+						
+						<button
+							className="btn btn-outline btn-lg w-full"
+							onClick={() => window.open('https://github.com/TriForMine/delixia', '_blank')}
+						>
+							GitHub
+						</button>
+					</div>
+					
+					<div className="fixed bottom-4 text-sm opacity-70">
+						Version {import.meta.env.VITE_APP_VERSION || '0.0.0'}
+					</div>
 				</div>
 			)}
 			{mode === 'game' && (

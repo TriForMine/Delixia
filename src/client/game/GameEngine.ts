@@ -31,11 +31,57 @@ export class GameEngine {
 	private shadowGenerator!: CascadedShadowGenerator;
 	private assetsManager!: AssetsManager;
 	private fpsText?: GUI.TextBlock;
+	private lastPerformanceUpdate: number = 0;
+	private readonly PERFORMANCE_UPDATE_INTERVAL: number = 1000; // Update every second
+	private loadedCharacterContainer: any;
 	public interactables: InteractableObject[] = [];
+	private loadingState = {
+		assets: { progress: 0, total: 0, current: 0 },
+		map: { progress: 0, loaded: false },
+		currentTask: ""
+	};
 
 	constructor(scene: Scene, room: any) {
 		this.scene = scene;
 		this.room = room;
+
+		// Enable hardware scaling to improve performance
+		scene.getEngine().setHardwareScalingLevel(1.0);
+
+		// Handle visibility and focus changes
+		const canvas = scene.getEngine().getRenderingCanvas();
+		if (canvas) {
+			// Handle visibility change
+			document.addEventListener("visibilitychange", () => {
+				if (document.visibilityState === "visible") {
+					this.requestFocusAndPointerLock();
+				}
+			});
+
+			// Handle window focus
+			window.addEventListener("focus", () => {
+				this.requestFocusAndPointerLock();
+			});
+
+			// Handle canvas focus
+			canvas.addEventListener("click", () => {
+				this.requestFocusAndPointerLock();
+			});
+		}
+
+		// Enable frustum culling for better performance
+		scene.skipFrustumClipping = false;
+		scene.skipPointerMovePicking = true;
+
+		// Optimize shadow quality vs performance
+		scene.shadowsEnabled = true;
+		scene.lightsEnabled = true;
+		scene.particlesEnabled = true;
+		scene.collisionsEnabled = true;
+		scene.fogEnabled = true;
+
+		// Set a reasonable physics timestep
+		scene.getPhysicsEngine()?.setTimeStep(1/60);
 	}
 
 	/**
@@ -53,6 +99,10 @@ export class GameEngine {
 	 * – Creates the environment (skybox, ground, etc.)
 	 */
 	async init(): Promise<void> {
+		// Make sure loading screen is shown
+		const engine = this.scene.getEngine();
+		engine.displayLoadingUI();
+
 		// Toggle the Babylon Inspector with Ctrl+Alt+Shift+I
 		this.scene.onKeyboardObservable.add((kbInfo) => {
 			if (
@@ -71,6 +121,8 @@ export class GameEngine {
 
 		// Create an AssetsManager to load assets
 		this.assetsManager = new AssetsManager(this.scene);
+		this.assetsManager.useDefaultLoadingScreen = false;
+		this.assetsManager.autoHideLoadingUI = false;
 
 		// Load the character model (using a container task)
 		const characterTask = this.assetsManager.addContainerTask(
@@ -116,44 +168,9 @@ export class GameEngine {
 		rp.renderList?.push(skybox);
 		this.scene.environmentTexture = rp.cubeTexture;
 
-		// When the character model is loaded…
+		// When the character model is loaded, store it for later use
 		characterTask.onSuccess = (task) => {
-			// Instantiate the local player from the loaded container.
-			const localInstance = task.loadedContainer.instantiateModelsToScene((name) => name);
-			const mesh = localInstance.rootNodes[0] as Mesh;
-			mesh.scaling = new Vector3(1, 1, 1);
-			mesh.rotation = new Vector3(0, 0, 0);
-			this.localController = new LocalCharacterController(this, mesh, localInstance.animationGroups, this.scene);
-			this.localController.model.receiveShadows = true;
-			this.shadowGenerator.addShadowCaster(this.localController.model);
-
-			// Listen for new remote players joining via the Colyseus room state.
-			this.room.state.players.onAdd(async (player: Player, sessionId: string) => {
-				if (sessionId === this.room.sessionId) {
-					// (Local player state is already handled.)
-					this.localController?.setPosition(new Vector3(player.x, player.y, player.z));
-					this.localController?.setRotationY(player.rot);
-					return;
-				}
-				// Instantiate a remote player model.
-				const remoteInstance = task.loadedContainer.instantiateModelsToScene((name) => name);
-				const remoteMesh = remoteInstance.rootNodes[0] as Mesh;
-				remoteMesh.scaling = new Vector3(1, 1, 1);
-				remoteMesh.rotation = new Vector3(0, 0, 0);
-				const remoteController = new RemoteCharacterController(remoteMesh, this.scene, remoteInstance.animationGroups);
-				remoteController.setPosition(new Vector3(player.x, player.y, player.z));
-				remoteController.setRotationY(player.rot);
-				remoteMesh.receiveShadows = true;
-				this.shadowGenerator.addShadowCaster(remoteMesh);
-				this.remoteControllers.set(sessionId, remoteController);
-
-				remoteController.receiveState(player);
-				player.onChange(() => remoteController.receiveState(player));
-				player.onRemove(() => {
-					remoteController.dispose();
-					this.remoteControllers.delete(sessionId);
-				});
-			});
+			this.loadedCharacterContainer = task.loadedContainer;
 		};
 
 		this.room.state.objects.onAdd((objState, key) => {
@@ -193,30 +210,94 @@ export class GameEngine {
 		// When all assets are loaded, create a simple full‐screen GUI (e.g. an FPS counter)
 		this.assetsManager.onFinish = () => {
 			const advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+
+			// Initialize FPS counter
 			this.fpsText = new GUI.TextBlock();
 			this.fpsText.text = "FPS: 0";
 			this.fpsText.color = "white";
+			this.fpsText.fontSize = 16;
 			this.fpsText.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
 			this.fpsText.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
 			this.fpsText.paddingRight = "10px";
 			this.fpsText.paddingTop = "10px";
 			advancedTexture.addControl(this.fpsText);
+
+			// Update loading state
+			this.loadingState.assets.progress = 100;
+			this.loadingState.currentTask = "Assets loaded, preparing map...";
+
+			const engine = this.scene.getEngine();
+			if (engine.loadingScreen instanceof CustomLoadingScreen) {
+				engine.loadingScreen.loadingUIText = this.loadingState.currentTask;
+			}
+
+			assetsLoaded = true;
+			checkLoadingComplete();
+		};
+
+		const kitchenFolder = "assets/map/";
+		const kitchenLoader = new MapLoader(this.scene, this.shadowGenerator);
+
+		// Wait for both assets and map to load before hiding loading screen
+		let assetsLoaded = false;
+		let mapLoaded = false;
+
+		const checkLoadingComplete = () => {
+			if (assetsLoaded && mapLoaded) {
+				const engine = this.scene.getEngine();
+				if (engine.loadingScreen instanceof CustomLoadingScreen) {
+					console.log("Loading complete!");
+					this.loadingState.currentTask = "Initializing game...";
+					engine.loadingScreen.loadingUIText = this.loadingState.currentTask;
+					engine.loadingScreen.updateProgress(100);
+
+					// Initialize players now that everything is loaded
+					this.initializePlayers();
+
+					// Give a moment to show 100% before hiding
+					setTimeout(() => {
+						this.loadingState.currentTask = "Ready!";
+						if (engine.loadingScreen instanceof CustomLoadingScreen) {
+							engine.loadingScreen.loadingUIText = this.loadingState.currentTask;
+							engine.loadingScreen.updateProgress(100);
+						}
+						setTimeout(() => engine.hideLoadingUI(), 500);
+					}, 500);
+				}
+			}
 		};
 
 		// Start asset loading.
 		this.assetsManager.load();
 
-		const kitchenFolder = "assets/map/";
-		const kitchenLoader = new MapLoader(this.scene, this.shadowGenerator);
-
 		kitchenLoader.loadAndPlaceModels(kitchenFolder, mapConfigs, () => {
 			console.log("All map models loaded and placed!");
 			this.interactables = kitchenLoader.interactables;
+			mapLoaded = true;
+			this.loadingState.map.loaded = true;
+			this.loadingState.map.progress = 100;
+			this.loadingState.currentTask = "Map loading complete";
+			if (engine.loadingScreen instanceof CustomLoadingScreen) {
+				const totalProgress = (this.loadingState.assets.progress + this.loadingState.map.progress) / 2;
+				engine.loadingScreen.updateProgress(totalProgress);
+				engine.loadingScreen.loadingUIText = this.loadingState.currentTask;
+			}
+			checkLoadingComplete();
+		}, (progress) => {
+			this.loadingState.map.progress = progress;
+			this.loadingState.currentTask = `Loading map: ${progress.toFixed(0)}%`;
+
+			// Update loading screen with combined progress
+			const engine = this.scene.getEngine();
+			if (engine.loadingScreen instanceof CustomLoadingScreen) {
+				const totalProgress = (this.loadingState.assets.progress + this.loadingState.map.progress) / 2;
+				engine.loadingScreen.updateProgress(totalProgress);
+				engine.loadingScreen.loadingUIText = this.loadingState.currentTask;
+			}
 		});
 
-		// Request pointer lock (and focus) for immersive controls.
-		this.scene.getEngine().getRenderingCanvas()?.requestPointerLock().catch(console.error);
-		this.scene.getEngine().getRenderingCanvas()?.focus();
+		// Request initial pointer lock and focus
+		this.requestFocusAndPointerLock();
 	}
 
 	/**
@@ -273,9 +354,24 @@ export class GameEngine {
 			controller.update(deltaSeconds);
 		});
 
-		// Update FPS counter.
-		if (this.fpsText) {
-			this.fpsText.text = `FPS: ${this.scene.getEngine().getFps().toFixed()}`;
+		// Update performance metrics
+		const currentTime = Date.now();
+		if (currentTime - this.lastPerformanceUpdate > this.PERFORMANCE_UPDATE_INTERVAL) {
+			const engine = this.scene.getEngine();
+			const fps = engine.getFps().toFixed();
+
+			if (this.fpsText) {
+				this.fpsText.text = `FPS: ${fps}`;
+			}
+
+			this.lastPerformanceUpdate = currentTime;
+
+			// Auto-adjust quality if FPS drops too low
+			if (Number(fps) < 30) {
+				engine.setHardwareScalingLevel(engine.getHardwareScalingLevel() * 1.1);
+			} else if (Number(fps) > 60 && engine.getHardwareScalingLevel() > 1.0) {
+				engine.setHardwareScalingLevel(Math.max(1.0, engine.getHardwareScalingLevel() * 0.9));
+			}
 		}
 	}
 
@@ -305,5 +401,76 @@ export class GameEngine {
 
 	public setRoom(room: Room<ChatRoomState>): void {
 		this.room = room;
+	}
+
+	private initializePlayers(): void {
+		if (!this.loadedCharacterContainer) {
+			console.error("Character container not loaded!");
+			return;
+		}
+
+		// Instantiate the local player from the loaded container
+		const localInstance = this.loadedCharacterContainer.instantiateModelsToScene((name: string) => name);
+		const mesh = localInstance.rootNodes[0] as Mesh;
+		mesh.scaling = new Vector3(1, 1, 1);
+		mesh.rotation = new Vector3(0, 0, 0);
+		this.localController = new LocalCharacterController(this, mesh, localInstance.animationGroups, this.scene);
+		this.localController.model.receiveShadows = true;
+		this.shadowGenerator.addShadowCaster(this.localController.model);
+
+		// Listen for new remote players joining via the Colyseus room state
+		this.room.state.players.onAdd(async (player: Player, sessionId: string) => {
+			if (sessionId === this.room.sessionId) {
+				// Local player state handling
+				this.localController?.setPosition(new Vector3(player.x, player.y, player.z));
+				this.localController?.setRotationY(player.rot);
+				return;
+			}
+
+			// Instantiate a remote player model
+			const remoteInstance = this.loadedCharacterContainer.instantiateModelsToScene((name: string) => name);
+			const remoteMesh = remoteInstance.rootNodes[0] as Mesh;
+			remoteMesh.scaling = new Vector3(1, 1, 1);
+			remoteMesh.rotation = new Vector3(0, 0, 0);
+			const remoteController = new RemoteCharacterController(remoteMesh, this.scene, remoteInstance.animationGroups);
+			remoteController.setPosition(new Vector3(player.x, player.y, player.z));
+			remoteController.setRotationY(player.rot);
+			remoteMesh.receiveShadows = true;
+			this.shadowGenerator.addShadowCaster(remoteMesh);
+			this.remoteControllers.set(sessionId, remoteController);
+
+			remoteController.receiveState(player);
+			player.onChange(() => remoteController.receiveState(player));
+			player.onRemove(() => {
+				remoteController.dispose();
+				this.remoteControllers.delete(sessionId);
+			});
+		});
+	}
+
+	/**
+	 * Requests focus and pointer lock for the game canvas.
+	 * This is called when:
+	 * - The game initializes
+	 * - The window regains focus
+	 * - The document becomes visible
+	 * - The canvas is clicked
+	 */
+	private requestFocusAndPointerLock(): void {
+		const canvas = this.scene.getEngine().getRenderingCanvas();
+		if (!canvas) return;
+
+		// First focus the canvas
+		canvas.focus();
+
+		// Then request pointer lock after a small delay to ensure focus is processed
+		setTimeout(() => {
+			// Only request pointer lock if document is visible and window has focus
+			if (document.visibilityState === "visible" && document.hasFocus()) {
+				canvas.requestPointerLock().catch(error => {
+					console.warn("Failed to acquire pointer lock:", error);
+				});
+			}
+		}, 100);
 	}
 }
