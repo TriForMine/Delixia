@@ -3,6 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 import react from '@vitejs/plugin-react-swc'
 import {viteStaticCopy} from "vite-plugin-static-copy";
 import * as path from "node:path";
+import {denyImports} from "vite-env-only"
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -27,6 +28,12 @@ export default defineConfig({
 				},
 			]
 		}),
-		react()
+		react(),
+		denyImports({
+			client: {
+				specifiers: ["@server/*"],
+				files: ["**/server/**"],
+			},
+		})
 	],
 })

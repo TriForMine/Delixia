@@ -2,12 +2,23 @@ import config from "@colyseus/tools";
 import {monitor} from "@colyseus/monitor";
 import {playground} from "@colyseus/playground";
 import {BunWebSockets} from "@colyseus/bun-websockets"
+import basicAuth from "express-basic-auth";
+import {LobbyRoom} from "colyseus";
 
 /**
  * Import your Room files
  */
 import {ChatRoom} from "./rooms/ChatRoom.ts";
-import {LobbyRoom} from "colyseus";
+
+const basicAuthMiddleware = basicAuth({
+	// list of users and passwords
+	users: {
+		"admin": "admin",
+	},
+	// sends WWW-Authenticate header, which will prompt the user to fill
+	// credentials in
+	challenge: true
+});
 
 export default config({
 	options: {
@@ -51,6 +62,6 @@ export default config({
 		 * It is recommended to protect this route with a password
 		 * Read more: https://docs.colyseus.io/tools/monitor/#restrict-access-to-the-panel-using-a-password
 		 */
-		app.use("/colyseus", monitor());
+		app.use("/monitor", basicAuthMiddleware, monitor());
 	}
 });
