@@ -1,9 +1,9 @@
-import {useColyseusRoom, useColyseusState} from "../../hooks/colyseus.ts";
+import {useGameColyseusRoom, useGameColyseusState} from "../../hooks/colyseus.ts";
 import {useEffect, useState} from "react";
 
 export const ChatRoom = () => {
-	const room = useColyseusRoom();
-	const players = useColyseusState((state) => state.players);
+	const room = useGameColyseusRoom();
+	const players = useGameColyseusState((state) => state.players);
 	const [messages, setMessages] = useState<string[]>([]);
 	const [currentTab, setCurrentTab] = useState<"chat" | "players">("chat");
 
