@@ -1,31 +1,59 @@
 import React, {useEffect} from 'react';
-import {connectToColyseus, disconnectFromColyseus} from './hooks/colyseus.ts';
 import {Game} from './components/Game.tsx';
 import {useStore} from './store/useStore';
 import '@babylonjs/loaders/glTF';
+import {RoomList} from "@client/components/RoomList.tsx";
+import {
+	gameConnect,
+	gameDisconnectFromColyseus,
+	lobbyConnect,
+	lobbyDisconnectFromColyseus
+} from "@client/hooks/colyseus.ts";
 
 const App: React.FC = () => {
 	const mode = useStore((state) => state.mode);
 	const setMode = useStore((state) => state.setMode);
+	const roomToJoin = useStore((state) => state.roomToJoin);
+	const setRoomToJoin = useStore((state) => state.setRoomToJoin);
 
 	useEffect(() => {
 		if (mode === 'game') {
 			(async () => {
-				await connectToColyseus('my_room');
+				await gameConnect({
+					roomName: roomToJoin?.roomName,
+					roomId: roomToJoin?.roomId,
+					forceCreate: roomToJoin?.forceCreate,
+				});
 			})();
 
 			return () => {
-				disconnectFromColyseus().catch(console.error);
+				gameDisconnectFromColyseus().catch(console.error);
 			};
+		} else if (mode === 'roomList') {
+			(async () => {
+				await lobbyConnect({
+					roomName: 'lobby',
+					isLobby: true,
+				});
+			})();
+
+			return () => {
+				lobbyDisconnectFromColyseus().catch(console.error);
+			}
 		}
-	}, [mode]);
+	}, [mode, roomToJoin, setRoomToJoin]);
 
 	const handlePlayGame = () => {
+		setRoomToJoin({roomName: 'game'});
 		setMode('game');
 	};
 
 	const handleBackToMenu = () => {
 		setMode('menu');
+	};
+
+	const handleRoomList = () => {
+		setMode('roomList');
 	};
 
 	return (
@@ -40,9 +68,16 @@ const App: React.FC = () => {
 							className="btn btn-primary btn-lg w-full"
 							onClick={handlePlayGame}
 						>
-							Jouer
+							Quick Play
 						</button>
-						
+
+						<button
+							className="btn btn-outline btn-lg w-full"
+							onClick={handleRoomList}
+							>
+							Join Room
+						</button>
+
 						<button
 							className="btn btn-outline btn-lg w-full"
 							onClick={() => window.open('https://github.com/TriForMine/delixia', '_blank')}
@@ -64,6 +99,11 @@ const App: React.FC = () => {
 					</div>
 				</div>
 			)}
+			{
+				mode === 'roomList' && (
+					<RoomList />
+				)
+			}
 		</div>
 	);
 };

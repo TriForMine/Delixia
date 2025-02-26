@@ -1,11 +1,11 @@
 import {useCallback, useEffect, useRef} from "react";
 import { Scene } from "@babylonjs/core";
 import { BabylonScene } from "./BabylonScene";
-import { useColyseusRoom } from "../hooks/colyseus";
 import { GameEngine } from "../game/GameEngine";
+import {useGameColyseusRoom} from "@client/hooks/colyseus.ts";
 
 export const Game = ({ onBackToMenu }: { onBackToMenu: () => void }) => {
-	const room = useColyseusRoom();
+	const room = useGameColyseusRoom();
 	const gameEngineRef = useRef<GameEngine>();
 
 	// When the Babylon scene is ready, instantiate our GameEngine
@@ -53,7 +53,7 @@ export const Game = ({ onBackToMenu }: { onBackToMenu: () => void }) => {
 				<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 					<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
 				</svg>
-				Menu Principal
+				Main menu
 			</button>
 		</div>
 	);

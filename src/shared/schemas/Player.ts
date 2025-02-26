@@ -1,6 +1,9 @@
 import {Schema, type} from "@colyseus/schema";
 
 export class Player extends Schema {
+	@type("boolean")
+	connected = false;
+
 	@type("string")
 	name: string = "Unknown";
 

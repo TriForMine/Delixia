@@ -18,6 +18,14 @@ export class ChatRoomState extends Schema {
 		this.players.set(id, player);
 	}
 
+	setIsConnected(id: string, value: boolean) {
+		const player = this.players.get(id);
+		if (!player) return;
+
+		player.connected = value;
+		this.players.set(id, player);
+	}
+
 	removePlayer(id: string) {
 		this.players.delete(id);
 	}

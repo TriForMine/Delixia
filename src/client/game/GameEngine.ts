@@ -17,7 +17,7 @@ import { LocalCharacterController } from "./LocalCharacterController";
 import { RemoteCharacterController } from "./RemoteCharacterController";
 import {ChatRoomState} from "@shared/schemas/ChatRoomState.ts";
 import {Player} from "@shared/schemas/Player.ts";
-import {Room} from "colyseus.js";
+import {getStateCallbacks, Room} from "colyseus.js";
 import {MapLoader} from "./MapLoader.ts";
 import {InteractableObject} from "./InteractableObject.ts";
 import {mapConfigs} from "@shared/maps/japan.ts";
@@ -173,9 +173,11 @@ export class GameEngine {
 			this.loadedCharacterContainer = task.loadedContainer;
 		};
 
-		this.room.state.objects.onAdd((objState, key) => {
+		const $ = getStateCallbacks(this.room);
+
+		$(this.room.state).objects.onAdd((objState, key) => {
 			// Listen for property changes on this object
-			objState.onChange(() => {
+			$(objState).onChange(() => {
 				const interactable = this.interactables.find((obj) => obj.id === Number(key));
 
 				if (!interactable) return;
@@ -418,8 +420,10 @@ export class GameEngine {
 		this.localController.model.receiveShadows = true;
 		this.shadowGenerator.addShadowCaster(this.localController.model);
 
+		const $ = getStateCallbacks(this.room);
+
 		// Listen for new remote players joining via the Colyseus room state
-		this.room.state.players.onAdd(async (player: Player, sessionId: string) => {
+		$(this.room.state).players.onAdd(async (player: Player, sessionId: string) => {
 			if (sessionId === this.room.sessionId) {
 				// Local player state handling
 				this.localController?.setPosition(new Vector3(player.x, player.y, player.z));
@@ -440,12 +444,17 @@ export class GameEngine {
 			this.remoteControllers.set(sessionId, remoteController);
 
 			remoteController.receiveState(player);
-			player.onChange(() => remoteController.receiveState(player));
-			player.onRemove(() => {
-				remoteController.dispose();
-				this.remoteControllers.delete(sessionId);
-			});
+
+			$(player).onChange(() => remoteController.receiveState(player));
 		});
+
+		$(this.room.state).players.onRemove((_, sessionId: string) => {
+			const controller = this.remoteControllers.get(sessionId);
+			if (controller) {
+				controller.dispose();
+				this.remoteControllers.delete(sessionId);
+			}
+		})
 	}
 
 	/**

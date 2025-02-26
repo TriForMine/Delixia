@@ -81,8 +81,12 @@ export class MapLoader {
 					const instance = container.instantiateModelsToScene((name) => name);
 
 					// The root node in the container is typically at index 0
-					const root = instance.rootNodes[0] as Mesh;
-					if (!root) return;
+					const rootNode = instance.rootNodes[0];
+					if (!rootNode || !(rootNode instanceof Mesh)) {
+						console.error(`Invalid root node for model "${modelConfig.fileName}"`);
+						return;
+					}
+					const root = rootNode;
 
 					root.name = modelConfig.fileName.replace(".glb", "");
 
@@ -112,7 +116,7 @@ export class MapLoader {
 							placement.rotation.z ?? 0
 						);
 					}
-					// Apply transforms
+					// Apply transforms to the root object
 					if (placement.position) {
 						root.position.set(
 							placement.position.x,
@@ -128,8 +132,9 @@ export class MapLoader {
 						);
 					}
 
-					// Apply physics recursively
+					// Apply physics and shadows recursively to child meshes
 					root.getChildMeshes().forEach((mesh) => {
+						// Inherit rotation from root to ensure consistent rotation
 						if (placement.rotation) {
 							mesh.rotation.set(
 								placement.rotation.x ?? 0,
@@ -141,12 +146,15 @@ export class MapLoader {
 						const physics = placement.physics ?? defaultPhysics;
 						if (!physics) return;
 
-						const { shapeType, mass, restitution, friction } = physics;
+						if (!physics.shapeType) {
+							console.warn(`Missing shape type for physics in model "${modelConfig.fileName}"`);
+							return;
+						}
 
-						new PhysicsAggregate(mesh, shapeType, {
-							mass: mass ?? 0,
-							restitution: restitution ?? 0,
-							friction: friction ?? 0,
+						new PhysicsAggregate(mesh, physics.shapeType, {
+							mass: physics.mass ?? 0,
+							restitution: physics.restitution ?? 0.2, // Default restitution for better bounce
+							friction: physics.friction ?? 0.5, // Default friction for better physics feel
 						}, this.scene);
 
 						mesh.receiveShadows = true;
@@ -163,7 +171,7 @@ export class MapLoader {
 			onFinish();
 		};
 
-		// 3. Start loading
+		// 4. Start loading
 		this.assetsManager.load();
 	}
 }

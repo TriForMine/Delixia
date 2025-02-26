@@ -7,6 +7,7 @@ import {BunWebSockets} from "@colyseus/bun-websockets"
  * Import your Room files
  */
 import {ChatRoom} from "./rooms/ChatRoom.ts";
+import {LobbyRoom} from "colyseus";
 
 export default config({
 	options: {
@@ -21,8 +22,12 @@ export default config({
 		/**
 		 * Define your room handlers:
 		 */
-		gameServer.define('my_room', ChatRoom);
+		gameServer
+			.define("lobby", LobbyRoom);
 
+		gameServer
+			.define('game', ChatRoom)
+			.enableRealtimeListing();
 	},
 
 	initializeExpress: (app) => {
@@ -31,13 +36,13 @@ export default config({
 		 * (It is not recommended to expose this route in a production environment)
 		 */
 		if (process.env.NODE_ENV !== "production") {
-			app.use("/", playground);
+			app.use("/", playground());
 		}
 
 		/**
 		 * Health check route
 		 */
-		app.get("/health", (_, res) => {
+		app.get("/health", async (_, res) => {
 			res.send("OK");
 		})
 

@@ -18,22 +18,22 @@
     "@babylonjs/inspector": "7.47.2",
     "@babylonjs/loaders": "7.47.2",
     "@babylonjs/materials": "7.47.2",
-    "@colyseus/bun-websockets": "0.15.3",
-    "@colyseus/monitor": "0.15.8",
-    "@colyseus/playground": "0.15.17",
-    "@colyseus/tools": "0.15.49",
+    "@colyseus/bun-websockets": "0.16.1",
+    "@colyseus/monitor": "0.16.1",
+    "@colyseus/playground": "0.16.3",
+    "@colyseus/schema": "^3.0.11",
+    "@colyseus/tools": "^0.16.2",
     "@tailwindcss/vite": "^4.0.3",
-    "colyseus": "0.15.57",
-    "colyseus.js": "0.15.26",
+    "colyseus": "0.16.3",
+    "colyseus.js": "0.16.1",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "use-colyseus": "0.0.7",
     "vite-plugin-static-copy": "2.2.0",
     "zustand": "5.0.3"
   },
   "devDependencies": {
-    "@colyseus/loadtest": "0.15.8",
-    "@colyseus/testing": "0.15.4",
+    "@colyseus/loadtest": "0.16.1",
+    "@colyseus/testing": "0.16.1",
     "@tailwindcss/postcss": "4.0.0",
     "@types/bun": "1.2.2",
     "@types/express": "5.0.0",
@@ -55,6 +55,8 @@
   },
   "trustedDependencies": [
     "@swc/core",
-    "core-js"
+    "core-js",
+    "esbuild",
+    "msgpackr-extract"
   ]
 }
