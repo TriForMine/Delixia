@@ -1,4 +1,4 @@
-import {Quaternion, Vector3} from "@babylonjs/core";
+import { Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector'
 
 /**
  * Moves a number towards a target by a maximum delta.
@@ -8,10 +8,10 @@ import {Quaternion, Vector3} from "@babylonjs/core";
  * @returns The new value.
  */
 export function moveTowards(current: number, target: number, maxDelta: number): number {
-	if (Math.abs(target - current) <= maxDelta) {
-		return target;
-	}
-	return current + Math.sign(target - current) * maxDelta;
+  if (Math.abs(target - current) <= maxDelta) {
+    return target
+  }
+  return current + Math.sign(target - current) * maxDelta
 }
 
 /**
@@ -22,7 +22,7 @@ export function moveTowards(current: number, target: number, maxDelta: number): 
  * @returns The interpolated Vector3.
  */
 export function lerpVector3(start: Vector3, end: Vector3, t: number): Vector3 {
-	return Vector3.Lerp(start, end, t);
+  return Vector3.Lerp(start, end, t)
 }
 
 /**
@@ -33,5 +33,5 @@ export function lerpVector3(start: Vector3, end: Vector3, t: number): Vector3 {
  * @returns The interpolated Quaternion.
  */
 export function lerpQuaternion(start: Quaternion, end: Quaternion, t: number): Quaternion {
-	return Quaternion.Slerp(start, end, t);
+  return Quaternion.Slerp(start, end, t)
 }

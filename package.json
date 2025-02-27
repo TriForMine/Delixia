@@ -33,6 +33,7 @@
     "zustand": "5.0.3"
   },
   "devDependencies": {
+    "@biomejs/biome": "1.9.4",
     "@colyseus/loadtest": "0.16.1",
     "@colyseus/testing": "0.16.3",
     "@tailwindcss/postcss": "4.0.9",
@@ -49,6 +50,7 @@
     "mocha": "11.1.0",
     "postcss": "8.5.3",
     "rimraf": "6.0.1",
+    "rollup-plugin-visualizer": "5.14.0",
     "tailwindcss": "4.0.9",
     "tsx": "4.19.3",
     "typescript": "5.7.3",

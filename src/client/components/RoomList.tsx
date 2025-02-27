@@ -1,74 +1,73 @@
-import { useLobbyRooms } from "@client/hooks/colyseus.ts";
-import {useStore} from "@client/store/useStore.ts";
+import { useLobbyRooms } from '@client/hooks/colyseus.ts'
+import { useStore } from '@client/store/useStore.ts'
 
 export interface RoomAvailable<Metadata = any> {
-	name: string;
-	roomId: string;
-	clients: number;
-	maxClients: number;
-	metadata?: Metadata;
+  name: string
+  roomId: string
+  clients: number
+  maxClients: number
+  metadata?: Metadata
 }
 
 export const RoomList = () => {
-	const rooms = useLobbyRooms();
-	const setMode = useStore((state) => state.setMode);
-	const setRoomToJoin = useStore((state) => state.setRoomToJoin);
+  const rooms = useLobbyRooms()
+  const setMode = useStore((state) => state.setMode)
+  const setRoomToJoin = useStore((state) => state.setRoomToJoin)
 
-	return (
-		<div className="flex flex-col items-center justify-center flex-1 bg-base-200 bg-opacity-90 p-4">
-			<div className="flex items-center justify-between w-full max-w-md mb-4">
-				<button
-					className="btn btn-primary"
-					onClick={() => {
-						setMode("menu");
-					}}
-				>
-					Back to menu
-				</button>
-			</div>
-			<div className="flex items-center justify-between w-full max-w-md mb-4">
-				<h1 className="text-6xl font-bold text-primary">Delixia</h1>
-				<button
-					className="btn btn-primary"
-					onClick={() => {
-						setRoomToJoin({ roomName: 'game', forceCreate: true });
-						setMode('game');
-					}}
-				>
-					Create Room
-				</button>
-			</div>
-			<div className="w-full max-w-md">
-				<h1 className="text-2xl font-bold mb-4">Available Rooms</h1>
-				{rooms.length > 0 ? (
-					<ul className="space-y-2">
-						{rooms.map((room) => (
-							<li
-								key={room.roomId}
-								className="flex justify-between items-center p-4 bg-base-100 rounded-lg shadow"
-							>
-								<span className="text-lg">{room.name} {room.roomId}</span>
-								<span className="text-sm text-gray-500">
+  return (
+    <div className="flex flex-col items-center justify-center flex-1 bg-base-200 bg-opacity-90 p-4">
+      <div className="flex items-center justify-between w-full max-w-md mb-4">
+        <button
+          className="btn btn-primary"
+          onClick={() => {
+            setMode('menu')
+          }}
+        >
+          Back to menu
+        </button>
+      </div>
+      <div className="flex items-center justify-between w-full max-w-md mb-4">
+        <h1 className="text-6xl font-bold text-primary">Delixia</h1>
+        <button
+          className="btn btn-primary"
+          onClick={() => {
+            setRoomToJoin({ roomName: 'game', forceCreate: true })
+            setMode('game')
+          }}
+        >
+          Create Room
+        </button>
+      </div>
+      <div className="w-full max-w-md">
+        <h1 className="text-2xl font-bold mb-4">Available Rooms</h1>
+        {rooms.length > 0 ? (
+          <ul className="space-y-2">
+            {rooms.map((room) => (
+              <li key={room.roomId} className="flex justify-between items-center p-4 bg-base-100 rounded-lg shadow">
+                <span className="text-lg">
+                  {room.name} {room.roomId}
+                </span>
+                <span className="text-sm text-gray-500">
                   {room.clients} / {room.maxClients}
                 </span>
-								<button
-									className="btn btn-primary btn-sm"
-									aria-label={`Join room ${room.name}`}
-									onClick={() => {
-										setRoomToJoin({ roomId: room.roomId });
-										setMode("game");
-									}}
-									disabled={room.clients >= room.maxClients}
-								>
-									Join
-								</button>
-							</li>
-						))}
-					</ul>
-				) : (
-					<p>No rooms available. Create a new room to start.</p>
-				)}
-			</div>
-		</div>
-	);
-};
+                <button
+                  className="btn btn-primary btn-sm"
+                  aria-label={`Join room ${room.name}`}
+                  onClick={() => {
+                    setRoomToJoin({ roomId: room.roomId })
+                    setMode('game')
+                  }}
+                  disabled={room.clients >= room.maxClients}
+                >
+                  Join
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No rooms available. Create a new room to start.</p>
+        )}
+      </div>
+    </div>
+  )
+}

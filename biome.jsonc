@@ -21,6 +21,7 @@
       },
       "style": {
         "noNamespace": "error",
+        "noNamespaceImport": "error",
         "noNonNullAssertion": "off",
         "useImportType": "error",
         "useConsistentArrayType": {
