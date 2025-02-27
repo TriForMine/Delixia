@@ -29,7 +29,7 @@ export class ChatRoom extends Room<ChatRoomState> {
 			const obj = this.state.objects.get(String(objectId));
 			if (obj) {
 				const newActive = !obj.isActive;
-				this.state.updateInteractableObject(objectId, { isActive: newActive });
+				this.state.updateInteractableObject(objectId, {isActive: newActive});
 			}
 		});
 	}

@@ -1,13 +1,13 @@
 import {MapSchema, Schema, type} from "@colyseus/schema";
 import {Player} from "./Player.ts";
-import { InteractableObjectState } from "./InteractableObjectState.ts";
+import {InteractableObjectState} from "./InteractableObjectState.ts";
 import {InteractType} from "../types/enums.ts";
 
 export class ChatRoomState extends Schema {
 	@type({map: Player})
 	players = new MapSchema<Player>();
 
-	@type({ map: InteractableObjectState })
+	@type({map: InteractableObjectState})
 	objects = new MapSchema<InteractableObjectState>();
 
 	@type("string") mySynchronizedProperty: string = "Hello world";
@@ -16,6 +16,11 @@ export class ChatRoomState extends Schema {
 		const player = new Player();
 		player.name = `Player ${id}`;
 		this.players.set(id, player);
+	}
+
+	isConnected(id: string) {
+		const player = this.players.get(id);
+		return player ? player.connected : false
 	}
 
 	setIsConnected(id: string, value: boolean) {

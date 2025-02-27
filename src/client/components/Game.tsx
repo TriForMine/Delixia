@@ -1,13 +1,47 @@
-import {useCallback, useEffect, useRef} from "react";
+import {RefObject, useCallback, useEffect, useRef} from "react";
 import {Scene} from "@babylonjs/core";
 import {BabylonScene} from "./BabylonScene";
 import {GameEngine} from "../game/GameEngine";
-import {useGameColyseusRoom} from "@client/hooks/colyseus.ts";
+import {
+	ConnectionStatus,
+	useGameColyseusRoom,
+	useGameConnectionError,
+	useGameConnectionStatus
+} from "@client/hooks/colyseus.ts";
+
+const ConnectionStatusComponent = ({onBackToMenu, gameEngineRef}: {
+	onBackToMenu: () => void,
+	gameEngineRef: RefObject<GameEngine | undefined>
+}) => {
+	const connectionStatus = useGameConnectionStatus();
+	const connectionError = useGameConnectionError();
+
+	// Handle connection status changes
+	useEffect(() => {
+		if (connectionStatus === ConnectionStatus.ERROR) {
+			console.error("Connection error:", connectionError?.message);
+
+			gameEngineRef.current?.dispose();
+			onBackToMenu();
+		} else if (connectionStatus === ConnectionStatus.RECONNECTING) {
+			console.log("Attempting to reconnect to game server...");
+		}
+	}, [connectionStatus, connectionError]);
+
+	if (connectionStatus === ConnectionStatus.RECONNECTING) {
+		return (
+			<div className="absolute top-4 right-4 bg-warning text-white px-4 py-2 rounded-md shadow-lg">
+				Reconnecting to server...
+			</div>
+		);
+	}
+	return null;
+}
 
 export const Game = ({onBackToMenu}: { onBackToMenu: () => void }) => {
 	const room = useGameColyseusRoom();
 	const gameEngineRef = useRef<GameEngine>(undefined);
-	
+
 	// When the Babylon scene is ready, instantiate our GameEngine
 	const onSceneReady = useCallback(async (scene: Scene) => {
 		if (!room) return;
@@ -15,27 +49,11 @@ export const Game = ({onBackToMenu}: { onBackToMenu: () => void }) => {
 		await gameEngineRef.current.init();
 	}, [room]);
 
-	// Call our GameEngine’s update method on each frame.
+	// Call our GameEngine's update method on each frame.
 	const onRender = useCallback((scene: Scene) => {
 		const deltaTime = scene.getEngine().getDeltaTime();
 		gameEngineRef.current?.update(deltaTime);
 	}, []);
-
-	useEffect(() => {
-		if (!room)
-			return;
-
-		room.onLeave((code) => {
-			console.log("Room leave", code);
-			gameEngineRef.current?.dispose();
-			onBackToMenu();
-		})
-		room.onError((code, message) => {
-			console.error("Room error", code, message);
-			gameEngineRef.current?.dispose();
-			onBackToMenu();
-		});
-	}, [room]);
 
 	return (
 		<div className="relative w-full h-full">
@@ -56,6 +74,7 @@ export const Game = ({onBackToMenu}: { onBackToMenu: () => void }) => {
 				</svg>
 				Main menu
 			</button>
+			<ConnectionStatusComponent onBackToMenu={onBackToMenu} gameEngineRef={gameEngineRef}/>
 		</div>
 	);
 };

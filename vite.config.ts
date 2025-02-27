@@ -11,11 +11,18 @@ export default defineConfig({
 	optimizeDeps: {
 		exclude: ['@babylonjs/havok'],
 	},
+	server: {
+		watch: {
+			ignored: [
+				"**/server/**",
+				".devmode.json"
+			]
+		}
+	},
 	resolve: {
 		alias: {
 			'@client': path.resolve(__dirname, './src/client'),
-			'@shared': path.resolve(__dirname, './src/shared'),
-			'@server': path.resolve(__dirname, './src/server'),
+			'@shared': path.resolve(__dirname, './src/shared')
 		}
 	},
 	plugins: [

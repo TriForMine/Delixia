@@ -1,20 +1,24 @@
 import {
-	Scene,
 	AssetsManager,
-	HemisphericLight,
+	CascadedShadowGenerator,
+	Color3,
+	CubeTexture,
 	DirectionalLight,
-	Vector3,
+	HavokPlugin,
+	HemisphericLight,
+	Mesh,
 	MeshBuilder,
 	ReflectionProbe,
-	Mesh, HavokPlugin, StandardMaterial,
-	Color3, Texture, CubeTexture
+	Scene,
+	StandardMaterial,
+	Texture,
+	Vector3
 } from "@babylonjs/core";
-import { Inspector } from "@babylonjs/inspector";
+import {Inspector} from "@babylonjs/inspector";
 import * as GUI from "@babylonjs/gui";
 import HavokPhysics from "@babylonjs/havok";
-import { CascadedShadowGenerator } from "@babylonjs/core";
-import { LocalCharacterController } from "./LocalCharacterController";
-import { RemoteCharacterController } from "./RemoteCharacterController";
+import {LocalCharacterController} from "./LocalCharacterController";
+import {RemoteCharacterController} from "./RemoteCharacterController";
 import {ChatRoomState} from "@shared/schemas/ChatRoomState.ts";
 import {Player} from "@shared/schemas/Player.ts";
 import {getStateCallbacks, Room} from "colyseus.js";
@@ -24,6 +28,7 @@ import {mapConfigs} from "@shared/maps/japan.ts";
 import {CustomLoadingScreen} from "@client/components/BabylonScene.tsx";
 
 export class GameEngine {
+	public interactables: InteractableObject[] = [];
 	private readonly scene: Scene;
 	private room: Room<ChatRoomState>;
 	private localController?: LocalCharacterController;
@@ -34,10 +39,9 @@ export class GameEngine {
 	private lastPerformanceUpdate: number = 0;
 	private readonly PERFORMANCE_UPDATE_INTERVAL: number = 1000; // Update every second
 	private loadedCharacterContainer: any;
-	public interactables: InteractableObject[] = [];
 	private loadingState = {
-		assets: { progress: 0, total: 0, current: 0 },
-		map: { progress: 0, loaded: false },
+		assets: {progress: 0, total: 0, current: 0},
+		map: {progress: 0, loaded: false},
 		currentTask: ""
 	};
 
@@ -81,7 +85,7 @@ export class GameEngine {
 		scene.fogEnabled = true;
 
 		// Set a reasonable physics timestep
-		scene.getPhysicsEngine()?.setTimeStep(1/60);
+		scene.getPhysicsEngine()?.setTimeStep(1 / 60);
 	}
 
 	/**
@@ -154,7 +158,7 @@ export class GameEngine {
 		const extraHemi = new HemisphericLight("extraHemi", Vector3.Up(), this.scene);
 		extraHemi.intensity = 0.4;
 
-		const skybox = MeshBuilder.CreateBox("skyBox", {size:150}, this.scene);
+		const skybox = MeshBuilder.CreateBox("skyBox", {size: 150}, this.scene);
 		const skyboxMaterial = new StandardMaterial("skyBox", this.scene);
 		skyboxMaterial.backFaceCulling = false;
 		skyboxMaterial.reflectionTexture = new CubeTexture("assets/skybox/skybox", this.scene);
@@ -248,7 +252,6 @@ export class GameEngine {
 			if (assetsLoaded && mapLoaded) {
 				const engine = this.scene.getEngine();
 				if (engine.loadingScreen instanceof CustomLoadingScreen) {
-					console.log("Loading complete!");
 					this.loadingState.currentTask = "Initializing game...";
 					engine.loadingScreen.loadingUIText = this.loadingState.currentTask;
 					engine.loadingScreen.updateProgress(100);
@@ -273,7 +276,6 @@ export class GameEngine {
 		this.assetsManager.load();
 
 		kitchenLoader.loadAndPlaceModels(kitchenFolder, mapConfigs, () => {
-			console.log("All map models loaded and placed!");
 			this.interactables = kitchenLoader.interactables;
 			mapLoaded = true;
 			this.loadingState.map.loaded = true;
@@ -345,7 +347,7 @@ export class GameEngine {
 					y: transform.position.y,
 					z: transform.position.z
 				},
-				rotation: { y: transform.rotationQuaternion?.toEulerAngles().y },
+				rotation: {y: transform.rotationQuaternion?.toEulerAngles().y},
 				animationState,
 				timestamp: Date.now()
 			});
