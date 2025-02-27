@@ -58,6 +58,7 @@
     "vite-env-only": "3.0.3"
   },
   "trustedDependencies": [
+    "@biomejs/biome",
     "@swc/core",
     "core-js",
     "esbuild",
