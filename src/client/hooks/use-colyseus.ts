@@ -211,6 +211,7 @@ export const colyseus = <S = Schema>(
 			}
 		} else if (lastConnectionOptions) {
 			// Development mode (or no token): attempt a new connection
+			connecting = false;
 			connect(lastConnectionOptions);
 		} else {
 			connectionStatusStore.set(ConnectionStatus.ERROR);
