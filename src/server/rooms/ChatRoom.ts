@@ -37,6 +37,7 @@ export class ChatRoom extends Room<ChatRoomState> {
 	onJoin(client: Client) {
 		this.broadcast("messages", `${client.sessionId} joined.`);
 		this.state.createPlayer(client.sessionId);
+		this.state.setIsConnected(client.sessionId, true);
 
 		client.send("messages", "Welcome to the room: " + client.sessionId);
 	}
@@ -49,12 +50,17 @@ export class ChatRoom extends Room<ChatRoomState> {
 				throw new Error("consented leave");
 			}
 
+			logger.info(`${client.sessionId} lost connection to the room. Attempting reconnection for 20 seconds...`);
+
 			// allow disconnected client to reconnect into this room until 20 seconds
 			await this.allowReconnection(client, 20);
+
+			logger.info(`Reconnected: ${client.sessionId}`);
 
 			// client returned! let's re-activate it.
 			this.state.setIsConnected(client.sessionId, true);
 		} catch (e) {
+			logger.info(`${client.sessionId} left the room.`, e);
 
 			// 20 seconds expired. let's remove the client.
 			this.state.removePlayer(client.sessionId);
