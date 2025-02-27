@@ -1,5 +1,5 @@
 import type { PhysicsShapeType } from '@babylonjs/core/Physics/v2/IPhysicsEnginePlugin'
-import type { InteractType } from './enums.ts'
+import type { Ingredient, InteractType } from './enums.ts'
 
 export interface PhysicsConfig {
   shapeType: PhysicsShapeType
@@ -11,6 +11,7 @@ export interface PhysicsConfig {
 export interface InteractionConfig {
   id: number
   interactType: InteractType
+  ingredient?: Ingredient
 }
 
 export interface MapModelConfig {

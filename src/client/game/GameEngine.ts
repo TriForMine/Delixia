@@ -15,7 +15,7 @@ import type { Scene } from '@babylonjs/core/scene'
 import HavokPhysics from '@babylonjs/havok'
 import { CustomLoadingScreen } from '@client/components/BabylonScene.tsx'
 import { mapConfigs } from '@shared/maps/japan.ts'
-import type { ChatRoomState } from '@shared/schemas/ChatRoomState.ts'
+import type { GameRoomState } from '@shared/schemas/GameRoomState.ts'
 import type { Player } from '@shared/schemas/Player.ts'
 import { type Room, getStateCallbacks } from 'colyseus.js'
 import type { InteractableObject } from './InteractableObject.ts'
@@ -27,15 +27,17 @@ import { AdvancedDynamicTexture } from '@babylonjs/gui/2D/advancedDynamicTexture
 import { Control } from '@babylonjs/gui/2D/controls/control'
 import '@babylonjs/core/Physics/joinedPhysicsEngineComponent'
 import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent'
+import { IngredientLoader } from '@client/game/IngredientLoader.ts'
 
 export class GameEngine {
   public interactables: InteractableObject[] = []
   private readonly scene: Scene
-  private room: Room<ChatRoomState>
+  private room: Room<GameRoomState>
   private localController?: LocalCharacterController
   private remoteControllers = new Map<string, RemoteCharacterController>()
   private shadowGenerator!: CascadedShadowGenerator
   private assetsManager!: AssetsManager
+  private ingredientLoader!: IngredientLoader
   private fpsText?: TextBlock
   private lastPerformanceUpdate: number = 0
   private readonly PERFORMANCE_UPDATE_INTERVAL: number = 1000 // Update every second
@@ -127,12 +129,15 @@ export class GameEngine {
     this.assetsManager.useDefaultLoadingScreen = false
     this.assetsManager.autoHideLoadingUI = false
 
+    // Create an IngredientLoader to load ingredients
+    this.ingredientLoader = new IngredientLoader(this.scene)
+
     // Load the character model (using a container task)
     const characterTask = this.assetsManager.addContainerTask('characterTask', '', 'assets/characters/', 'character.glb')
 
     // Enable physics with Havok (using the latest async initialization)
     const hk = new HavokPlugin(true, await HavokPhysics())
-    this.scene.enablePhysics(new Vector3(0, -9.81, 0), hk)
+    this.scene.enablePhysics(new Vector3(0, -20, 0), hk)
 
     // Create basic lights
     const hemi = new HemisphericLight('hemilight', new Vector3(0, 1, 0), this.scene)
@@ -173,7 +178,7 @@ export class GameEngine {
 
     const $ = getStateCallbacks(this.room)
 
-    $(this.room.state).objects.onAdd((objState, key) => {
+    $(this.room.state).interactableObjects.onAdd((objState, key) => {
       // Listen for property changes on this object
       $(objState).onChange(() => {
         const interactable = this.interactables.find((obj) => obj.id === Number(key))
@@ -268,6 +273,7 @@ export class GameEngine {
 
     // Start asset loading.
     this.assetsManager.load()
+    this.ingredientLoader.loadIngredients()
 
     kitchenLoader.loadAndPlaceModels(
       kitchenFolder,
@@ -393,7 +399,7 @@ export class GameEngine {
 
     if (nearest) {
       // Trigger interaction
-      nearest.interact(Date.now())
+      nearest.interact(characterController, Date.now())
 
       this.room.send('interact', {
         objectId: nearest.id,
@@ -402,7 +408,7 @@ export class GameEngine {
     }
   }
 
-  public setRoom(room: Room<ChatRoomState>): void {
+  public setRoom(room: Room<GameRoomState>): void {
     this.room = room
   }
 
@@ -417,7 +423,7 @@ export class GameEngine {
     const mesh = localInstance.rootNodes[0] as Mesh
     mesh.scaling = new Vector3(1, 1, 1)
     mesh.rotation = new Vector3(0, 0, 0)
-    this.localController = new LocalCharacterController(this, mesh, localInstance.animationGroups, this.scene)
+    this.localController = new LocalCharacterController(this, mesh, this.ingredientLoader, localInstance.animationGroups, this.scene)
     this.localController.model.receiveShadows = true
     this.shadowGenerator.addShadowCaster(this.localController.model)
 
@@ -437,7 +443,7 @@ export class GameEngine {
       const remoteMesh = remoteInstance.rootNodes[0] as Mesh
       remoteMesh.scaling = new Vector3(1, 1, 1)
       remoteMesh.rotation = new Vector3(0, 0, 0)
-      const remoteController = new RemoteCharacterController(remoteMesh, this.scene, remoteInstance.animationGroups)
+      const remoteController = new RemoteCharacterController(remoteMesh, this.scene, this.ingredientLoader, remoteInstance.animationGroups)
       remoteController.setPosition(new Vector3(player.x, player.y, player.z))
       remoteController.setRotationY(player.rot)
       remoteMesh.receiveShadows = true

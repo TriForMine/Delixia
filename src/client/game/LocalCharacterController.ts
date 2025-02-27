@@ -10,6 +10,7 @@ import type { Scene } from '@babylonjs/core/scene'
 import { KBCode } from '../utils/keys.ts'
 import { CharacterController, CharacterState } from './CharacterController'
 import type { GameEngine } from './GameEngine.ts'
+import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
 
 export class LocalCharacterController extends CharacterController {
   readonly inputMap: Map<string, boolean>
@@ -30,8 +31,14 @@ export class LocalCharacterController extends CharacterController {
   private readonly gameEngine: GameEngine
   readonly thirdPersonCamera: ArcRotateCamera
 
-  constructor(gameEngine: GameEngine, characterMesh: AbstractMesh, animationGroups: AnimationGroup[], scene: Scene) {
-    super(characterMesh, scene, animationGroups)
+  constructor(
+    gameEngine: GameEngine,
+    characterMesh: AbstractMesh,
+    ingredientLoader: IngredientLoader,
+    animationGroups: AnimationGroup[],
+    scene: Scene,
+  ) {
+    super(characterMesh, scene, ingredientLoader, animationGroups)
 
     this.gameEngine = gameEngine
     this.inputMap = new Map()

@@ -1,14 +1,14 @@
 import { MapSchema, Schema, type } from '@colyseus/schema'
-import type { InteractType } from '../types/enums.ts'
+import { Ingredient, type InteractType } from '../types/enums.ts'
 import { InteractableObjectState } from './InteractableObjectState.ts'
 import { Player } from './Player.ts'
 
-export class ChatRoomState extends Schema {
+export class GameRoomState extends Schema {
   @type({ map: Player })
   players = new MapSchema<Player>()
 
   @type({ map: InteractableObjectState })
-  objects = new MapSchema<InteractableObjectState>()
+  interactableObjects = new MapSchema<InteractableObjectState>()
 
   @type('string') mySynchronizedProperty: string = 'Hello world'
 
@@ -57,18 +57,19 @@ export class ChatRoomState extends Schema {
     this.players.set(id, player)
   }
 
-  createInteractableObject(id: number, type: InteractType) {
+  createInteractableObject(id: number, type: InteractType, ingredient: Ingredient | undefined) {
     const obj = new InteractableObjectState()
     obj.id = id
     obj.type = type
     obj.isActive = false
-    // use the object's “key” as a string
-    this.objects.set(String(id), obj)
+    obj.ingredient = ingredient ?? Ingredient.None
+
+    this.interactableObjects.set(String(id), obj)
   }
 
   updateInteractableObject(id: number, changes: Partial<InteractableObjectState>) {
     const key = String(id)
-    const obj = this.objects.get(key)
+    const obj = this.interactableObjects.get(key)
     if (!obj) return
 
     if (typeof changes.isActive !== 'undefined') {
@@ -79,5 +80,25 @@ export class ChatRoomState extends Schema {
         obj.isActive = false
       }, 5000)
     }
+  }
+
+  getIngredient(playerId: string) {
+    const player = this.players.get(playerId)
+    return player?.holdedIngredient
+  }
+
+  pickupIngredient(playerId: string, ingredient: Ingredient) {
+    const player = this.players.get(playerId)
+    if (!player) return
+
+    console.log('Picking up ingredient', ingredient)
+    player.holdedIngredient = ingredient
+  }
+
+  dropIngredient(playerId: string) {
+    const player = this.players.get(playerId)
+    if (!player) return
+
+    player.holdedIngredient = Ingredient.None
   }
 }

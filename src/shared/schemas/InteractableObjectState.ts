@@ -1,5 +1,5 @@
 import { Schema, type } from '@colyseus/schema'
-import { InteractType } from '../types/enums.ts'
+import { Ingredient, InteractType } from '../types/enums.ts'
 
 export class InteractableObjectState extends Schema {
   @type('number')
@@ -13,4 +13,7 @@ export class InteractableObjectState extends Schema {
 
   @type('number')
   activeSince: number = 0
+
+  @type('number')
+  ingredient: number = Ingredient.None
 }

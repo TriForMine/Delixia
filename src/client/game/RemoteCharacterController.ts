@@ -4,6 +4,8 @@ import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh'
 import type { Scene } from '@babylonjs/core/scene'
 import type { AnimationGroup } from '@babylonjs/core/Animations/animationGroup'
 import { Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector'
+import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
+import type { Ingredient } from '@shared/types/enums.ts'
 
 export class RemoteCharacterController extends CharacterController {
   // Reference to the scene for raycasting
@@ -11,8 +13,8 @@ export class RemoteCharacterController extends CharacterController {
   private targetPosition: Vector3 = Vector3.Zero()
   private targetYRotation: number = 0
 
-  constructor(characterMesh: AbstractMesh, scene: Scene, animationGroups: AnimationGroup[]) {
-    super(characterMesh, scene, animationGroups)
+  constructor(characterMesh: AbstractMesh, scene: Scene, ingredientLoader: IngredientLoader, animationGroups: AnimationGroup[]) {
+    super(characterMesh, scene, ingredientLoader, animationGroups)
     this.scene = scene
 
     // Dispose of physics if necessary
@@ -35,6 +37,7 @@ export class RemoteCharacterController extends CharacterController {
     this.updateAnimationState(newPlayer.animationState)
     this.targetPosition = new Vector3(newPlayer.x, newPlayer.y, newPlayer.z)
     this.targetYRotation = newPlayer.rot
+    this.pickupIngredient(newPlayer.holdedIngredient as Ingredient)
   }
 
   /**

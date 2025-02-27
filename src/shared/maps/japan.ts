@@ -1,5 +1,5 @@
 import { PhysicsShapeType } from '@babylonjs/core/Physics/v2/IPhysicsEnginePlugin'
-import { InteractType } from '../types/enums.ts'
+import { Ingredient, InteractType } from '../types/enums.ts'
 import type { MapModelConfig } from '../types/map.ts'
 
 export const mapConfigs: MapModelConfig[] = [
@@ -448,7 +448,8 @@ export const mapConfigs: MapModelConfig[] = [
       {
         interaction: {
           id: 7,
-          interactType: InteractType.Ingredient,
+          interactType: InteractType.Stock,
+          ingredient: Ingredient.Nori,
         },
         position: { x: 4, y: 1.15, z: 6 },
         rotation: { x: 0, y: 0, z: 0 },

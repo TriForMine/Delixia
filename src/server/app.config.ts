@@ -8,7 +8,7 @@ import basicAuth from 'express-basic-auth'
 /**
  * Import your Room files
  */
-import { ChatRoom } from './rooms/ChatRoom.ts'
+import { GameRoom } from './rooms/GameRoom.ts'
 
 const basicAuthMiddleware = basicAuth({
   // list of users and passwords
@@ -35,7 +35,7 @@ export default config({
      */
     gameServer.define('lobby', LobbyRoom)
 
-    gameServer.define('game', ChatRoom).enableRealtimeListing()
+    gameServer.define('game', GameRoom).enableRealtimeListing()
   },
 
   initializeExpress: (app) => {

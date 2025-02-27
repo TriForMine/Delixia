@@ -9,6 +9,7 @@ import type { AssetContainer } from '@babylonjs/core/assetContainer'
 import type { Scene } from '@babylonjs/core/scene'
 import type { MapModelConfig } from '@shared/types/map.ts'
 import { InteractableObject } from './InteractableObject'
+import { Ingredient } from '@shared/types/enums.ts'
 
 export class MapLoader {
   private readonly scene: Scene
@@ -93,7 +94,14 @@ export class MapLoader {
             const offset = modelConfig.billboardOffset
               ? new Vector3(modelConfig.billboardOffset.x, modelConfig.billboardOffset.y, modelConfig.billboardOffset.z)
               : undefined
-            const interactableObj = new InteractableObject(root, this.scene, placement.interaction.interactType, placement.interaction.id, offset)
+            const interactableObj = new InteractableObject(
+              root,
+              this.scene,
+              placement.interaction.interactType,
+              placement.interaction.ingredient ?? Ingredient.None,
+              placement.interaction.id,
+              offset,
+            )
             interactableObj.interactionDistance = 2
             this.interactables.push(interactableObj)
           }

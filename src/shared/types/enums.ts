@@ -4,9 +4,11 @@ export enum InteractType {
   Counter,
   ChoppingBoard,
   Sink,
+  Stock,
   Ingredient,
 }
 
 export enum Ingredient {
+  None,
   Nori,
 }

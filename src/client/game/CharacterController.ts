@@ -7,6 +7,9 @@ import type { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera'
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder'
 import { Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector'
 import { PhysicsShapeType } from '@babylonjs/core/Physics/v2/IPhysicsEnginePlugin'
+import { Ingredient } from '@shared/types/enums.ts'
+import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
+import type { Mesh } from '@babylonjs/core/Meshes'
 
 // Define the CharacterState enumeration
 export enum CharacterState {
@@ -19,6 +22,8 @@ export enum CharacterState {
 }
 
 export class CharacterController {
+  private ingredientLoader: IngredientLoader
+  private currentIngredientMesh: Mesh | undefined = undefined
   readonly scene: Scene
   readonly model: AbstractMesh
   readonly physicsAggregate: PhysicsAggregate
@@ -37,9 +42,11 @@ export class CharacterController {
   protected targetAnim: AnimationGroup
   protected readonly impostorMesh: AbstractMesh
   protected currentState: CharacterState = CharacterState.IDLE
+  protected ingredient: Ingredient = Ingredient.None
 
-  protected constructor(characterMesh: AbstractMesh, scene: Scene, animationGroups: AnimationGroup[]) {
+  protected constructor(characterMesh: AbstractMesh, scene: Scene, ingredientLoader: IngredientLoader, animationGroups: AnimationGroup[]) {
     this.scene = scene
+    this.ingredientLoader = ingredientLoader
 
     this.impostorMesh = MeshBuilder.CreateCapsule('CharacterTransform', { height: 1.5, radius: 0.3 }, scene)
     this.impostorMesh.visibility = 0
@@ -103,6 +110,41 @@ export class CharacterController {
     this.physicsAggregate.body.setMassProperties({ inertia: Vector3.ZeroReadOnly })
     this.physicsAggregate.body.setAngularDamping(100)
     this.physicsAggregate.body.setLinearDamping(10)
+  }
+
+  dropIngredient() {
+    if (this.currentIngredientMesh) {
+      this.currentIngredientMesh.dispose()
+      this.currentIngredientMesh = undefined
+    }
+    this.ingredient = Ingredient.None
+  }
+
+  pickupIngredient(ingredient: Ingredient) {
+    if (ingredient === Ingredient.None) {
+      if (this.currentIngredientMesh) {
+        this.currentIngredientMesh.dispose()
+      }
+      return
+    }
+
+    this.ingredient = ingredient
+
+    if (this.ingredientLoader) {
+      if (this.currentIngredientMesh) {
+        this.currentIngredientMesh.dispose()
+      }
+      this.currentIngredientMesh = this.ingredientLoader.getIngredientMesh(ingredient)
+      this.currentIngredientMesh.parent = this.model
+      this.currentIngredientMesh.position = new Vector3(0, 0.5, 1)
+      this.currentIngredientMesh.rotationQuaternion = Quaternion.Identity()
+      this.currentIngredientMesh.scaling = new Vector3(0.5, 0.5, 0.5)
+      this.currentIngredientMesh.isPickable = false
+    }
+  }
+
+  get holdedIngredient() {
+    return this.ingredient
   }
 
   get position() {

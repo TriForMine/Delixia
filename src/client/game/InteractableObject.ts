@@ -5,7 +5,8 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector'
 import { Mesh, MeshBuilder } from '@babylonjs/core/Meshes'
 import { ParticleSystem } from '@babylonjs/core/Particles/particleSystem'
 import type { Scene } from '@babylonjs/core/scene'
-import { InteractType } from '@shared/types/enums.ts'
+import { type Ingredient, InteractType } from '@shared/types/enums.ts'
+import type { LocalCharacterController } from '@client/game/LocalCharacterController.ts'
 
 export class InteractableObject {
   public mesh: Mesh
@@ -15,9 +16,10 @@ export class InteractableObject {
   private scene: Scene
   private billboardOffset: Vector3
   private interactType: InteractType
+  private ingredientType: Ingredient
   public id: number
 
-  constructor(mesh: Mesh, scene: Scene, interactType: InteractType, interactId: number, billboardOffset?: Vector3) {
+  constructor(mesh: Mesh, scene: Scene, interactType: InteractType, ingredientType: Ingredient, interactId: number, billboardOffset?: Vector3) {
     this.mesh = mesh
     this.scene = scene
     this.billboardOffset = billboardOffset?.clone() ?? new Vector3(0, 2, 0)
@@ -53,6 +55,7 @@ export class InteractableObject {
     })
 
     this.interactType = interactType
+    this.ingredientType = ingredientType
     this.id = interactId
   }
 
@@ -65,7 +68,7 @@ export class InteractableObject {
     this.promptPlane.setEnabled(show)
   }
 
-  public activate(start: number): void {
+  public activate(start: number, character?: LocalCharacterController): void {
     switch (this.interactType) {
       case InteractType.Oven:
         // Create a fire particle system at the oven's position
@@ -123,6 +126,9 @@ export class InteractableObject {
           5000 - (Date.now() - start),
         )
         break
+      case InteractType.Stock:
+        if (character) character.pickupIngredient(this.ingredientType)
+        break
       default:
         console.warn('Unknown interact type:', this.interactType)
         break
@@ -134,7 +140,7 @@ export class InteractableObject {
     console.log('Deactivating interactable object', this.id)
   }
 
-  public interact(timestamp: number): void {
-    this.activate(timestamp)
+  public interact(character: LocalCharacterController, timestamp: number): void {
+    this.activate(timestamp, character)
   }
 }

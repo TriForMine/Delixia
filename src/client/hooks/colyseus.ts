@@ -1,5 +1,5 @@
 import { ConnectionStatus, colyseus } from '@client/hooks/use-colyseus.ts'
-import type { ChatRoomState } from '@shared/schemas/ChatRoomState.ts'
+import type { GameRoomState } from '@shared/schemas/GameRoomState.ts'
 
 export const {
   connect: gameConnect,
@@ -8,7 +8,7 @@ export const {
   useColyseusState: useGameColyseusState,
   useConnectionStatus: useGameConnectionStatus,
   useConnectionError: useGameConnectionError,
-} = colyseus<ChatRoomState>(import.meta.env.VITE_COLYSEUS_ENDPOINT ?? 'ws://localhost:2567')
+} = colyseus<GameRoomState>(import.meta.env.VITE_COLYSEUS_ENDPOINT ?? 'ws://localhost:2567')
 
 export const {
   connect: lobbyConnect,

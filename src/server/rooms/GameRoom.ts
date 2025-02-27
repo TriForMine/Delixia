@@ -1,17 +1,18 @@
 import { mapConfigs } from '@shared/maps/japan.ts'
-import { ChatRoomState } from '@shared/schemas/ChatRoomState.ts'
+import { GameRoomState } from '@shared/schemas/GameRoomState.ts'
 import { type Client, Room, logger } from 'colyseus'
 import { ServerMapLoader } from '../utils/ServerMapLoader.ts'
+import { Ingredient, InteractType } from '@shared/types/enums.ts'
 
 const serverMapLoader = new ServerMapLoader(mapConfigs)
 
-export class ChatRoom extends Room<ChatRoomState> {
-  state = new ChatRoomState()
+export class GameRoom extends Room<GameRoomState> {
+  state = new GameRoomState()
   maxClients = 4
 
   onCreate(_options: any) {
     serverMapLoader.loadInteractables().forEach((interaction) => {
-      this.state.createInteractableObject(interaction.id, interaction.interactType)
+      this.state.createInteractableObject(interaction.id, interaction.interactType, interaction.ingredient)
     })
 
     this.onMessage('message', (client, message) => {
@@ -26,10 +27,28 @@ export class ChatRoom extends Room<ChatRoomState> {
       const objectId = data.objectId
       logger.info('Interact from', client.sessionId, 'on object', objectId)
 
-      const obj = this.state.objects.get(String(objectId))
+      const obj = this.state.interactableObjects.get(String(objectId))
       if (obj) {
-        const newActive = !obj.isActive
-        this.state.updateInteractableObject(objectId, { isActive: newActive })
+        switch (obj.type) {
+          case InteractType.Oven:
+            const newActive = !obj.isActive
+            this.state.updateInteractableObject(objectId, { isActive: newActive })
+            break
+          case InteractType.Stock:
+            const isCarrying = this.state.getIngredient(client.sessionId) !== Ingredient.None
+
+            if (isCarrying) {
+              client.send('alreadyCarrying', { message: 'Tu portes déjà un ingrédient !' })
+              return
+            }
+
+            const ingredient = obj?.ingredient
+            this.state.pickupIngredient(client.sessionId, ingredient as Ingredient)
+
+            break
+          default:
+            break
+        }
       }
     })
   }
