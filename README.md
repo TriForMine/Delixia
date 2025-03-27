@@ -1,5 +1,7 @@
 # Delixia 🍣
 
+![](https://github.com/TriForMine/Delixia/blob/master/public/logo.png)
+
 ## Description
 
 **Delixia** est un jeu de cuisine multijoueur inspiré de la série **Overcooked**. Vous y incarnez un(e) chef qui doit
