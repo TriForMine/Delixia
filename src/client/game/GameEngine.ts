@@ -22,31 +22,49 @@ import type { InteractableObject } from './InteractableObject.ts'
 import { LocalCharacterController } from './LocalCharacterController'
 import { MapLoader } from './MapLoader.ts'
 import { RemoteCharacterController } from './RemoteCharacterController'
-import { TextBlock } from '@babylonjs/gui/2D/controls/textBlock'
 import { AdvancedDynamicTexture } from '@babylonjs/gui/2D/advancedDynamicTexture'
-import { Control } from '@babylonjs/gui/2D/controls/control'
 import '@babylonjs/core/Physics/joinedPhysicsEngineComponent'
 import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent'
 import { IngredientLoader } from '@client/game/IngredientLoader.ts'
+import { SpatialGrid } from './SpatialGrid'
+import { InputManager } from './managers/InputManager'
+import { PerformanceManager } from './managers/PerformanceManager'
 
 export class GameEngine {
   public interactables: InteractableObject[] = []
+  private spatialGrid: SpatialGrid = new SpatialGrid(5);
   private readonly scene: Scene
-  private room: Room<GameRoomState>
+  private readonly room: Room<GameRoomState>
   private localController?: LocalCharacterController
   private remoteControllers = new Map<string, RemoteCharacterController>()
   private shadowGenerator!: CascadedShadowGenerator
   private assetsManager!: AssetsManager
   private ingredientLoader!: IngredientLoader
-  private fpsText?: TextBlock
-  private lastPerformanceUpdate: number = 0
-  private readonly PERFORMANCE_UPDATE_INTERVAL: number = 1000 // Update every second
+  private inputManager: InputManager
+  private performanceManager?: PerformanceManager
   private loadedCharacterContainer: any
+  // Pre-allocated vector for position calculations
+  private _playerPosTemp: Vector3 = new Vector3();
   private loadingState = {
     assets: { progress: 0, total: 0, current: 0 },
     map: { progress: 0, loaded: false },
     currentTask: '',
   }
+
+  // Network optimization properties
+  private lastNetworkUpdateTime: number = 0;
+  private readonly NETWORK_UPDATE_INTERVAL: number = 100; // Send updates every 100ms instead of every frame
+  private readonly POSITION_THRESHOLD: number = 0.01; // Only send position updates if moved more than this distance
+  private readonly ROTATION_THRESHOLD: number = 0.05; // Only send rotation updates if rotated more than this angle
+  private lastSentPosition: Vector3 = new Vector3();
+  private lastSentRotation: number = 0;
+
+  // Remote player optimization properties
+  private readonly LOD_DISTANCES = {
+    CLOSE: 10,    // Full quality for players within 10 units
+    MEDIUM: 20,   // Medium quality for players within 20 units
+    FAR: 40       // Low quality beyond that
+  };
 
   constructor(scene: Scene, room: any) {
     this.scene = scene
@@ -55,26 +73,8 @@ export class GameEngine {
     // Enable hardware scaling to improve performance
     scene.getEngine().setHardwareScalingLevel(1.0)
 
-    // Handle visibility and focus changes
-    const canvas = scene.getEngine().getRenderingCanvas()
-    if (canvas) {
-      // Handle visibility change
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-          this.requestFocusAndPointerLock()
-        }
-      })
-
-      // Handle window focus
-      window.addEventListener('focus', () => {
-        this.requestFocusAndPointerLock()
-      })
-
-      // Handle canvas focus
-      canvas.addEventListener('click', () => {
-        this.requestFocusAndPointerLock()
-      })
-    }
+    // Initialize input manager to handle focus and pointer lock
+    this.inputManager = new InputManager(scene)
 
     // Enable frustum culling for better performance
     scene.skipFrustumClipping = false
@@ -146,12 +146,25 @@ export class GameEngine {
     const sun = new DirectionalLight('sun', new Vector3(-5, -10, 5).normalize(), this.scene)
     sun.position = sun.direction.negate().scaleInPlace(40)
 
-    // Create a shadow generator
-    this.shadowGenerator = new CascadedShadowGenerator(1024, sun)
-    this.shadowGenerator.blurKernel = 32
-    this.shadowGenerator.useKernelBlur = true
-    this.shadowGenerator.usePercentageCloserFiltering = true
-    this.shadowGenerator.shadowMaxZ = 30
+    // Create a shadow generator with optimized settings
+    this.shadowGenerator = new CascadedShadowGenerator(512, sun); // Reduced shadow map size
+    this.shadowGenerator.blurKernel = 16; // Reduced blur kernel
+    this.shadowGenerator.useKernelBlur = true;
+    this.shadowGenerator.usePercentageCloserFiltering = true;
+    this.shadowGenerator.shadowMaxZ = 20; // Reduced shadow distance
+    this.shadowGenerator.stabilizeCascades = true; // Reduce shadow flickering
+    this.shadowGenerator.lambda = 0.8; // Stabilization factor
+    this.shadowGenerator.cascadeBlendPercentage = 0.1; // Smoother transitions
+    this.shadowGenerator.depthClamp = true; // Optimize depth calculations
+    this.shadowGenerator.autoCalcDepthBounds = true; // Optimize depth bounds
+
+    // Fix shadow acne by adjusting bias values
+    this.shadowGenerator.bias = 0.001; // Prevents shadow acne (self-shadowing artifacts)
+    this.shadowGenerator.normalBias = 0.02; // Adjusts bias based on surface normals
+    this.shadowGenerator.depthScale = 50; // Adjusts depth calculation to reduce acne
+
+    // Initialize performance manager to handle FPS monitoring and shadow quality adjustments
+    this.performanceManager = new PerformanceManager(this.scene, this.shadowGenerator);
 
     // Additional lights (if needed)
     const extraHemi = new HemisphericLight('extraHemi', Vector3.Up(), this.scene)
@@ -212,20 +225,10 @@ export class GameEngine {
       }
     }
 
-    // When all assets are loaded, create a simple full‐screen GUI (e.g. an FPS counter)
+    // When all assets are loaded
     this.assetsManager.onFinish = () => {
-      const advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI('UI')
-
-      // Initialize FPS counter
-      this.fpsText = new TextBlock()
-      this.fpsText.text = 'FPS: 0'
-      this.fpsText.color = 'white'
-      this.fpsText.fontSize = 16
-      this.fpsText.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT
-      this.fpsText.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP
-      this.fpsText.paddingRight = '10px'
-      this.fpsText.paddingTop = '10px'
-      advancedTexture.addControl(this.fpsText)
+      // Create UI if needed for other elements
+      AdvancedDynamicTexture.CreateFullscreenUI('UI')
 
       // Update loading state
       this.loadingState.assets.progress = 100
@@ -276,141 +279,231 @@ export class GameEngine {
     this.ingredientLoader.loadIngredients()
 
     kitchenLoader.loadAndPlaceModels(
-      kitchenFolder,
-      mapConfigs,
-      () => {
-        this.interactables = kitchenLoader.interactables
-        mapLoaded = true
-        this.loadingState.map.loaded = true
-        this.loadingState.map.progress = 100
-        this.loadingState.currentTask = 'Map loading complete'
-        if (engine.loadingScreen instanceof CustomLoadingScreen) {
-          const totalProgress = (this.loadingState.assets.progress + this.loadingState.map.progress) / 2
-          engine.loadingScreen.updateProgress(totalProgress)
-          engine.loadingScreen.loadingUIText = this.loadingState.currentTask
-        }
-        checkLoadingComplete()
-      },
-      (progress) => {
-        this.loadingState.map.progress = progress
-        this.loadingState.currentTask = `Loading map: ${progress.toFixed(0)}%`
+        kitchenFolder,
+        mapConfigs,
+        () => {
+          this.interactables = kitchenLoader.interactables
+          mapLoaded = true
+          this.loadingState.map.loaded = true
+          this.loadingState.map.progress = 100
+          this.loadingState.currentTask = 'Map loading complete'
+          if (engine.loadingScreen instanceof CustomLoadingScreen) {
+            const totalProgress = (this.loadingState.assets.progress + this.loadingState.map.progress) / 2
+            engine.loadingScreen.updateProgress(totalProgress)
+            engine.loadingScreen.loadingUIText = this.loadingState.currentTask
+          }
+          checkLoadingComplete()
+        },
+        (progress) => {
+          this.loadingState.map.progress = progress
+          this.loadingState.currentTask = `Loading map: ${progress.toFixed(0)}%`
 
-        // Update loading screen with combined progress
-        const engine = this.scene.getEngine()
-        if (engine.loadingScreen instanceof CustomLoadingScreen) {
-          const totalProgress = (this.loadingState.assets.progress + this.loadingState.map.progress) / 2
-          engine.loadingScreen.updateProgress(totalProgress)
-          engine.loadingScreen.loadingUIText = this.loadingState.currentTask
-        }
-      },
+          // Update loading screen with combined progress
+          const engine = this.scene.getEngine()
+          if (engine.loadingScreen instanceof CustomLoadingScreen) {
+            const totalProgress = (this.loadingState.assets.progress + this.loadingState.map.progress) / 2
+            engine.loadingScreen.updateProgress(totalProgress)
+            engine.loadingScreen.loadingUIText = this.loadingState.currentTask
+          }
+        },
     )
 
     // Request initial pointer lock and focus
-    this.requestFocusAndPointerLock()
+    this.inputManager.requestFocusAndPointerLock()
   }
 
   /**
    * Called every frame.
    * Updates the local player, sends movement messages, updates remote players, and updates GUI.
    */
-  update(deltaTime: number): void {
-    const deltaSeconds = deltaTime / 1000
+      // Maximum distance to check for interactable objects
+  private readonly MAX_INTERACTION_DISTANCE: number = 5;
+  // Track the nearest interactable for optimization
+  private _nearestInteractable: InteractableObject | null = null;
 
-    this.localController?.update(deltaSeconds)
+  update(deltaTime: number): void {
+    const deltaSeconds = deltaTime / 1000;
+
+    // Update local player
+    this.localController?.update(deltaSeconds);
 
     if (this.localController) {
-      const playerPos = this.localController.position
-      let nearest: InteractableObject | null = null
-      let nearestDist = Infinity
+      // Get player position using pre-allocated vector
+      this._playerPosTemp.copyFrom(this.localController.position);
 
-      // 1. Find the nearest interactable within range
-      for (const obj of this.interactables) {
-        const dist = Vector3.Distance(obj.mesh.position, playerPos)
+      // Only rebuild spatial grid occasionally or when needed
+      // In a real implementation, you might want to rebuild only when objects move
+      if (this.scene.getFrameId() % 60 === 0) { // Rebuild every 60 frames
+        this.spatialGrid.rebuild(this.interactables);
+      }
+
+      // Find nearby interactable objects using spatial grid
+      const maxDist = this.MAX_INTERACTION_DISTANCE;
+      const nearbyObjects = this.spatialGrid.getNearbyObjects(this._playerPosTemp, maxDist);
+
+      // Find the nearest interactable within range
+      let nearest: InteractableObject | null = null;
+      let nearestDist = Infinity;
+
+      for (const obj of nearbyObjects) {
+        const dist = Vector3.Distance(obj.mesh.position, this._playerPosTemp);
         if (dist < obj.interactionDistance && dist < nearestDist) {
-          nearestDist = dist
-          nearest = obj
+          nearestDist = dist;
+          nearest = obj;
         }
       }
 
-      // 2. Hide all billboards
-      for (const obj of this.interactables) {
-        obj.showPrompt(false)
-      }
+      // Only update prompts if the nearest object has changed
+      if (nearest !== this._nearestInteractable) {
+        // Hide previous nearest if it exists
+        if (this._nearestInteractable) {
+          this._nearestInteractable.showPrompt(false);
+        }
 
-      // 3. If we found a valid nearest object, show it
-      if (nearest) {
-        nearest.showPrompt(true)
+        // Show new nearest if it exists
+        if (nearest) {
+          nearest.showPrompt(true);
+        }
+
+        // Update cached nearest
+        this._nearestInteractable = nearest;
       }
     }
 
+    // Send player position to server with throttling
     if (this.room && this.localController) {
-      const transform = this.localController.getTransform()
-      const animationState = this.localController.getTargetAnim.name
-      this.room.send('move', {
-        position: {
-          x: transform.position.x,
-          y: transform.position.y,
-          z: transform.position.z,
-        },
-        rotation: { y: transform.rotationQuaternion?.toEulerAngles().y },
-        animationState,
-        timestamp: Date.now(),
-      })
-    }
+      const currentTime = Date.now();
+      const transform = this.localController.getTransform();
+      const currentPosition = transform.position;
+      const currentRotation = transform.rotationQuaternion?.toEulerAngles().y || 0;
+      const animationState = this.localController.getTargetAnim.name;
 
-    // Update all remote controllers.
-    this.remoteControllers.forEach((controller) => {
-      controller.update(deltaSeconds)
-    })
+      // Check if we should send an update based on time interval or significant movement
+      const timeSinceLastUpdate = currentTime - this.lastNetworkUpdateTime;
+      const positionChanged = Vector3.Distance(currentPosition, this.lastSentPosition) > this.POSITION_THRESHOLD;
+      const rotationChanged = Math.abs(currentRotation - this.lastSentRotation) > this.ROTATION_THRESHOLD;
 
-    // Update performance metrics
-    const currentTime = Date.now()
-    if (currentTime - this.lastPerformanceUpdate > this.PERFORMANCE_UPDATE_INTERVAL) {
-      const engine = this.scene.getEngine()
-      const fps = engine.getFps().toFixed()
+      if (timeSinceLastUpdate >= this.NETWORK_UPDATE_INTERVAL || positionChanged || rotationChanged) {
+        // Send position update to server
+        this.room.send('move', {
+          position: {
+            x: currentPosition.x,
+            y: currentPosition.y,
+            z: currentPosition.z,
+          },
+          rotation: { y: currentRotation },
+          animationState,
+          timestamp: currentTime,
+        });
 
-      if (this.fpsText) {
-        this.fpsText.text = `FPS: ${fps}`
-      }
-
-      this.lastPerformanceUpdate = currentTime
-
-      // Auto-adjust quality if FPS drops too low
-      if (Number(fps) < 30) {
-        engine.setHardwareScalingLevel(engine.getHardwareScalingLevel() * 1.1)
-      } else if (Number(fps) > 60 && engine.getHardwareScalingLevel() > 1.0) {
-        engine.setHardwareScalingLevel(Math.max(1.0, engine.getHardwareScalingLevel() * 0.9))
+        // Update last sent values
+        this.lastSentPosition.copyFrom(currentPosition);
+        this.lastSentRotation = currentRotation;
+        this.lastNetworkUpdateTime = currentTime;
       }
     }
+
+    // Update all remote controllers with LOD optimization
+    if (this.localController) {
+      const localPosition = this.localController.position;
+
+      this.remoteControllers.forEach((controller, _) => {
+        // Calculate distance to local player
+        const distance = Vector3.Distance(controller.position, localPosition);
+
+        // Apply LOD based on distance
+        if (distance <= this.LOD_DISTANCES.CLOSE) {
+          // Close players: full quality
+          controller.setLODLevel('high');
+          controller.update(deltaSeconds);
+
+          // Ensure shadows are enabled for close players
+          if (!controller.model.receiveShadows) {
+            controller.model.receiveShadows = true;
+            this.shadowGenerator.addShadowCaster(controller.model);
+          }
+        } 
+        else if (distance <= this.LOD_DISTANCES.MEDIUM) {
+          // Medium distance players: medium quality
+          controller.setLODLevel('medium');
+          controller.update(deltaSeconds);
+
+          // Simplified shadows for medium distance
+          if (!controller.model.receiveShadows) {
+            controller.model.receiveShadows = true;
+            this.shadowGenerator.addShadowCaster(controller.model);
+          }
+        }
+        else {
+          // Far players: low quality, update less frequently
+          controller.setLODLevel('low');
+
+          // Update far players less frequently (every 3 frames)
+          if (this.scene.getFrameId() % 3 === 0) {
+            controller.update(deltaSeconds * 3);
+          }
+
+          // Disable shadows for far players to improve performance
+          if (controller.model.receiveShadows) {
+            controller.model.receiveShadows = false;
+            this.shadowGenerator.removeShadowCaster(controller.model);
+          }
+        }
+      });
+    } else {
+      // Fallback if local controller isn't available
+      this.remoteControllers.forEach((controller) => {
+        controller.update(deltaSeconds);
+      });
+    }
+
+    // Update performance metrics and optimizations
+    this.performanceManager?.update();
   }
 
   public tryInteract(characterController: LocalCharacterController): void {
-    let nearest: InteractableObject | null = null
-    let nearestDist = Infinity
+    // Use the cached nearest interactable if available and in range
+    if (this._nearestInteractable &&
+        Vector3.Distance(this._nearestInteractable.mesh.position, characterController.position) <= this._nearestInteractable.interactionDistance) {
+      // Trigger interaction with the cached nearest
+      this._nearestInteractable.interact(characterController, Date.now());
 
-    // 1. Find the nearest interactable within range
-    for (const obj of this.interactables) {
-      const dist = Vector3.Distance(obj.mesh.position, characterController.position)
+      this.room.send('interact', {
+        objectId: this._nearestInteractable.id,
+        timestamp: Date.now(),
+      });
+      return;
+    }
+
+    // If no cached nearest or it's out of range, find the nearest using spatial grid
+    this._playerPosTemp.copyFrom(characterController.position);
+    const nearbyObjects = this.spatialGrid.getNearbyObjects(this._playerPosTemp, this.MAX_INTERACTION_DISTANCE);
+
+    let nearest: InteractableObject | null = null;
+    let nearestDist = Infinity;
+
+    for (const obj of nearbyObjects) {
+      const dist = Vector3.Distance(obj.mesh.position, this._playerPosTemp);
       if (dist < obj.interactionDistance && dist < nearestDist) {
-        nearestDist = dist
-        nearest = obj
+        nearestDist = dist;
+        nearest = obj;
       }
     }
 
     if (nearest) {
+      // Update cached nearest
+      this._nearestInteractable = nearest;
+
       // Trigger interaction
-      nearest.interact(characterController, Date.now())
+      nearest.interact(characterController, Date.now());
 
       this.room.send('interact', {
         objectId: nearest.id,
         timestamp: Date.now(),
-      })
+      });
     }
   }
 
-  public setRoom(room: Room<GameRoomState>): void {
-    this.room = room
-  }
 
   private initializePlayers(): void {
     if (!this.loadedCharacterContainer) {
@@ -421,7 +514,7 @@ export class GameEngine {
     // Instantiate the local player from the loaded container
     const localInstance = this.loadedCharacterContainer.instantiateModelsToScene((name: string) => name)
     const mesh = localInstance.rootNodes[0] as Mesh
-    mesh.scaling = new Vector3(1, 1, 1)
+    mesh.scaling = new Vector3(1.3, 1.3, 1.3)
     mesh.rotation = new Vector3(0, 0, 0)
     this.localController = new LocalCharacterController(this, mesh, this.ingredientLoader, localInstance.animationGroups, this.scene)
     this.localController.model.receiveShadows = true
@@ -441,18 +534,54 @@ export class GameEngine {
       // Instantiate a remote player model
       const remoteInstance = this.loadedCharacterContainer.instantiateModelsToScene((name: string) => name)
       const remoteMesh = remoteInstance.rootNodes[0] as Mesh
-      remoteMesh.scaling = new Vector3(1, 1, 1)
+
+      remoteMesh.scaling = new Vector3(1.3, 1.3, 1.3)
       remoteMesh.rotation = new Vector3(0, 0, 0)
       const remoteController = new RemoteCharacterController(remoteMesh, this.scene, this.ingredientLoader, remoteInstance.animationGroups)
       remoteController.setPosition(new Vector3(player.x, player.y, player.z))
       remoteController.setRotationY(player.rot)
-      remoteMesh.receiveShadows = true
-      this.shadowGenerator.addShadowCaster(remoteMesh)
-      this.remoteControllers.set(sessionId, remoteController)
 
+      // Apply LOD settings based on distance right from the start
+      if (this.localController) {
+        const distance = Vector3.Distance(this.localController.position, remoteController.position);
+
+        if (distance <= this.LOD_DISTANCES.CLOSE) {
+          // Close players: full quality
+          remoteController.setLODLevel('high');
+          remoteMesh.receiveShadows = true;
+          this.shadowGenerator.addShadowCaster(remoteMesh);
+        } 
+        else if (distance <= this.LOD_DISTANCES.MEDIUM) {
+          // Medium distance players: medium quality
+          remoteController.setLODLevel('medium');
+          remoteMesh.receiveShadows = true;
+          this.shadowGenerator.addShadowCaster(remoteMesh);
+        }
+        else {
+          // Far players: low quality
+          remoteController.setLODLevel('low');
+          remoteMesh.receiveShadows = false;
+        }
+      } else {
+        // Default if local controller isn't available yet
+        remoteMesh.receiveShadows = true;
+        this.shadowGenerator.addShadowCaster(remoteMesh);
+      }
+
+      this.remoteControllers.set(sessionId, remoteController)
       remoteController.receiveState(player)
 
-      $(player).onChange(() => remoteController.receiveState(player))
+      // Optimize network updates by using a throttled state change handler
+      let lastStateUpdateTime = 0;
+      const STATE_UPDATE_THROTTLE = 50; // ms
+
+      $(player).onChange(() => {
+        const now = Date.now();
+        if (now - lastStateUpdateTime > STATE_UPDATE_THROTTLE) {
+          remoteController.receiveState(player);
+          lastStateUpdateTime = now;
+        }
+      })
     })
 
     $(this.room.state).players.onRemove((_, sessionId: string) => {
@@ -464,29 +593,4 @@ export class GameEngine {
     })
   }
 
-  /**
-   * Requests focus and pointer lock for the game canvas.
-   * This is called when:
-   * - The game initializes
-   * - The window regains focus
-   * - The document becomes visible
-   * - The canvas is clicked
-   */
-  private requestFocusAndPointerLock(): void {
-    const canvas = this.scene.getEngine().getRenderingCanvas()
-    if (!canvas) return
-
-    // First focus the canvas
-    canvas.focus()
-
-    // Then request pointer lock after a small delay to ensure focus is processed
-    setTimeout(() => {
-      // Only request pointer lock if document is visible and window has focus
-      if (document.visibilityState === 'visible' && document.hasFocus()) {
-        canvas.requestPointerLock().catch((error) => {
-          console.warn('Failed to acquire pointer lock:', error)
-        })
-      }
-    }, 100)
-  }
 }

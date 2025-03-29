@@ -16,7 +16,7 @@ export class MapLoader {
   private readonly cascadedShadowGenerator: CascadedShadowGenerator
   private assetsManager: AssetsManager
   private loadedContainers: { [fileName: string]: AssetContainer } = {}
-  private cloudMaterial: StandardMaterial
+  private readonly cloudMaterial: StandardMaterial
   public interactables: InteractableObject[] = []
 
   constructor(scene: Scene, cascadedShadowGenerator: CascadedShadowGenerator) {
@@ -34,6 +34,12 @@ export class MapLoader {
   }
 
   public loadAndPlaceModels(folder: string, modelConfigs: MapModelConfig[], onFinish: () => void, onProgress?: (progress: number) => void): void {
+    // Reset InteractableObject static properties to prevent issues when reloading the map
+    InteractableObject.reset();
+
+    // Clear existing interactables array
+    this.interactables = [];
+
     // 1. Create a unique loading task for each distinct `fileName`
     modelConfigs.forEach((modelConfig) => {
       const { fileName } = modelConfig

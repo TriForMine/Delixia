@@ -10,19 +10,10 @@ import { PhysicsShapeType } from '@babylonjs/core/Physics/v2/IPhysicsEnginePlugi
 import { Ingredient } from '@shared/types/enums.ts'
 import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
 import type { Mesh } from '@babylonjs/core/Meshes'
-
-// Define the CharacterState enumeration
-export enum CharacterState {
-  IDLE = 'IDLE',
-  WALKING = 'WALKING',
-  JUMPING = 'JUMPING',
-  LANDING = 'LANDING',
-  FALLING = 'FALLING',
-  DANCING = 'DANCING',
-}
+import { CharacterState } from './CharacterState'
 
 export class CharacterController {
-  private ingredientLoader: IngredientLoader
+  private readonly ingredientLoader: IngredientLoader
   private currentIngredientMesh: Mesh | undefined = undefined
   readonly scene: Scene
   readonly model: AbstractMesh

@@ -27,57 +27,58 @@ export class CustomLoadingScreen implements ILoadingScreen {
   private createLoadingUI() {
     this.loadingDiv = document.createElement('div')
 
-    // Tailwind classes for styling the overlay with a gradient background
+    // Adaptation aux couleurs de App avec bg-base-200 et opacité
     this.loadingDiv.className = `
-  fixed inset-0
-  flex flex-col
-  bg-gradient-to-b from-gray-900 to-black
-  transition-opacity duration-500
-  opacity-0
-  z-50
-  pointer-events-none
-`
+      fixed inset-0
+      flex flex-col
+      bg-base-200 bg-opacity-90
+      transition-opacity duration-500
+      opacity-0
+      z-50
+      pointer-events-none
+    `
 
-    // Inner HTML structure with improved styling
+    // Mise à jour de l'HTML interne avec des couleurs cohérentes
     this.loadingDiv.innerHTML = `
       <!-- Center container -->
       <div class="flex flex-col items-center justify-center h-full max-w-2xl mx-auto px-6">
-        <!-- Game Title with glow effect -->
+        <!-- Game Title avec text-primary -->
         <div class="text-center mb-12">
-          <h1 class="text-5xl md:text-6xl font-bold text-white mb-2 tracking-wider animate-pulse">
+          <h1 class="text-5xl md:text-6xl font-bold text-primary mb-2 tracking-wider animate-pulse">
             Delixia
           </h1>
-          <div class="h-1 w-24 mx-auto bg-gradient-to-r from-transparent via-blue-500 to-transparent rounded-full"></div>
+          <div class="h-1 w-24 mx-auto bg-gradient-to-r from-transparent via-primary to-transparent rounded-full"></div>
         </div>
 
-        <!-- Loading text with better visibility -->
+        <!-- Loading text avec text-base-content -->
         <div class="w-full text-center mb-8">
-          <p
+          <p,const
             id="loading-text"
-            class="text-xl md:text-2xl font-medium text-blue-200 tracking-wide"
+            class="text-xl md:text-2xl font-medium text-base-content opacity-80 tracking-wide"
           >
             <!-- Will be bound to loadingUIText dynamically -->
           </p>
         </div>
 
-        <!-- Enhanced progress bar -->
+        <!-- Progress bar avec bg-primary -->
         <div class="w-full">
           <div class="relative">
-            <div class="absolute inset-0 bg-blue-500/20 rounded-full blur-md transform scale-105"></div>
-            <div class="relative bg-gray-800/80 rounded-full h-3 backdrop-blur-sm">
+            <div class="absolute inset-0 bg-primary/20 rounded-full blur-md transform scale-105"></div>
+            <div class="relative bg-base-100/80 rounded-full h-3 backdrop-blur-sm">
               <div
                 id="progress-bar-fill"
-                class="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full transition-all duration-300 shadow-lg shadow-blue-500/50"
-                style="width: 0%;">
+                class="h-full bg-primary rounded-full transition-all duration-300 shadow-lg shadow-primary/50"
+                style="width: 0%;"
+              >
               </div>
             </div>
           </div>
 
-          <!-- Loading indicator dots -->
+          <!-- Loading indicator dots avec bg-primary -->
           <div class="flex justify-center gap-2 mt-4">
-            <div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0s"></div>
-            <div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-            <div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+            <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0s"></div>
+            <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+            <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
           </div>
         </div>
       </div>
@@ -91,37 +92,24 @@ export class CustomLoadingScreen implements ILoadingScreen {
     this.loadingTextElement = this.loadingDiv.querySelector<HTMLParagraphElement>('#loading-text') ?? undefined
   }
 
-  /**
-   * displayLoadingUI is called by Babylon to show the loading screen.
-   */
+  // Les autres méthodes restent inchangées
   public displayLoadingUI(): void {
     if (!this.loadingDiv) return
-
-    // Update text on each display call, in case it changed
     if (this.loadingTextElement) {
       this.loadingTextElement.innerText = this.loadingUIText || 'Loading...'
     }
-
     this.loadingDiv.style.opacity = '1'
   }
 
-  /**
-   * hideLoadingUI is called by Babylon to hide the loading screen.
-   */
   public hideLoadingUI(): void {
     if (!this.loadingDiv) return
-
     this.loadingDiv.style.opacity = '0'
   }
 
-  /**
-   * updateProgress(percentage) updates the progress bar width.
-   */
   public updateProgress(percentage: number): void {
     if (this.progressBar) {
       this.progressBar.style.width = `${percentage.toFixed(0)}%`
     }
-
     if (this.loadingTextElement) {
       this.loadingTextElement.innerText = this.loadingUIText
     }
