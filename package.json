@@ -29,8 +29,9 @@
     "express-basic-auth": "1.2.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "valtio": "^2.1.4",
     "vite-plugin-static-copy": "2.3.0",
-    "zustand": "5.0.3"
+    "zustand": "^5.0.3"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",

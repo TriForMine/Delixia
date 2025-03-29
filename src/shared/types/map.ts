@@ -28,6 +28,8 @@ export interface MapModelConfig {
   /** Default physics if no per-instance physics is specified */
   defaultPhysics?: PhysicsConfig
 
+  interaction?: InteractionConfig
+
   instances: Array<{
     position: { x: number; y: number; z: number }
     rotation?: { x?: number; y?: number; z?: number }

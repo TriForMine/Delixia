@@ -458,6 +458,77 @@ export const mapConfigs: MapModelConfig[] = [
   },
   {
     map: 'japan',
+    fileName: 'Rice Ball.glb',
+    defaultScaling: { x: 0.4, y: 0.4, z: 0.4 },
+    defaultPhysics: {
+      shapeType: PhysicsShapeType.BOX,
+      mass: 0,
+      friction: 0.8,
+      restitution: 0.1,
+    },
+    billboardOffset: {
+      x: 0,
+      y: 0.5,
+      z: 0,
+    },
+    instances: [
+      {
+        interaction: {
+          id: 10,
+          interactType: InteractType.Stock,
+          ingredient: Ingredient.Rice,
+        },
+        position: { x: 4, y: 1.15, z: 3 },
+        rotation: { x: 0, y: 0, z: 0 },
+      },
+    ],
+  },
+  {
+    map: 'japan',
+    fileName: 'Plate.glb',
+    defaultScaling: { x: 0.7, y: 0.35, z: 0.7 },
+    defaultPhysics: {
+      shapeType: PhysicsShapeType.BOX,
+      mass: 0,
+      friction: 0.8,
+      restitution: 0.1,
+    },
+    billboardOffset: {
+      x: 0,
+      y: 0.5,
+      z: 0,
+    },
+    instances: [
+      {
+        position: { x: 0, y: 1.05, z: 4.75 },
+        rotation: { x: 0, y: 0, z: 0 },
+      },
+      {
+        position: { x: 0, y: 1.09, z: 4.75 },
+        rotation: { x: 0, y: 0, z: 0 },
+      },
+      {
+        position: { x: 0, y: 1.13, z: 4.75 },
+        rotation: { x: 0, y: 0, z: 0 },
+      },
+      {
+        position: { x: 0, y: 1.17, z: 4.75 },
+        rotation: { x: 0, y: 0, z: 0 },
+      },
+
+      {
+        interaction: {
+          id: 11,
+          interactType: InteractType.Stock,
+          ingredient: Ingredient.Plate,
+        },
+        position: { x: 0, y: 1.21, z: 4.75 },
+        rotation: { x: 0, y: 0, z: 0 },
+      },
+    ],
+  },
+  {
+    map: 'japan',
     fileName: 'Chopping board.glb',
     defaultScaling: { x: 0.4, y: 0.4, z: 0.4 },
     defaultPhysics: {
@@ -552,7 +623,7 @@ export const mapConfigs: MapModelConfig[] = [
         rotation: { y: Math.PI },
         interaction: {
           id: 5,
-          interactType: InteractType.Sink,
+          interactType: InteractType.Trash,
         },
       },
       {
@@ -560,7 +631,7 @@ export const mapConfigs: MapModelConfig[] = [
         rotation: { y: Math.PI },
         interaction: {
           id: 6,
-          interactType: InteractType.Sink,
+          interactType: InteractType.Trash,
         },
       },
     ],

@@ -112,6 +112,14 @@ export class CharacterController {
   }
 
   pickupIngredient(ingredient: Ingredient) {
+    if (this.ingredient) {
+        return
+    }
+
+    this.forceSetIngredient(ingredient)
+  }
+
+  forceSetIngredient(ingredient: Ingredient) {
     if (ingredient === Ingredient.None) {
       if (this.currentIngredientMesh) {
         this.currentIngredientMesh.dispose()

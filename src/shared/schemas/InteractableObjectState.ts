@@ -1,4 +1,4 @@
-import { Schema, type } from '@colyseus/schema'
+import { ArraySchema, Schema, type } from '@colyseus/schema'
 import { Ingredient, InteractType } from '../types/enums.ts'
 
 export class InteractableObjectState extends Schema {
@@ -16,4 +16,7 @@ export class InteractableObjectState extends Schema {
 
   @type('number')
   ingredient: number = Ingredient.None
+
+  @type({ array: "number" })
+  ingredientsOnBoard: ArraySchema<number> = new ArraySchema<number>()
 }

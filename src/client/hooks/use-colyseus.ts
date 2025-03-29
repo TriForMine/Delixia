@@ -1,5 +1,5 @@
-import type { Schema } from '@colyseus/schema'
-import { Client, type Room, type RoomAvailable } from 'colyseus.js'
+import type {Schema} from '@colyseus/schema'
+import {Client, getStateCallbacks, type Room, type RoomAvailable} from 'colyseus.js'
 import { useSyncExternalStore } from 'react'
 
 // Recoverable error codes that should trigger reconnection
@@ -33,7 +33,7 @@ export function store<T>(value: T) {
   return { get, set, subscribe }
 }
 
-export const colyseus = <S = Schema>(endpoint: string, schema?: new (...args: unknown[]) => S) => {
+export const colyseus = <S extends Schema>(endpoint: string, schema?: new (...args: unknown[]) => S) => {
   const client = new Client(endpoint)
   const roomStore = store<Room<S> | undefined>(undefined)
   const stateStore = store<S | undefined>(undefined)
@@ -107,14 +107,20 @@ export const colyseus = <S = Schema>(endpoint: string, schema?: new (...args: un
       stateStore.set(room.state)
       const updatedCollectionsMap: { [key in keyof S]?: boolean } = {}
 
-      for (const [key, value] of Object.entries(room.state as Schema)) {
-        if (typeof value !== 'object' || !value.clone || !value.onAdd || !value.onRemove) {
+      const $ = getStateCallbacks(room)
+
+      for (const key of Object.keys(room.state as Schema)) {
+        // @ts-ignore
+        const value = $(room.state)[key]
+
+        if (typeof value !== 'object' || !value.onAdd || !value.onRemove) {
           continue
         }
+
         updatedCollectionsMap[key as keyof S] = false
         value.onAdd((item: any) => {
           updatedCollectionsMap[key as keyof S] = true
-          item.onChange(() => {
+          $(item).onChange(() => {
             updatedCollectionsMap[key as keyof S] = true
           })
         })
@@ -125,6 +131,7 @@ export const colyseus = <S = Schema>(endpoint: string, schema?: new (...args: un
 
       room.onStateChange((state) => {
         if (!state) return
+
         const copy = { ...state }
         for (const [key, update] of Object.entries(updatedCollectionsMap)) {
           if (!update) continue

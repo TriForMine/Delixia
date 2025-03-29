@@ -40,49 +40,46 @@ export class CustomLoadingScreen implements ILoadingScreen {
 
     // Mise à jour de l'HTML interne avec des couleurs cohérentes
     this.loadingDiv.innerHTML = `
-      <!-- Center container -->
-      <div class="flex flex-col items-center justify-center h-full max-w-2xl mx-auto px-6">
-        <!-- Game Title avec text-primary -->
-        <div class="text-center mb-12">
-          <h1 class="text-5xl md:text-6xl font-bold text-primary mb-2 tracking-wider animate-pulse">
-            Delixia
-          </h1>
-          <div class="h-1 w-24 mx-auto bg-gradient-to-r from-transparent via-primary to-transparent rounded-full"></div>
-        </div>
+  <!-- Center container -->
+  <div class="flex flex-col items-center justify-center h-full max-w-2xl mx-auto px-6">
+    <!-- Game Title avec gradient appliqué sur le texte -->
+    <div class="text-center mb-12">
+      <h1 class="text-5xl md:text-6xl font-bold mb-2 tracking-wider animate-pulse bg-gradient-to-br from-purple-300 via-pink-200 to-yellow-100 bg-clip-text text-transparent">
+        Delixia
+      </h1>
+      <div class="h-1 w-24 mx-auto bg-gradient-to-r from-purple-300 via-pink-200 to-yellow-100 rounded-full"></div>
+    </div>
 
-        <!-- Loading text avec text-base-content -->
-        <div class="w-full text-center mb-8">
-          <p,const
-            id="loading-text"
-            class="text-xl md:text-2xl font-medium text-base-content opacity-80 tracking-wide"
-          >
-            <!-- Will be bound to loadingUIText dynamically -->
-          </p>
-        </div>
+    <!-- Loading text (vous pouvez aussi appliquer un dégradé ici si besoin) -->
+    <div class="w-full text-center mb-8">
+      <p id="loading-text" class="text-xl md:text-2xl font-medium text-base-content opacity-80 tracking-wide">
+        Loading...
+      </p>
+    </div>
 
-        <!-- Progress bar avec bg-primary -->
-        <div class="w-full">
-          <div class="relative">
-            <div class="absolute inset-0 bg-primary/20 rounded-full blur-md transform scale-105"></div>
-            <div class="relative bg-base-100/80 rounded-full h-3 backdrop-blur-sm">
-              <div
-                id="progress-bar-fill"
-                class="h-full bg-primary rounded-full transition-all duration-300 shadow-lg shadow-primary/50"
-                style="width: 0%;"
-              >
-              </div>
-            </div>
-          </div>
+    <!-- Progress bar et indicateur -->
+    <div class="w-full">
+      <div class="relative">
+        <div class="absolute inset-0 bg-primary/20 rounded-full blur-md transform scale-105"></div>
+        <div class="relative bg-base-100/80 rounded-full h-3 backdrop-blur-sm">
+          <div
+  id="progress-bar-fill"
+  class="h-full bg-gradient-to-r from-purple-300 via-pink-200 to-yellow-100 rounded-full transition-all duration-300 shadow-lg shadow-yellow-200/50"
+  style="width: 0%;"
+></div>
 
-          <!-- Loading indicator dots avec bg-primary -->
-          <div class="flex justify-center gap-2 mt-4">
-            <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0s"></div>
-            <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-            <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
-          </div>
         </div>
       </div>
-    `
+      <div class="flex justify-center gap-2 mt-4">
+  <div class="w-2 h-2 bg-gradient-to-r from-purple-300 via-pink-200 to-yellow-100 rounded-full animate-bounce" style="animation-delay: 0s"></div>
+  <div class="w-2 h-2 bg-gradient-to-r from-purple-300 via-pink-200 to-yellow-100 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+  <div class="w-2 h-2 bg-gradient-to-r from-purple-300 via-pink-200 to-yellow-100 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+</div>
+
+    </div>
+  </div>
+`;
+
 
     // Append to DOM
     this.canvas.parentElement?.appendChild(this.loadingDiv)

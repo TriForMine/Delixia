@@ -29,6 +29,7 @@ import { IngredientLoader } from '@client/game/IngredientLoader.ts'
 import { SpatialGrid } from './SpatialGrid'
 import { InputManager } from './managers/InputManager'
 import { PerformanceManager } from './managers/PerformanceManager'
+import {Ingredient, InteractType} from "@shared/types/enums.ts";
 
 export class GameEngine {
   public interactables: InteractableObject[] = []
@@ -58,13 +59,6 @@ export class GameEngine {
   private readonly ROTATION_THRESHOLD: number = 0.05; // Only send rotation updates if rotated more than this angle
   private lastSentPosition: Vector3 = new Vector3();
   private lastSentRotation: number = 0;
-
-  // Remote player optimization properties
-  private readonly LOD_DISTANCES = {
-    CLOSE: 10,    // Full quality for players within 10 units
-    MEDIUM: 20,   // Medium quality for players within 20 units
-    FAR: 40       // Low quality beyond that
-  };
 
   constructor(scene: Scene, room: any) {
     this.scene = scene
@@ -189,32 +183,6 @@ export class GameEngine {
       this.loadedCharacterContainer = task.loadedContainer
     }
 
-    const $ = getStateCallbacks(this.room)
-
-    $(this.room.state).interactableObjects.onAdd((objState, key) => {
-      // Listen for property changes on this object
-      $(objState).onChange(() => {
-        const interactable = this.interactables.find((obj) => obj.id === Number(key))
-
-        if (!interactable) return
-
-        if (objState.isActive) {
-          interactable.activate(objState.activeSince) // e.g. start fire ParticleSystem
-        } else {
-          interactable.deactivate() // e.g. stop the effect
-        }
-      })
-
-      const interactable = this.interactables.find((obj) => obj.id === Number(key))
-      if (!interactable) return
-
-      if (objState.isActive) {
-        interactable.activate(objState.activeSince) // e.g. start fire ParticleSystem
-      } else {
-        interactable.deactivate() // e.g. stop the effect
-      }
-    })
-
     this.assetsManager.onProgress = (remainingCount, totalCount, _) => {
       const percentage = (totalCount - remainingCount) / totalCount
 
@@ -244,7 +212,7 @@ export class GameEngine {
     }
 
     const kitchenFolder = 'assets/map/'
-    const kitchenLoader = new MapLoader(this.scene, this.shadowGenerator)
+    const kitchenLoader = new MapLoader(this.scene, this.shadowGenerator, this.ingredientLoader)
 
     // Wait for both assets and map to load before hiding loading screen
     let assetsLoaded = false
@@ -283,6 +251,7 @@ export class GameEngine {
         mapConfigs,
         () => {
           this.interactables = kitchenLoader.interactables
+
           mapLoaded = true
           this.loadingState.map.loaded = true
           this.loadingState.map.progress = 100
@@ -293,6 +262,51 @@ export class GameEngine {
             engine.loadingScreen.loadingUIText = this.loadingState.currentTask
           }
           checkLoadingComplete()
+
+          const $ = getStateCallbacks(this.room)
+
+          $(this.room.state).interactableObjects.onAdd((objState) => {
+            // Listen for property changes on this object
+            $(objState).onChange(() => {
+              const interactable = this.interactables.find((obj) => obj.id === Number(objState.id))
+
+              if (!interactable) return
+
+              if (objState.isActive) {
+                interactable.activate(objState.activeSince) // e.g. start fire ParticleSystem
+              } else {
+                interactable.deactivate() // e.g. stop the effect
+              }
+
+              // Update ingredients on chopping board if it's a chopping board
+              if (interactable.interactType === InteractType.ChoppingBoard) {
+                const ingredients = objState.ingredientsOnBoard.map(i => i as Ingredient);
+                interactable.updateIngredientsOnBoard(ingredients);
+              }
+            })
+
+            const interactable = this.interactables.find((obj) => obj.id === Number(objState.id))
+            if (!interactable) {
+              if (objState.type === InteractType.ChoppingBoard) {
+                // Create a new interactable object
+                const newInteractable = kitchenLoader.createInteractableObject(objState)
+                this.interactables.push(newInteractable)
+              }
+                return
+            }
+
+            if (objState.isActive) {
+              interactable.activate(objState.activeSince) // e.g. start fire ParticleSystem
+            } else {
+              interactable.deactivate() // e.g. stop the effect
+            }
+
+            // Update ingredients on chopping board if it's a chopping board
+            if (interactable.interactType === InteractType.ChoppingBoard) {
+              const ingredients = objState.ingredientsOnBoard.map(i => i as Ingredient);
+              interactable.updateIngredientsOnBoard(ingredients);
+            }
+          })
         },
         (progress) => {
           this.loadingState.map.progress = progress
@@ -403,59 +417,9 @@ export class GameEngine {
       }
     }
 
-    // Update all remote controllers with LOD optimization
-    if (this.localController) {
-      const localPosition = this.localController.position;
-
-      this.remoteControllers.forEach((controller, _) => {
-        // Calculate distance to local player
-        const distance = Vector3.Distance(controller.position, localPosition);
-
-        // Apply LOD based on distance
-        if (distance <= this.LOD_DISTANCES.CLOSE) {
-          // Close players: full quality
-          controller.setLODLevel('high');
-          controller.update(deltaSeconds);
-
-          // Ensure shadows are enabled for close players
-          if (!controller.model.receiveShadows) {
-            controller.model.receiveShadows = true;
-            this.shadowGenerator.addShadowCaster(controller.model);
-          }
-        } 
-        else if (distance <= this.LOD_DISTANCES.MEDIUM) {
-          // Medium distance players: medium quality
-          controller.setLODLevel('medium');
-          controller.update(deltaSeconds);
-
-          // Simplified shadows for medium distance
-          if (!controller.model.receiveShadows) {
-            controller.model.receiveShadows = true;
-            this.shadowGenerator.addShadowCaster(controller.model);
-          }
-        }
-        else {
-          // Far players: low quality, update less frequently
-          controller.setLODLevel('low');
-
-          // Update far players less frequently (every 3 frames)
-          if (this.scene.getFrameId() % 3 === 0) {
-            controller.update(deltaSeconds * 3);
-          }
-
-          // Disable shadows for far players to improve performance
-          if (controller.model.receiveShadows) {
-            controller.model.receiveShadows = false;
-            this.shadowGenerator.removeShadowCaster(controller.model);
-          }
-        }
-      });
-    } else {
-      // Fallback if local controller isn't available
-      this.remoteControllers.forEach((controller) => {
-        controller.update(deltaSeconds);
-      });
-    }
+    this.remoteControllers.forEach((controller) => {
+      controller.update(deltaSeconds);
+    });
 
     // Update performance metrics and optimizations
     this.performanceManager?.update();
@@ -528,6 +492,11 @@ export class GameEngine {
         // Local player state handling
         this.localController?.setPosition(new Vector3(player.x, player.y, player.z))
         this.localController?.setRotationY(player.rot)
+
+        $(player).onChange(() => {
+          this.localController?.forceSetIngredient(player.holdedIngredient as Ingredient)
+        })
+
         return
       }
 
@@ -541,35 +510,11 @@ export class GameEngine {
       remoteController.setPosition(new Vector3(player.x, player.y, player.z))
       remoteController.setRotationY(player.rot)
 
-      // Apply LOD settings based on distance right from the start
-      if (this.localController) {
-        const distance = Vector3.Distance(this.localController.position, remoteController.position);
-
-        if (distance <= this.LOD_DISTANCES.CLOSE) {
-          // Close players: full quality
-          remoteController.setLODLevel('high');
-          remoteMesh.receiveShadows = true;
-          this.shadowGenerator.addShadowCaster(remoteMesh);
-        } 
-        else if (distance <= this.LOD_DISTANCES.MEDIUM) {
-          // Medium distance players: medium quality
-          remoteController.setLODLevel('medium');
-          remoteMesh.receiveShadows = true;
-          this.shadowGenerator.addShadowCaster(remoteMesh);
-        }
-        else {
-          // Far players: low quality
-          remoteController.setLODLevel('low');
-          remoteMesh.receiveShadows = false;
-        }
-      } else {
-        // Default if local controller isn't available yet
-        remoteMesh.receiveShadows = true;
-        this.shadowGenerator.addShadowCaster(remoteMesh);
-      }
+      remoteMesh.receiveShadows = true;
+      this.shadowGenerator.addShadowCaster(remoteMesh);
 
       this.remoteControllers.set(sessionId, remoteController)
-      remoteController.receiveState(player)
+      remoteController.receiveFirstState(player)
 
       // Optimize network updates by using a throttled state change handler
       let lastStateUpdateTime = 0;

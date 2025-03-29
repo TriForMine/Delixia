@@ -1,7 +1,8 @@
-import { MapSchema, Schema, type } from '@colyseus/schema'
+import {ArraySchema, MapSchema, Schema, type} from '@colyseus/schema'
 import { Ingredient, type InteractType } from '../types/enums.ts'
 import { InteractableObjectState } from './InteractableObjectState.ts'
 import { Player } from './Player.ts'
+import {Order} from "@shared/schemas/Order.ts";
 
 export class GameRoomState extends Schema {
   @type({ map: Player })
@@ -10,7 +11,8 @@ export class GameRoomState extends Schema {
   @type({ map: InteractableObjectState })
   interactableObjects = new MapSchema<InteractableObjectState>()
 
-  @type('string') mySynchronizedProperty: string = 'Hello world'
+  @type({ array: Order })
+  orders = new ArraySchema<Order>();
 
   createPlayer(id: string) {
     const player = new Player()

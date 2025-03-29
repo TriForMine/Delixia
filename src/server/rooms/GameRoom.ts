@@ -1,8 +1,10 @@
-import { mapConfigs } from '@shared/maps/japan.ts'
-import { GameRoomState } from '@shared/schemas/GameRoomState.ts'
-import { type Client, Room, logger } from 'colyseus'
-import { ServerMapLoader } from '../utils/ServerMapLoader.ts'
-import { Ingredient, InteractType } from '@shared/types/enums.ts'
+import {mapConfigs} from '@shared/maps/japan.ts'
+import {GameRoomState} from '@shared/schemas/GameRoomState.ts'
+import {type Client, logger, Room} from 'colyseus'
+import {ServerMapLoader} from '../utils/ServerMapLoader.ts'
+import {Ingredient, InteractType} from '@shared/types/enums.ts'
+import {RECIPES} from '@shared/recipes';
+import {Order} from '@shared/schemas/Order';
 
 const serverMapLoader = new ServerMapLoader(mapConfigs)
 
@@ -35,22 +37,159 @@ export class GameRoom extends Room<GameRoomState> {
             this.state.updateInteractableObject(objectId, { isActive: newActive })
             break
           case InteractType.Stock:
-            const isCarrying = this.state.getIngredient(client.sessionId) !== Ingredient.None
+            const isCarryingStock = this.state.getIngredient(client.sessionId) !== Ingredient.None
 
-            if (isCarrying) {
+            if (isCarryingStock) {
               client.send('alreadyCarrying', { message: 'Tu portes déjà un ingrédient !' })
               return
             }
 
             const ingredient = obj?.ingredient
             this.state.pickupIngredient(client.sessionId, ingredient as Ingredient)
+            break
+          case InteractType.Trash: {
+            const playerIngredient = this.state.getIngredient(client.sessionId)
 
+            if (playerIngredient !== undefined && playerIngredient !== Ingredient.None) {
+              this.state.dropIngredient(client.sessionId)
+              logger.info(`Player ${client.sessionId} dropped ${Ingredient[playerIngredient]} in the trash`)
+            } else {
+              client.send('noIngredient', {message: 'You are not carrying any ingredient!'})
+            }
+            break
+          }
+          case InteractType.ChoppingBoard:
+            const playerIngredient = this.state.getIngredient(client.sessionId)
+
+            // If player is carrying an ingredient, place it on the board
+            if (playerIngredient !== undefined && playerIngredient !== Ingredient.None) {
+              // Check if adding this ingredient would correspond to a valid recipe
+              const currentIngredients = [...obj.ingredientsOnBoard.values()] as Ingredient[];
+              const potentialIngredients = [...currentIngredients, playerIngredient];
+
+              // Check if this combination is valid for any recipe
+              let isValidAddition = false;
+
+              // First check: Is this a valid ingredient for any recipe?
+              for (const recipe of RECIPES) {
+                // Get all ingredients required for this recipe
+                const recipeIngredients = recipe.steps
+                  .filter(step => step.ingredients && step.machine === InteractType.ChoppingBoard)
+                  .flatMap(step => step.ingredients?.map(i => i.ingredient) || []);
+
+                // Check if the player's ingredient is used in any recipe
+                if (recipeIngredients.includes(playerIngredient)) {
+                  isValidAddition = true;
+                  break;
+                }
+              }
+
+              // Second check: Would adding this ingredient create a valid partial recipe?
+              if (isValidAddition && currentIngredients.length > 0) {
+                isValidAddition = false; // Reset and check if this specific combination is valid
+
+                for (const recipe of RECIPES) {
+                  // Get all ingredients required for this recipe
+                  const recipeIngredients = recipe.steps
+                    .filter(step => step.ingredients && step.machine === InteractType.ChoppingBoard)
+                    .flatMap(step => step.ingredients?.map(i => i.ingredient) || []);
+
+                  // Check if all potential ingredients are part of this recipe
+                  const allIngredientsValid = potentialIngredients.every(ing => recipeIngredients.includes(ing));
+
+                  // Check if we're not adding duplicates that aren't in the recipe
+                  const ingredientCounts = potentialIngredients.reduce((counts, ing) => {
+                    counts[ing] = (counts[ing] || 0) + 1;
+                    return counts;
+                  }, {} as Record<number, number>);
+
+                  // Count how many of each ingredient are needed in the recipe
+                  const recipeIngredientCounts = recipeIngredients.reduce((counts, ing) => {
+                    counts[ing] = (counts[ing] || 0) + 1;
+                    return counts;
+                  }, {} as Record<number, number>);
+
+                  // Check if we're not exceeding the required quantity for any ingredient
+                  const validQuantities = Object.entries(ingredientCounts).every(
+                    ([ing, count]) => count <= (recipeIngredientCounts[Number(ing)] || 0)
+                  );
+
+                  if (allIngredientsValid && validQuantities) {
+                    isValidAddition = true;
+                    break;
+                  }
+                }
+              }
+
+              if (isValidAddition) {
+                // Add the ingredient to the board
+                obj.ingredientsOnBoard.push(playerIngredient)
+                obj.activeSince = Date.now()
+                logger.info(`Player ${client.sessionId} placed ${Ingredient[playerIngredient]} on chopping board ${objectId}`)
+
+                // Remove the ingredient from the player
+                this.state.dropIngredient(client.sessionId)
+
+                // Check if we've completed a recipe
+                const currentBoardIngredients = [...obj.ingredientsOnBoard.values()] as Ingredient[];
+
+                // Check each recipe to see if we've completed it
+                for (const recipe of RECIPES) {
+                  // Get all ingredients required for this recipe
+                  const recipeIngredients = recipe.steps
+                    .filter(step => step.ingredients && step.machine === InteractType.ChoppingBoard)
+                    .flatMap(step => step.ingredients?.map(i => i.ingredient) || []);
+
+                  // Sort both arrays to compare them regardless of order
+                  const sortedBoardIngredients = [...currentBoardIngredients].sort();
+                  const sortedRecipeIngredients = [...recipeIngredients].sort();
+
+                  // Check if the board has exactly the ingredients needed for this recipe
+                  if (sortedBoardIngredients.length === sortedRecipeIngredients.length && 
+                      sortedBoardIngredients.every((ing, idx) => ing === sortedRecipeIngredients[idx])) {
+
+                    // We've completed a recipe! Clear the board and add the result
+                    obj.ingredientsOnBoard.clear();
+
+                    // For now, we only have onigiri, but this could be expanded
+                    if (recipe.id === "onigiri") {
+                      obj.ingredientsOnBoard.push(Ingredient.Onigiri);
+                      obj.activeSince = Date.now();
+                      logger.info(`Player ${client.sessionId} created ${recipe.name}, placed on board ${objectId}`);
+                    }
+
+                    break;
+                  }
+                }
+              } else {
+                client.send('invalidIngredient', { message: 'This ingredient cannot be placed on the board!' })
+              }
+            } else {
+              // If there are ingredients on the board, pick them up
+              if (obj.ingredientsOnBoard.length > 0) {
+                // Get the first ingredient on the board (should be the only one if it's an onigiri)
+                const ingredient = obj.ingredientsOnBoard[0] as Ingredient;
+
+                // Give the ingredient to the player
+                this.state.pickupIngredient(client.sessionId, ingredient);
+                logger.info(`Player ${client.sessionId} picked up ${Ingredient[ingredient]} from chopping board ${objectId}`);
+
+                // Clear the board
+                obj.ingredientsOnBoard.clear();
+                obj.activeSince = Date.now()
+              } else {
+                client.send('noIngredient', { message: 'You are not carrying any ingredient and the board is empty!' })
+              }
+            }
             break
           default:
             break
         }
       }
     })
+
+    // Instead of using setInterval, use the update loop.
+    this.setSimulationInterval((deltaTime) => this.update(deltaTime))
   }
 
   onJoin(client: Client) {
@@ -88,5 +227,50 @@ export class GameRoom extends Room<GameRoomState> {
 
   onDispose() {
     logger.info('Dispose ChatRoom')
+  }
+
+  // TODO: Remove this, it's just for testing.
+  // Timer accumulator for order creation (in milliseconds)
+  private orderTimer: number = 20000;
+  // Order creation interval (e.g., every 20 seconds)
+  private ORDER_INTERVAL: number = 20 * 1000;
+
+  update(deltaTime: number) {
+    // deltaTime is provided in milliseconds.
+    // Accumulate the deltaTime into orderTimer.
+    this.orderTimer += deltaTime;
+
+    // When the accumulated time exceeds our ORDER_INTERVAL, create a new order.
+    if (this.orderTimer >= this.ORDER_INTERVAL) {
+
+      const recipe = RECIPES.find(r => r.id === "onigiri");
+      if (recipe) {
+        const order = new Order();
+        order.id = String(Date.now());
+        order.recipeId = recipe.id;
+        order.completed = false;
+        order.createdAt = Date.now();
+        // Optionally, set a deadline (e.g., 60 seconds from now)
+        order.deadline = Date.now() + 60000;
+        this.state.orders.push(order);
+        logger.info(`Created order ${order.id} for recipe ${order.recipeId}`);
+      }
+      // Subtract the interval from the timer (in case deltaTime overshoots)
+      this.orderTimer -= this.ORDER_INTERVAL;
+    }
+
+    // Check for deadlines and remove completed orders
+    const now = Date.now();
+    this.state.orders.forEach((order) => {
+      if (order.completed) {
+        // Remove the order if it's completed
+        this.state.orders.splice(this.state.orders.indexOf(order), 1);
+        logger.info(`Order ${order.id} completed and removed.`);
+      } else if (now > order.deadline) {
+        // Handle expired orders (e.g., notify players)
+        logger.warn(`Order ${order.id} has expired.`);
+        this.state.orders.splice(this.state.orders.indexOf(order), 1);
+      }
+    });
   }
 }

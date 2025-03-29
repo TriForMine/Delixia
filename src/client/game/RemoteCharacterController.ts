@@ -21,14 +21,6 @@ export class RemoteCharacterController extends CharacterController {
   private positionInterpolationFactor: number = 0.2
   private rotationInterpolationFactor: number = 0.2
 
-  // LOD properties
-  private lodLevel: 'high' | 'medium' | 'low' = 'high'
-  private readonly LOD_SETTINGS = {
-    high: { posInterp: 0.2, rotInterp: 0.2, animationEnabled: true },
-    medium: { posInterp: 0.15, rotInterp: 0.15, animationEnabled: true },
-    low: { posInterp: 0.1, rotInterp: 0.1, animationEnabled: false }
-  }
-
   constructor(characterMesh: AbstractMesh, scene: Scene, ingredientLoader: IngredientLoader, animationGroups: AnimationGroup[]) {
     super(characterMesh, scene, ingredientLoader, animationGroups)
     this.scene = scene
@@ -41,27 +33,17 @@ export class RemoteCharacterController extends CharacterController {
     }
   }
 
-  /**
-   * Sets the Level of Detail for this remote character
-   * @param level The LOD level to set ('high', 'medium', or 'low')
-   */
-  public setLODLevel(level: 'high' | 'medium' | 'low'): void {
-    if (this.lodLevel !== level) {
-      this.lodLevel = level;
+  public receiveFirstState(newPlayer: Player): void {
+    this.targetPosition = new Vector3(newPlayer.x, newPlayer.y, newPlayer.z)
+    this.targetYRotation = newPlayer.rot
+    this.previousPosition.copyFrom(this.targetPosition)
 
-      // Update interpolation factors based on LOD level
-      const settings = this.LOD_SETTINGS[level];
-      this.positionInterpolationFactor = settings.posInterp;
-      this.rotationInterpolationFactor = settings.rotInterp;
+    // Set the impostor mesh to be enabled
+    this.impostorMesh.setEnabled(true)
 
-      // Enable/disable animations based on LOD level
-      if (!settings.animationEnabled) {
-        // Pause non-essential animations for low LOD
-        this.walkAnim.pause();
-        this.jumpAnim.pause();
-        this.fallingAnim.pause();
-        this.landingAnim.pause();
-      }
+    // Update the ingredient if necessary
+    if (newPlayer.holdedIngredient !== undefined) {
+      this.forceSetIngredient(newPlayer.holdedIngredient as Ingredient)
     }
   }
 
@@ -93,12 +75,9 @@ export class RemoteCharacterController extends CharacterController {
     }
     this.lastUpdateTime = now;
 
-    // Only update animation state if animations are enabled for current LOD level
-    if (this.LOD_SETTINGS[this.lodLevel].animationEnabled) {
-      this.updateAnimationState(newPlayer.animationState);
-    }
+    this.updateAnimationState(newPlayer.animationState);
 
-    this.pickupIngredient(newPlayer.holdedIngredient as Ingredient);
+    this.forceSetIngredient(newPlayer.holdedIngredient as Ingredient);
   }
 
   /**
@@ -108,10 +87,7 @@ export class RemoteCharacterController extends CharacterController {
   public update(deltaTime: number): void {
     this.updateMovement(deltaTime);
 
-    // Only update animations if enabled for current LOD level
-    if (this.LOD_SETTINGS[this.lodLevel].animationEnabled) {
-      this.updateAnimations(deltaTime);
-    }
+    this.updateAnimations(deltaTime);
   }
 
   /**
@@ -130,9 +106,9 @@ export class RemoteCharacterController extends CharacterController {
     } else {
       // For small differences, use smooth interpolation
       this.impostorMesh.rotationQuaternion = Quaternion.Slerp(
-        this.impostorMesh.rotationQuaternion!, 
-        Quaternion.RotationAxis(Vector3.Up(), y), 
-        alpha
+          this.impostorMesh.rotationQuaternion!,
+          Quaternion.RotationAxis(Vector3.Up(), y),
+          alpha
       );
     }
   }
@@ -158,7 +134,6 @@ export class RemoteCharacterController extends CharacterController {
       this.targetPosition.addToRef(this._predictedPositionTemp, this._predictedPositionTemp);
     }
 
-    // Apply interpolation with dynamic factors based on LOD
     this.lerpPosition(this._predictedPositionTemp, this.positionInterpolationFactor);
     this.lerpRotationY(this.targetYRotation, this.rotationInterpolationFactor);
   }

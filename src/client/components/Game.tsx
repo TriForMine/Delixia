@@ -3,6 +3,7 @@ import { ConnectionStatus, useGameColyseusRoom, useGameConnectionError, useGameC
 import { type RefObject, useCallback, useEffect, useRef } from 'react'
 import { GameEngine } from '../game/GameEngine'
 import { BabylonScene } from './BabylonScene'
+import GameUI from "@client/components/UI/GameUI.tsx";
 
 const ConnectionStatusComponent = ({
   onBackToMenu,
@@ -55,13 +56,8 @@ export const Game = ({ onBackToMenu }: { onBackToMenu: () => void }) => {
   return (
     <div className="relative w-full h-full">
       <BabylonScene antialias onSceneReady={onSceneReady} onRender={onRender} id="my-canvas" className="w-full h-full" />
-      <button onClick={onBackToMenu} className="absolute top-4 left-4 btn btn-primary btn-lg gap-2 shadow-lg hover:scale-105 transition-transform">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-        </svg>
-        Main menu
-      </button>
       <ConnectionStatusComponent onBackToMenu={onBackToMenu} gameEngineRef={gameEngineRef} />
+      <GameUI onBackToMenu={onBackToMenu} />
     </div>
   )
 }

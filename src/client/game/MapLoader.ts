@@ -9,7 +9,8 @@ import type { AssetContainer } from '@babylonjs/core/assetContainer'
 import type { Scene } from '@babylonjs/core/scene'
 import type { MapModelConfig } from '@shared/types/map.ts'
 import { InteractableObject } from './InteractableObject'
-import { Ingredient } from '@shared/types/enums.ts'
+import {Ingredient} from '@shared/types/enums.ts'
+import type { IngredientLoader } from './IngredientLoader'
 
 export class MapLoader {
   private readonly scene: Scene
@@ -18,13 +19,15 @@ export class MapLoader {
   private loadedContainers: { [fileName: string]: AssetContainer } = {}
   private readonly cloudMaterial: StandardMaterial
   public interactables: InteractableObject[] = []
+  private readonly ingredientLoader?: IngredientLoader
 
-  constructor(scene: Scene, cascadedShadowGenerator: CascadedShadowGenerator) {
+  constructor(scene: Scene, cascadedShadowGenerator: CascadedShadowGenerator, ingredientLoader?: IngredientLoader) {
     this.scene = scene
     this.assetsManager = new AssetsManager(this.scene)
     this.assetsManager.autoHideLoadingUI = false
     this.assetsManager.useDefaultLoadingScreen = false
     this.cascadedShadowGenerator = cascadedShadowGenerator
+    this.ingredientLoader = ingredientLoader
     const material = new StandardMaterial('cloud', this.scene)
     material.disableLighting = false
     material.emissiveColor = new Color3(0.5, 0.5, 0.5)
@@ -96,17 +99,25 @@ export class MapLoader {
             root.scaling.set(modelConfig.defaultScaling.x ?? 1, modelConfig.defaultScaling.y ?? 1, modelConfig.defaultScaling.z ?? 1)
           }
 
-          if (placement.interaction) {
+          if (modelConfig.interaction ?? placement.interaction) {
+            const interaction = modelConfig.interaction ?? placement.interaction
+            if (!interaction) {
+                console.warn(`Missing interaction for model "${modelConfig.fileName}"`)
+                return
+            }
+
             const offset = modelConfig.billboardOffset
               ? new Vector3(modelConfig.billboardOffset.x, modelConfig.billboardOffset.y, modelConfig.billboardOffset.z)
               : undefined
             const interactableObj = new InteractableObject(
               root,
               this.scene,
-              placement.interaction.interactType,
-              placement.interaction.ingredient ?? Ingredient.None,
-              placement.interaction.id,
+                interaction.interactType,
+                interaction.ingredient ?? Ingredient.None,
+                interaction.id,
               offset,
+              'E',
+              this.ingredientLoader
             )
             interactableObj.interactionDistance = 2
             this.interactables.push(interactableObj)

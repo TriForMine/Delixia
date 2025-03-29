@@ -8,6 +8,7 @@ import {DynamicTexture} from '@babylonjs/core/Materials/Textures/dynamicTexture'
 import type {Scene} from '@babylonjs/core/scene'
 import {type Ingredient, InteractType} from '@shared/types/enums.ts'
 import type {LocalCharacterController} from '@client/game/LocalCharacterController.ts'
+import type {IngredientLoader} from '@client/game/IngredientLoader.ts'
 
 export class InteractableObject {
   // Static texture cache for sharing textures between instances
@@ -47,10 +48,12 @@ export class InteractableObject {
   private readonly promptDisc: Mesh;
   private readonly scene: Scene;
   private readonly billboardOffset: Vector3;
-  private readonly interactType: InteractType;
+  readonly interactType: InteractType;
   private readonly ingredientType: Ingredient;
   public id: number;
   private sparkleSystem?: ParticleSystem;
+  private ingredientLoader?: IngredientLoader;
+  private displayedIngredients: Mesh[] = [];
 
   // Pre-allocated vector for position updates
   private _positionUpdateTemp: Vector3 = new Vector3();
@@ -62,11 +65,13 @@ export class InteractableObject {
       ingredientType: Ingredient,
       interactId: number,
       billboardOffset?: Vector3,
-      keyPrompt: string = 'E'
+      keyPrompt: string = 'E',
+      ingredientLoader?: IngredientLoader
   ) {
     this.mesh = mesh
     this.scene = scene
     this.billboardOffset = billboardOffset?.clone() ?? new Vector3(0, 2, 0)
+    this.ingredientLoader = ingredientLoader
 
     // 1) Create a disc with reduced tessellation for better performance
     this.promptDisc = MeshBuilder.CreateDisc(`${mesh.name}_prompt_disc`, { radius: 0.25, tessellation: 16 }, scene);
@@ -379,7 +384,9 @@ export class InteractableObject {
       case InteractType.Stock:
         if (character) character.pickupIngredient(this.ingredientType);
         break;
-
+      case InteractType.Trash:
+        if (character) character.dropIngredient();
+        break;
       default:
         console.warn('Unknown interact type:', this.interactType);
         break;
@@ -392,5 +399,34 @@ export class InteractableObject {
 
   public interact(character: LocalCharacterController, timestamp: number): void {
     this.activate(timestamp, character)
+  }
+
+  public updateIngredientsOnBoard(ingredients: Ingredient[]): void {
+    // Clear existing ingredients
+    this.clearIngredientsOnBoard();
+
+    console.log('Updating ingredients on board:', ingredients);
+
+    if (!this.ingredientLoader) return;
+
+    // Create and position new ingredients
+    ingredients.forEach((ingredient, index) => {
+      const ingredientMesh = this.ingredientLoader!.getIngredientMesh(ingredient);
+      ingredientMesh.parent = this.mesh;
+
+      // Position ingredients on top of the chopping board, stacked on each other
+      ingredientMesh.position = new Vector3(0, 0.1 + (index * 0.1), 0);
+      ingredientMesh.scaling = new Vector3(0.5, 0.5, 0.5);
+
+      this.displayedIngredients.push(ingredientMesh);
+    });
+  }
+
+  public clearIngredientsOnBoard(): void {
+    // Dispose all displayed ingredients
+    this.displayedIngredients.forEach(mesh => {
+      mesh.dispose();
+    });
+    this.displayedIngredients = [];
   }
 }
