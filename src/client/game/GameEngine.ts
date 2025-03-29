@@ -53,7 +53,7 @@ export class GameEngine {
 
   // Network optimization properties
   private lastNetworkUpdateTime: number = 0;
-  private readonly NETWORK_UPDATE_INTERVAL: number = 100; // Send updates every 100ms instead of every frame
+  private readonly NETWORK_UPDATE_INTERVAL: number = 10; // Send updates every 100ms instead of every frame
   private readonly POSITION_THRESHOLD: number = 0.01; // Only send position updates if moved more than this distance
   private readonly ROTATION_THRESHOLD: number = 0.05; // Only send rotation updates if rotated more than this angle
   private lastSentPosition: Vector3 = new Vector3();
