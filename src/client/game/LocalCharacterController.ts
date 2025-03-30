@@ -96,7 +96,7 @@ export class LocalCharacterController extends CharacterController {
     camera.lowerBetaLimit = 0.1
     camera.upperBetaLimit = Math.PI / 2 + 0.2
     camera.wheelPrecision = 30
-    camera.minZ = 0.7
+    camera.minZ = 0.02
     camera.maxZ = 1000
 
     camera.setTarget(this.cameraAttachPoint)
