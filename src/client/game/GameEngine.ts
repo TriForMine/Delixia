@@ -287,7 +287,7 @@ export class GameEngine {
 
             const interactable = this.interactables.find((obj) => obj.id === Number(objState.id))
             if (!interactable) {
-                return
+              return
             }
 
             if (objState.isActive) {
@@ -488,12 +488,20 @@ export class GameEngine {
         this.localController?.setPosition(new Vector3(player.x, player.y, player.z))
         this.localController?.setRotationY(player.rot)
 
-        $(player).onChange(() => {
-          if (!this.localController) return;
+        $(player).listen("holdingPlate", (value: boolean) => {
+          if (!this.localController) return
 
-          // Update ingredient
-          this.localController.isHoldingPlate = player.holdingPlate
-          this.localController.forceSetIngredient(player.holdedIngredient as Ingredient)
+          if (value && !this.localController.isHoldingPlate) {
+            this.localController.forcePickupPlate()
+          } else if (!value && this.localController.isHoldingPlate) {
+            this.localController.dropPlate()
+          }
+        })
+
+        $(player).listen("holdedIngredient", (value: Ingredient) => {
+          if (!this.localController) return
+
+          this.localController.forceSetIngredient(value)
         })
 
         return

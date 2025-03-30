@@ -170,7 +170,10 @@ export class CharacterController {
       return
     }
 
-    console.log('pickupPlate')
+    this.forcePickupPlate()
+  }
+
+  forcePickupPlate() {
     this.holdingPlate = true
     this.updatePlateMesh()
   }

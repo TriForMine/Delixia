@@ -386,6 +386,7 @@ export class InteractableObject {
           // Handle plates differently
           if (this.ingredientType === Ingredient.Plate) {
             character.pickupPlate();
+            character.updatePlateMesh()
           } else {
             character.pickupIngredient(this.ingredientType);
           }
@@ -420,8 +421,6 @@ export class InteractableObject {
   public updateIngredientsOnBoard(ingredients: Ingredient[]): void {
     // Clear existing ingredients
     this.clearIngredientsOnBoard();
-
-    console.log('Updating ingredients on board:', ingredients);
 
     if (!this.ingredientLoader) return;
 

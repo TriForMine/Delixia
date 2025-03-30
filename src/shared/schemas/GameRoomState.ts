@@ -98,7 +98,6 @@ export class GameRoomState extends Schema {
       return
     }
 
-    console.log('Picking up ingredient', ingredient)
     player.holdedIngredient = ingredient
   }
 
@@ -118,7 +117,6 @@ export class GameRoomState extends Schema {
       return
     }
 
-    console.log('Player picked up a plate', playerId)
     player.holdingPlate = true
   }
 
