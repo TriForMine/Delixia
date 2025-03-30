@@ -3,6 +3,56 @@ import { z } from 'zod'
 import {PhysicsShapeType} from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
 
 /**
+ * A simple string hash function that works in both Node.js and browser environments.
+ * Based on the djb2 algorithm.
+ * 
+ * @param str The string to hash
+ * @returns A hexadecimal hash string
+ */
+function simpleHash(str: string): string {
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    // (hash * 33) ^ char
+    hash = ((hash << 5) + hash) ^ str.charCodeAt(i);
+  }
+
+  // Convert to unsigned 32-bit integer and then to hex string
+  const unsigned = hash >>> 0;
+  return unsigned.toString(16).padStart(8, '0');
+}
+
+/**
+ * Generates a hash for a map configuration to ensure client and server have the same version.
+ * 
+ * @param mapConfigs The map configurations to hash
+ * @returns A string hash representing the map configuration
+ */
+export function generateMapHash(mapConfigs: MapModelConfig[]): string {
+  // Create a deterministic string representation of the map configs
+  // Sort and stringify the configs to ensure the same hash regardless of object order
+  const stringifiedConfig = JSON.stringify(mapConfigs, (_key, value) => {
+    // Sort arrays to ensure deterministic order
+    if (Array.isArray(value)) {
+      return [...value].sort();
+    }
+    // Sort object keys to ensure deterministic order
+    if (value && typeof value === 'object' && !(value instanceof Date)) {
+      return Object.keys(value).sort().reduce((result, key) => {
+        result[key] = value[key];
+        return result;
+      }, {} as any);
+    }
+    return value;
+  });
+
+  // Generate a hash from the stringified config using our browser-compatible function
+  const hash = simpleHash(stringifiedConfig);
+
+  // Return the hash
+  return hash;
+}
+
+/**
  * Generates a deterministic, unique ID for an interaction based on its properties.
  * The ID is composed of:
  * - InteractType (0-999) * 1000000
@@ -32,11 +82,11 @@ export function generateInteractionId(
 }
 
 /**
- * Processes map configurations to automatically assign interaction IDs.
+ * Processes map configurations to automatically assign interaction IDs and generate a hash.
  * This function modifies the input configurations in place.
  * 
  * @param mapConfigs The map configurations to process
- * @returns The processed map configurations
+ * @returns The processed map configurations with hash
  */
 export function processMapConfigurations(mapConfigs: MapModelConfig[]): MapModelConfig[] {
   // Create counters for each interaction type + ingredient combination
@@ -65,6 +115,14 @@ export function processMapConfigurations(mapConfigs: MapModelConfig[]): MapModel
         counters[key]++
       }
     }
+  }
+
+  // Generate a hash for the processed configurations
+  const mapHash = generateMapHash(mapConfigs);
+
+  // Add the hash to each configuration
+  for (const config of mapConfigs) {
+    config.hash = mapHash;
   }
 
   return mapConfigs
@@ -128,6 +186,7 @@ export const MapModelConfigSchema = z.object({
     }).optional(),
     interaction: InteractionConfigSchema.optional(),
   })),
+  hash: z.string().optional(), // Hash of the map configuration for version verification
 })
 
 export type MapModelConfig = z.infer<typeof MapModelConfigSchema>

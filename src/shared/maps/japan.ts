@@ -413,14 +413,12 @@ const rawMapConfigs: MapModelConfig[] = [
       {
         position: { x: 2.9, y: 0.15, z: 8.6 },
         interaction: {
-
           interactType: InteractType.Fridge,
         },
       },
       {
         position: { x: -2.9, y: 0.15, z: 8.6 },
         interaction: {
-
           interactType: InteractType.Fridge,
         },
       },

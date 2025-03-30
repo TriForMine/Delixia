@@ -321,6 +321,7 @@ export class GameEngine {
             engine.loadingScreen.loadingUIText = this.loadingState.currentTask
           }
         },
+        this.room.state.mapHash // Pass the server's map hash for verification
     )
 
     // Request initial pointer lock and focus

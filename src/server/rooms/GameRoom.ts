@@ -5,6 +5,7 @@ import {ServerMapLoader} from '../utils/ServerMapLoader.ts'
 import {Ingredient, InteractType} from '@shared/types/enums.ts'
 import {RECIPES} from '@shared/recipes';
 import {Order} from '@shared/schemas/Order';
+import {generateMapHash} from '@shared/utils/mapUtils.ts';
 
 const serverMapLoader = new ServerMapLoader(mapConfigs)
 
@@ -13,6 +14,11 @@ export class GameRoom extends Room<GameRoomState> {
   maxClients = 4
 
   onCreate(_options: any) {
+    // Generate and set the map hash
+    const mapHash = generateMapHash(mapConfigs);
+    this.state.mapHash = mapHash;
+    logger.info(`Map hash set: ${mapHash}`);
+
     serverMapLoader.loadInteractables().forEach((interaction) => {
       if (!interaction.id) {
         logger.error('Interaction ID is missing:', interaction)

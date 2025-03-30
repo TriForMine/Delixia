@@ -8,6 +8,7 @@ import { PhysicsAggregate } from '@babylonjs/core/Physics/v2/physicsAggregate'
 import type { AssetContainer } from '@babylonjs/core/assetContainer'
 import type { Scene } from '@babylonjs/core/scene'
 import type { MapModelConfig } from '@shared/utils/mapUtils.ts'
+import { generateMapHash } from '@shared/utils/mapUtils.ts'
 import { InteractableObject } from './InteractableObject'
 import {Ingredient} from '@shared/types/enums.ts'
 import type { IngredientLoader } from './IngredientLoader'
@@ -36,12 +37,31 @@ export class MapLoader {
     this.cloudMaterial = material
   }
 
-  public loadAndPlaceModels(folder: string, modelConfigs: MapModelConfig[], onFinish: () => void, onProgress?: (progress: number) => void): void {
+  public loadAndPlaceModels(
+    folder: string, 
+    modelConfigs: MapModelConfig[], 
+    onFinish: () => void, 
+    onProgress?: (progress: number) => void, 
+    serverMapHash?: string
+  ): void {
     // Reset InteractableObject static properties to prevent issues when reloading the map
     InteractableObject.reset();
 
     // Clear existing interactables array
     this.interactables = [];
+
+    // Verify map hash if provided
+    if (serverMapHash) {
+      const clientMapHash = generateMapHash(modelConfigs);
+
+      if (clientMapHash !== serverMapHash) {
+        console.error(`Map hash mismatch! Client: ${clientMapHash}, Server: ${serverMapHash}`);
+        alert('Warning: Your game map version differs from the server. This may cause gameplay issues.');
+        // We continue loading anyway, but the user has been warned
+      } else {
+        console.log(`Map hash verified: ${clientMapHash}`);
+      }
+    }
 
     // 1. Create a unique loading task for each distinct `fileName`
     modelConfigs.forEach((modelConfig) => {

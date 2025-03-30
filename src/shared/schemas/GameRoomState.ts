@@ -14,6 +14,9 @@ export class GameRoomState extends Schema {
   @type({ array: Order })
   orders = new ArraySchema<Order>();
 
+  @type("string")
+  mapHash: string = "";  // Hash of the map configuration for version verification
+
   createPlayer(id: string) {
     const player = new Player()
     player.name = `Player ${id}`
