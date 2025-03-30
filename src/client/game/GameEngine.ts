@@ -33,7 +33,7 @@ import { type Ingredient, InteractType } from '@shared/types/enums.ts'
 
 export class GameEngine {
   public interactables: InteractableObject[] = []
-  private spatialGrid: SpatialGrid = new SpatialGrid(5)
+  private spatialGrid: SpatialGrid = new SpatialGrid(2.5)
   private readonly scene: Scene
   private readonly room: Room<GameRoomState>
   private localController?: LocalCharacterController
@@ -140,22 +140,13 @@ export class GameEngine {
     const sun = new DirectionalLight('sun', new Vector3(-5, -10, 5).normalize(), this.scene)
     sun.position = sun.direction.negate().scaleInPlace(40)
 
-    // Create a shadow generator with optimized settings
-    this.shadowGenerator = new CascadedShadowGenerator(512, sun) // Reduced shadow map size
-    this.shadowGenerator.blurKernel = 16 // Reduced blur kernel
+    // Create a shadow generator with cartoonish style and optimized for performance
+    this.shadowGenerator = new CascadedShadowGenerator(256, sun) // Further reduced shadow map size for performance
     this.shadowGenerator.useKernelBlur = true
-    this.shadowGenerator.usePercentageCloserFiltering = true
-    this.shadowGenerator.shadowMaxZ = 20 // Reduced shadow distance
-    this.shadowGenerator.stabilizeCascades = true // Reduce shadow flickering
-    this.shadowGenerator.lambda = 0.8 // Stabilization factor
-    this.shadowGenerator.cascadeBlendPercentage = 0.1 // Smoother transitions
     this.shadowGenerator.depthClamp = true // Optimize depth calculations
     this.shadowGenerator.autoCalcDepthBounds = true // Optimize depth bounds
 
-    // Fix shadow acne by adjusting bias values
-    this.shadowGenerator.bias = 0.001 // Prevents shadow acne (self-shadowing artifacts)
-    this.shadowGenerator.normalBias = 0.02 // Adjusts bias based on surface normals
-    this.shadowGenerator.depthScale = 50 // Adjusts depth calculation to reduce acne
+    // The PerformanceManager will apply the cartoonish shadow settings
 
     // Initialize performance manager to handle FPS monitoring and shadow quality adjustments
     this.performanceManager = new PerformanceManager(this.scene, this.shadowGenerator)
@@ -355,7 +346,7 @@ export class GameEngine {
       }
 
       // Find nearby interactable objects using spatial grid
-      const maxDist = this.MAX_INTERACTION_DISTANCE
+      const maxDist = this.MAX_INTERACTION_DISTANCE / 2
       const nearbyObjects = this.spatialGrid.getNearbyObjects(this._playerPosTemp, maxDist)
 
       // Find the nearest interactable within range

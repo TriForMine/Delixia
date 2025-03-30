@@ -78,8 +78,7 @@ export class CustomLoadingScreen implements ILoadingScreen {
 
     </div>
   </div>
-`;
-
+`
 
     // Append to DOM
     this.canvas.parentElement?.appendChild(this.loadingDiv)
@@ -148,6 +147,7 @@ export const BabylonScene = ({
         const webgpuEngine = new WebGPUEngine(canvas, engineOptions)
         await webgpuEngine.initAsync()
         engine = webgpuEngine
+        engine.compatibilityMode = false
       } else {
         engine = new Engine(canvas, antialias, engineOptions, adaptToDeviceRatio)
       }

@@ -115,7 +115,7 @@ export class CharacterController {
 
   pickupIngredient(ingredient: Ingredient) {
     if (this.ingredient) {
-        return
+      return
     }
 
     // If holding a plate, only allow picking up onigiri
@@ -152,17 +152,18 @@ export class CharacterController {
       // Adjust position based on whether holding a plate
       if (this.holdingPlate) {
         // Position the ingredient on top of the plate
-        this.currentIngredientMesh.position = new Vector3(0, 0.55, 1)
+        this.currentIngredientMesh.position = new Vector3(0, 0.55, 0.4)
       } else {
-        this.currentIngredientMesh.position = new Vector3(0, 0.5, 1)
+        this.currentIngredientMesh.position = new Vector3(0, 0.5, 0.4)
       }
 
       this.currentIngredientMesh.rotationQuaternion = Quaternion.Identity()
       this.currentIngredientMesh.scaling = new Vector3(0.5, 0.5, 0.5)
       this.currentIngredientMesh.isPickable = false
+      for (const mesh of this.currentIngredientMesh.getChildMeshes()) {
+        mesh.isPickable = false
+      }
     }
-
-
   }
 
   pickupPlate() {
@@ -199,7 +200,7 @@ export class CharacterController {
       if (this.ingredientLoader) {
         this.plateMesh = this.ingredientLoader.getIngredientMesh(Ingredient.Plate)
         this.plateMesh.parent = this.model
-        this.plateMesh.position = new Vector3(0, 0.5, 1)
+        this.plateMesh.position = new Vector3(0, 0.5, 0.4)
         this.plateMesh.rotationQuaternion = Quaternion.Identity()
         this.plateMesh.scaling = new Vector3(0.5, 0.5, 0.5)
         this.plateMesh.isPickable = false
