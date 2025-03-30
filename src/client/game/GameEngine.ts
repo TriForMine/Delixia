@@ -29,11 +29,11 @@ import { IngredientLoader } from '@client/game/IngredientLoader.ts'
 import { SpatialGrid } from './SpatialGrid'
 import { InputManager } from './managers/InputManager'
 import { PerformanceManager } from './managers/PerformanceManager'
-import {Ingredient, InteractType} from "@shared/types/enums.ts";
+import { type Ingredient, InteractType } from '@shared/types/enums.ts'
 
 export class GameEngine {
   public interactables: InteractableObject[] = []
-  private spatialGrid: SpatialGrid = new SpatialGrid(5);
+  private spatialGrid: SpatialGrid = new SpatialGrid(5)
   private readonly scene: Scene
   private readonly room: Room<GameRoomState>
   private localController?: LocalCharacterController
@@ -45,7 +45,7 @@ export class GameEngine {
   private performanceManager?: PerformanceManager
   private loadedCharacterContainer: any
   // Pre-allocated vector for position calculations
-  private _playerPosTemp: Vector3 = new Vector3();
+  private _playerPosTemp: Vector3 = new Vector3()
   private loadingState = {
     assets: { progress: 0, total: 0, current: 0 },
     map: { progress: 0, loaded: false },
@@ -53,12 +53,12 @@ export class GameEngine {
   }
 
   // Network optimization properties
-  private lastNetworkUpdateTime: number = 0;
-  private readonly NETWORK_UPDATE_INTERVAL: number = 10; // Send updates every 100ms instead of every frame
-  private readonly POSITION_THRESHOLD: number = 0.01; // Only send position updates if moved more than this distance
-  private readonly ROTATION_THRESHOLD: number = 0.05; // Only send rotation updates if rotated more than this angle
-  private lastSentPosition: Vector3 = new Vector3();
-  private lastSentRotation: number = 0;
+  private lastNetworkUpdateTime: number = 0
+  private readonly NETWORK_UPDATE_INTERVAL: number = 10 // Send updates every 100ms instead of every frame
+  private readonly POSITION_THRESHOLD: number = 0.01 // Only send position updates if moved more than this distance
+  private readonly ROTATION_THRESHOLD: number = 0.05 // Only send rotation updates if rotated more than this angle
+  private lastSentPosition: Vector3 = new Vector3()
+  private lastSentRotation: number = 0
 
   constructor(scene: Scene, room: any) {
     this.scene = scene
@@ -141,24 +141,24 @@ export class GameEngine {
     sun.position = sun.direction.negate().scaleInPlace(40)
 
     // Create a shadow generator with optimized settings
-    this.shadowGenerator = new CascadedShadowGenerator(512, sun); // Reduced shadow map size
-    this.shadowGenerator.blurKernel = 16; // Reduced blur kernel
-    this.shadowGenerator.useKernelBlur = true;
-    this.shadowGenerator.usePercentageCloserFiltering = true;
-    this.shadowGenerator.shadowMaxZ = 20; // Reduced shadow distance
-    this.shadowGenerator.stabilizeCascades = true; // Reduce shadow flickering
-    this.shadowGenerator.lambda = 0.8; // Stabilization factor
-    this.shadowGenerator.cascadeBlendPercentage = 0.1; // Smoother transitions
-    this.shadowGenerator.depthClamp = true; // Optimize depth calculations
-    this.shadowGenerator.autoCalcDepthBounds = true; // Optimize depth bounds
+    this.shadowGenerator = new CascadedShadowGenerator(512, sun) // Reduced shadow map size
+    this.shadowGenerator.blurKernel = 16 // Reduced blur kernel
+    this.shadowGenerator.useKernelBlur = true
+    this.shadowGenerator.usePercentageCloserFiltering = true
+    this.shadowGenerator.shadowMaxZ = 20 // Reduced shadow distance
+    this.shadowGenerator.stabilizeCascades = true // Reduce shadow flickering
+    this.shadowGenerator.lambda = 0.8 // Stabilization factor
+    this.shadowGenerator.cascadeBlendPercentage = 0.1 // Smoother transitions
+    this.shadowGenerator.depthClamp = true // Optimize depth calculations
+    this.shadowGenerator.autoCalcDepthBounds = true // Optimize depth bounds
 
     // Fix shadow acne by adjusting bias values
-    this.shadowGenerator.bias = 0.001; // Prevents shadow acne (self-shadowing artifacts)
-    this.shadowGenerator.normalBias = 0.02; // Adjusts bias based on surface normals
-    this.shadowGenerator.depthScale = 50; // Adjusts depth calculation to reduce acne
+    this.shadowGenerator.bias = 0.001 // Prevents shadow acne (self-shadowing artifacts)
+    this.shadowGenerator.normalBias = 0.02 // Adjusts bias based on surface normals
+    this.shadowGenerator.depthScale = 50 // Adjusts depth calculation to reduce acne
 
     // Initialize performance manager to handle FPS monitoring and shadow quality adjustments
-    this.performanceManager = new PerformanceManager(this.scene, this.shadowGenerator);
+    this.performanceManager = new PerformanceManager(this.scene, this.shadowGenerator)
 
     // Additional lights (if needed)
     const extraHemi = new HemisphericLight('extraHemi', Vector3.Up(), this.scene)
@@ -247,54 +247,33 @@ export class GameEngine {
     this.ingredientLoader.loadIngredients()
 
     kitchenLoader.loadAndPlaceModels(
-        kitchenFolder,
-        mapConfigs,
-        () => {
-          this.interactables = kitchenLoader.interactables
+      kitchenFolder,
+      mapConfigs,
+      () => {
+        this.interactables = kitchenLoader.interactables
 
-          mapLoaded = true
-          this.loadingState.map.loaded = true
-          this.loadingState.map.progress = 100
-          this.loadingState.currentTask = 'Map loading complete'
-          if (engine.loadingScreen instanceof CustomLoadingScreen) {
-            const totalProgress = (this.loadingState.assets.progress + this.loadingState.map.progress) / 2
-            engine.loadingScreen.updateProgress(totalProgress)
-            engine.loadingScreen.loadingUIText = this.loadingState.currentTask
-          }
-          checkLoadingComplete()
+        mapLoaded = true
+        this.loadingState.map.loaded = true
+        this.loadingState.map.progress = 100
+        this.loadingState.currentTask = 'Map loading complete'
+        if (engine.loadingScreen instanceof CustomLoadingScreen) {
+          const totalProgress = (this.loadingState.assets.progress + this.loadingState.map.progress) / 2
+          engine.loadingScreen.updateProgress(totalProgress)
+          engine.loadingScreen.loadingUIText = this.loadingState.currentTask
+        }
+        checkLoadingComplete()
 
-          const $ = getStateCallbacks(this.room)
+        const $ = getStateCallbacks(this.room)
 
-          $(this.room.state).interactableObjects.onAdd((objState) => {
-            // Listen for property changes on this object
-            $(objState).onChange(() => {
-              const interactable = this.interactables.find((obj) => obj.id === Number(objState.id))
-
-              if (!interactable) return
-
-              // Update disabled state
-              interactable.setDisabled(objState.disabled);
-
-              if (objState.isActive) {
-                interactable.activate(objState.activeSince) // e.g. start fire ParticleSystem
-              } else {
-                interactable.deactivate() // e.g. stop the effect
-              }
-
-              // Update ingredients on chopping board if it's a chopping board
-              if (interactable.interactType === InteractType.ChoppingBoard) {
-                const ingredients = objState.ingredientsOnBoard.map(i => i as Ingredient);
-                interactable.updateIngredientsOnBoard(ingredients);
-              }
-            })
-
+        $(this.room.state).interactableObjects.onAdd((objState) => {
+          // Listen for property changes on this object
+          $(objState).onChange(() => {
             const interactable = this.interactables.find((obj) => obj.id === Number(objState.id))
-            if (!interactable) {
-              return
-            }
 
-            // Set initial disabled state
-            interactable.setDisabled(objState.disabled);
+            if (!interactable) return
+
+            // Update disabled state
+            interactable.setDisabled(objState.disabled)
 
             if (objState.isActive) {
               interactable.activate(objState.activeSince) // e.g. start fire ParticleSystem
@@ -304,24 +283,45 @@ export class GameEngine {
 
             // Update ingredients on chopping board if it's a chopping board
             if (interactable.interactType === InteractType.ChoppingBoard) {
-              const ingredients = objState.ingredientsOnBoard.map(i => i as Ingredient);
-              interactable.updateIngredientsOnBoard(ingredients);
+              const ingredients = objState.ingredientsOnBoard.map((i) => i as Ingredient)
+              interactable.updateIngredientsOnBoard(ingredients)
             }
           })
-        },
-        (progress) => {
-          this.loadingState.map.progress = progress
-          this.loadingState.currentTask = `Loading map: ${progress.toFixed(0)}%`
 
-          // Update loading screen with combined progress
-          const engine = this.scene.getEngine()
-          if (engine.loadingScreen instanceof CustomLoadingScreen) {
-            const totalProgress = (this.loadingState.assets.progress + this.loadingState.map.progress) / 2
-            engine.loadingScreen.updateProgress(totalProgress)
-            engine.loadingScreen.loadingUIText = this.loadingState.currentTask
+          const interactable = this.interactables.find((obj) => obj.id === Number(objState.id))
+          if (!interactable) {
+            return
           }
-        },
-        this.room.state.mapHash // Pass the server's map hash for verification
+
+          // Set initial disabled state
+          interactable.setDisabled(objState.disabled)
+
+          if (objState.isActive) {
+            interactable.activate(objState.activeSince) // e.g. start fire ParticleSystem
+          } else {
+            interactable.deactivate() // e.g. stop the effect
+          }
+
+          // Update ingredients on chopping board if it's a chopping board
+          if (interactable.interactType === InteractType.ChoppingBoard) {
+            const ingredients = objState.ingredientsOnBoard.map((i) => i as Ingredient)
+            interactable.updateIngredientsOnBoard(ingredients)
+          }
+        })
+      },
+      (progress) => {
+        this.loadingState.map.progress = progress
+        this.loadingState.currentTask = `Loading map: ${progress.toFixed(0)}%`
+
+        // Update loading screen with combined progress
+        const engine = this.scene.getEngine()
+        if (engine.loadingScreen instanceof CustomLoadingScreen) {
+          const totalProgress = (this.loadingState.assets.progress + this.loadingState.map.progress) / 2
+          engine.loadingScreen.updateProgress(totalProgress)
+          engine.loadingScreen.loadingUIText = this.loadingState.currentTask
+        }
+      },
+      this.room.state.mapHash, // Pass the server's map hash for verification
     )
 
     // Request initial pointer lock and focus
@@ -332,40 +332,41 @@ export class GameEngine {
    * Called every frame.
    * Updates the local player, sends movement messages, updates remote players, and updates GUI.
    */
-      // Maximum distance to check for interactable objects
-  private readonly MAX_INTERACTION_DISTANCE: number = 5;
+  // Maximum distance to check for interactable objects
+  private readonly MAX_INTERACTION_DISTANCE: number = 5
   // Track the nearest interactable for optimization
-  private _nearestInteractable: InteractableObject | null = null;
+  private _nearestInteractable: InteractableObject | null = null
 
   update(deltaTime: number): void {
-    const deltaSeconds = deltaTime / 1000;
+    const deltaSeconds = deltaTime / 1000
 
     // Update local player
-    this.localController?.update(deltaSeconds);
+    this.localController?.update(deltaSeconds)
 
     if (this.localController) {
       // Get player position using pre-allocated vector
-      this._playerPosTemp.copyFrom(this.localController.position);
+      this._playerPosTemp.copyFrom(this.localController.position)
 
       // Only rebuild spatial grid occasionally or when needed
       // In a real implementation, you might want to rebuild only when objects move
-      if (this.scene.getFrameId() % 60 === 0) { // Rebuild every 60 frames
-        this.spatialGrid.rebuild(this.interactables);
+      if (this.scene.getFrameId() % 60 === 0) {
+        // Rebuild every 60 frames
+        this.spatialGrid.rebuild(this.interactables)
       }
 
       // Find nearby interactable objects using spatial grid
-      const maxDist = this.MAX_INTERACTION_DISTANCE;
-      const nearbyObjects = this.spatialGrid.getNearbyObjects(this._playerPosTemp, maxDist);
+      const maxDist = this.MAX_INTERACTION_DISTANCE
+      const nearbyObjects = this.spatialGrid.getNearbyObjects(this._playerPosTemp, maxDist)
 
       // Find the nearest interactable within range
-      let nearest: InteractableObject | null = null;
-      let nearestDist = Infinity;
+      let nearest: InteractableObject | null = null
+      let nearestDist = Infinity
 
       for (const obj of nearbyObjects) {
-        const dist = Vector3.Distance(obj.mesh.position, this._playerPosTemp);
+        const dist = Vector3.Distance(obj.mesh.position, this._playerPosTemp)
         if (dist < obj.interactionDistance && dist < nearestDist) {
-          nearestDist = dist;
-          nearest = obj;
+          nearestDist = dist
+          nearest = obj
         }
       }
 
@@ -373,31 +374,31 @@ export class GameEngine {
       if (nearest !== this._nearestInteractable) {
         // Hide previous nearest if it exists
         if (this._nearestInteractable) {
-          this._nearestInteractable.showPrompt(false);
+          this._nearestInteractable.showPrompt(false)
         }
 
         // Show new nearest if it exists
         if (nearest) {
-          nearest.showPrompt(true);
+          nearest.showPrompt(true)
         }
 
         // Update cached nearest
-        this._nearestInteractable = nearest;
+        this._nearestInteractable = nearest
       }
     }
 
     // Send player position to server with throttling
     if (this.room && this.localController) {
-      const currentTime = Date.now();
-      const transform = this.localController.getTransform();
-      const currentPosition = transform.position;
-      const currentRotation = transform.rotationQuaternion?.toEulerAngles().y || 0;
-      const animationState = this.localController.getTargetAnim.name;
+      const currentTime = Date.now()
+      const transform = this.localController.getTransform()
+      const currentPosition = transform.position
+      const currentRotation = transform.rotationQuaternion?.toEulerAngles().y || 0
+      const animationState = this.localController.getTargetAnim.name
 
       // Check if we should send an update based on time interval or significant movement
-      const timeSinceLastUpdate = currentTime - this.lastNetworkUpdateTime;
-      const positionChanged = Vector3.Distance(currentPosition, this.lastSentPosition) > this.POSITION_THRESHOLD;
-      const rotationChanged = Math.abs(currentRotation - this.lastSentRotation) > this.ROTATION_THRESHOLD;
+      const timeSinceLastUpdate = currentTime - this.lastNetworkUpdateTime
+      const positionChanged = Vector3.Distance(currentPosition, this.lastSentPosition) > this.POSITION_THRESHOLD
+      const rotationChanged = Math.abs(currentRotation - this.lastSentRotation) > this.ROTATION_THRESHOLD
 
       if (timeSinceLastUpdate >= this.NETWORK_UPDATE_INTERVAL || positionChanged || rotationChanged) {
         // Send position update to server
@@ -410,66 +411,67 @@ export class GameEngine {
           rotation: { y: currentRotation },
           animationState,
           timestamp: currentTime,
-        });
+        })
 
         // Update last sent values
-        this.lastSentPosition.copyFrom(currentPosition);
-        this.lastSentRotation = currentRotation;
-        this.lastNetworkUpdateTime = currentTime;
+        this.lastSentPosition.copyFrom(currentPosition)
+        this.lastSentRotation = currentRotation
+        this.lastNetworkUpdateTime = currentTime
       }
     }
 
     this.remoteControllers.forEach((controller) => {
-      controller.update(deltaSeconds);
-    });
+      controller.update(deltaSeconds)
+    })
 
     // Update performance metrics and optimizations
-    this.performanceManager?.update();
+    this.performanceManager?.update()
   }
 
   public tryInteract(characterController: LocalCharacterController): void {
     // Use the cached nearest interactable if available and in range
-    if (this._nearestInteractable &&
-        Vector3.Distance(this._nearestInteractable.mesh.position, characterController.position) <= this._nearestInteractable.interactionDistance) {
+    if (
+      this._nearestInteractable &&
+      Vector3.Distance(this._nearestInteractable.mesh.position, characterController.position) <= this._nearestInteractable.interactionDistance
+    ) {
       // Trigger interaction with the cached nearest
-      this._nearestInteractable.interact(characterController, Date.now());
+      this._nearestInteractable.interact(characterController, Date.now())
 
       this.room.send('interact', {
         objectId: this._nearestInteractable.id,
         timestamp: Date.now(),
-      });
-      return;
+      })
+      return
     }
 
     // If no cached nearest or it's out of range, find the nearest using spatial grid
-    this._playerPosTemp.copyFrom(characterController.position);
-    const nearbyObjects = this.spatialGrid.getNearbyObjects(this._playerPosTemp, this.MAX_INTERACTION_DISTANCE);
+    this._playerPosTemp.copyFrom(characterController.position)
+    const nearbyObjects = this.spatialGrid.getNearbyObjects(this._playerPosTemp, this.MAX_INTERACTION_DISTANCE)
 
-    let nearest: InteractableObject | null = null;
-    let nearestDist = Infinity;
+    let nearest: InteractableObject | null = null
+    let nearestDist = Infinity
 
     for (const obj of nearbyObjects) {
-      const dist = Vector3.Distance(obj.mesh.position, this._playerPosTemp);
+      const dist = Vector3.Distance(obj.mesh.position, this._playerPosTemp)
       if (dist < obj.interactionDistance && dist < nearestDist) {
-        nearestDist = dist;
-        nearest = obj;
+        nearestDist = dist
+        nearest = obj
       }
     }
 
     if (nearest) {
       // Update cached nearest
-      this._nearestInteractable = nearest;
+      this._nearestInteractable = nearest
 
       // Trigger interaction
-      nearest.interact(characterController, Date.now());
+      nearest.interact(characterController, Date.now())
 
       this.room.send('interact', {
         objectId: nearest.id,
         timestamp: Date.now(),
-      });
+      })
     }
   }
-
 
   private initializePlayers(): void {
     if (!this.loadedCharacterContainer) {
@@ -495,7 +497,7 @@ export class GameEngine {
         this.localController?.setPosition(new Vector3(player.x, player.y, player.z))
         this.localController?.setRotationY(player.rot)
 
-        $(player).listen("holdingPlate", (value: boolean) => {
+        $(player).listen('holdingPlate', (value: boolean) => {
           if (!this.localController) return
 
           if (value && !this.localController.isHoldingPlate) {
@@ -505,7 +507,7 @@ export class GameEngine {
           }
         })
 
-        $(player).listen("holdedIngredient", (value: Ingredient) => {
+        $(player).listen('holdedIngredient', (value: Ingredient) => {
           if (!this.localController) return
 
           this.localController.forceSetIngredient(value)
@@ -524,21 +526,21 @@ export class GameEngine {
       remoteController.setPosition(new Vector3(player.x, player.y, player.z))
       remoteController.setRotationY(player.rot)
 
-      remoteMesh.receiveShadows = true;
-      this.shadowGenerator.addShadowCaster(remoteMesh);
+      remoteMesh.receiveShadows = true
+      this.shadowGenerator.addShadowCaster(remoteMesh)
 
       this.remoteControllers.set(sessionId, remoteController)
       remoteController.receiveFirstState(player)
 
       // Optimize network updates by using a throttled state change handler
-      let lastStateUpdateTime = 0;
-      const STATE_UPDATE_THROTTLE = 50; // ms
+      let lastStateUpdateTime = 0
+      const STATE_UPDATE_THROTTLE = 50 // ms
 
       $(player).onChange(() => {
-        const now = Date.now();
+        const now = Date.now()
         if (now - lastStateUpdateTime > STATE_UPDATE_THROTTLE) {
-          remoteController.receiveState(player);
-          lastStateUpdateTime = now;
+          remoteController.receiveState(player)
+          lastStateUpdateTime = now
         }
       })
     })
@@ -551,5 +553,4 @@ export class GameEngine {
       }
     })
   }
-
 }

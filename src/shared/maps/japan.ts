@@ -1,6 +1,6 @@
 import { PhysicsShapeType } from '@babylonjs/core/Physics/v2/IPhysicsEnginePlugin'
 import { Ingredient, InteractType } from '../types/enums.ts'
-import {MapModelConfig, processMapConfigurations, validateMapConfigurations} from '../utils/mapUtils.ts'
+import { type MapModelConfig, processMapConfigurations, validateMapConfigurations } from '../utils/mapUtils.ts'
 
 // Define the raw map configurations without interaction IDs
 const rawMapConfigs: MapModelConfig[] = [
@@ -101,7 +101,6 @@ const rawMapConfigs: MapModelConfig[] = [
       {
         position: { x: 8, y: 0.4, z: -7 },
         interaction: {
-
           interactType: InteractType.ServingOrder,
         },
       },
@@ -109,7 +108,6 @@ const rawMapConfigs: MapModelConfig[] = [
         position: { x: 7, y: 0.4, z: -8 },
         rotation: { y: Math.PI },
         interaction: {
-
           interactType: InteractType.ServingOrder,
         },
       },
@@ -118,7 +116,6 @@ const rawMapConfigs: MapModelConfig[] = [
       {
         position: { x: -7, y: 0.4, z: -8 },
         interaction: {
-
           interactType: InteractType.ServingOrder,
         },
       },
@@ -126,7 +123,6 @@ const rawMapConfigs: MapModelConfig[] = [
         position: { x: -8, y: 0.4, z: -7 },
         rotation: { y: Math.PI },
         interaction: {
-
           interactType: InteractType.ServingOrder,
         },
       },
@@ -276,7 +272,6 @@ const rawMapConfigs: MapModelConfig[] = [
       {
         position: { x: 1.35, y: 0.4, z: -7.8 },
         interaction: {
-
           interactType: InteractType.ServingOrder,
         },
       },
@@ -284,14 +279,12 @@ const rawMapConfigs: MapModelConfig[] = [
         position: { x: 0, y: 0.4, z: -6.5 },
         rotation: { y: Math.PI },
         interaction: {
-
           interactType: InteractType.ServingOrder,
         },
       },
       {
         position: { x: -1.35, y: 0.4, z: -7.8 },
         interaction: {
-
           interactType: InteractType.ServingOrder,
         },
       },
@@ -442,14 +435,12 @@ const rawMapConfigs: MapModelConfig[] = [
     instances: [
       {
         interaction: {
-
           interactType: InteractType.Oven,
         },
         position: { x: -1.75, y: 0.1, z: 8.5 },
       },
       {
         interaction: {
-
           interactType: InteractType.Oven,
         },
         position: { x: 1.75, y: 0.1, z: 8.5 },
@@ -474,7 +465,6 @@ const rawMapConfigs: MapModelConfig[] = [
     instances: [
       {
         interaction: {
-
           interactType: InteractType.Stock,
           ingredient: Ingredient.Nori,
         },
@@ -501,7 +491,6 @@ const rawMapConfigs: MapModelConfig[] = [
     instances: [
       {
         interaction: {
-
           interactType: InteractType.Stock,
           ingredient: Ingredient.Rice,
         },
@@ -545,7 +534,6 @@ const rawMapConfigs: MapModelConfig[] = [
 
       {
         interaction: {
-
           interactType: InteractType.Stock,
           ingredient: Ingredient.Plate,
         },
@@ -574,7 +562,6 @@ const rawMapConfigs: MapModelConfig[] = [
         position: { x: 0.5, y: 1.05, z: 8.5 },
         rotation: { x: 0, y: 0, z: 0 },
         interaction: {
-
           interactType: InteractType.ChoppingBoard,
         },
       },
@@ -582,7 +569,6 @@ const rawMapConfigs: MapModelConfig[] = [
         position: { x: -0.5, y: 1.05, z: 8.5 },
         rotation: { x: 0, y: 0, z: 0 },
         interaction: {
-
           interactType: InteractType.ChoppingBoard,
         },
       },
@@ -649,7 +635,6 @@ const rawMapConfigs: MapModelConfig[] = [
         position: { x: -2, y: 0.1, z: 2 },
         rotation: { y: Math.PI },
         interaction: {
-
           interactType: InteractType.Trash,
         },
       },
@@ -657,7 +642,6 @@ const rawMapConfigs: MapModelConfig[] = [
         position: { x: 2, y: 0.1, z: 2 },
         rotation: { y: Math.PI },
         interaction: {
-
           interactType: InteractType.Trash,
         },
       },

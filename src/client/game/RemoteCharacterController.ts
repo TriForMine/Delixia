@@ -65,29 +65,30 @@ export class RemoteCharacterController extends CharacterController {
     this.impostorMesh.setEnabled(true)
 
     // Store previous position for velocity calculation
-    this.previousPosition.copyFrom(this.targetPosition);
+    this.previousPosition.copyFrom(this.targetPosition)
 
     // Update target position and rotation
-    this.targetPosition = new Vector3(newPlayer.x, newPlayer.y, newPlayer.z);
-    this.targetYRotation = newPlayer.rot;
+    this.targetPosition = new Vector3(newPlayer.x, newPlayer.y, newPlayer.z)
+    this.targetYRotation = newPlayer.rot
 
     // Calculate velocity for prediction
-    const now = performance.now();
-    const timeDelta = (now - this.lastUpdateTime) / 1000; // Convert to seconds
+    const now = performance.now()
+    const timeDelta = (now - this.lastUpdateTime) / 1000 // Convert to seconds
     if (timeDelta > 0) {
       // Calculate velocity based on position change
-      this.currentVelocity = this.targetPosition.subtract(this.previousPosition).scale(1 / timeDelta);
+      this.currentVelocity = this.targetPosition.subtract(this.previousPosition).scale(1 / timeDelta)
     }
-    this.lastUpdateTime = now;
+    this.lastUpdateTime = now
 
-    this.updateAnimationState(newPlayer.animationState);
+    this.updateAnimationState(newPlayer.animationState)
 
-    // Update plate status
-    if (newPlayer.holdingPlate !== undefined) {
-      this.isHoldingPlate = newPlayer.holdingPlate
+    if (newPlayer.holdingPlate && !this.isHoldingPlate) {
+      this.forcePickupPlate()
+    } else if (!newPlayer.holdingPlate && this.isHoldingPlate) {
+      this.dropPlate()
     }
 
-    this.forceSetIngredient(newPlayer.holdedIngredient as Ingredient);
+    this.forceSetIngredient(newPlayer.holdedIngredient as Ingredient)
   }
 
   /**
@@ -95,40 +96,36 @@ export class RemoteCharacterController extends CharacterController {
    * @param deltaTime Time elapsed since the last frame.
    */
   public update(deltaTime: number): void {
-    this.updateMovement(deltaTime);
+    this.updateMovement(deltaTime)
 
-    this.updateAnimations(deltaTime);
+    this.updateAnimations(deltaTime)
   }
 
   /**
    * Disposes of the character's resources.
    */
   public dispose(): void {
-    super.dispose();
+    super.dispose()
     // Additional dispose logic if necessary
   }
 
   public lerpRotationY(y: number, alpha: number) {
-    const gap = Math.abs(this.impostorMesh.rotationQuaternion!.toEulerAngles().y - y);
+    const gap = Math.abs(this.impostorMesh.rotationQuaternion!.toEulerAngles().y - y)
     if (gap > Math.PI) {
       // For large rotation differences, just set directly to avoid spinning
-      this.impostorMesh.rotationQuaternion = Quaternion.RotationAxis(Vector3.Up(), y);
+      this.impostorMesh.rotationQuaternion = Quaternion.RotationAxis(Vector3.Up(), y)
     } else {
       // For small differences, use smooth interpolation
-      this.impostorMesh.rotationQuaternion = Quaternion.Slerp(
-          this.impostorMesh.rotationQuaternion!,
-          Quaternion.RotationAxis(Vector3.Up(), y),
-          alpha
-      );
+      this.impostorMesh.rotationQuaternion = Quaternion.Slerp(this.impostorMesh.rotationQuaternion!, Quaternion.RotationAxis(Vector3.Up(), y), alpha)
     }
   }
 
   public lerpPosition(position: Vector3, alpha: number) {
-    this.impostorMesh.position = Vector3.Lerp(this.impostorMesh.position, position, alpha);
+    this.impostorMesh.position = Vector3.Lerp(this.impostorMesh.position, position, alpha)
   }
 
   // Pre-allocated vectors for movement calculations
-  private _predictedPositionTemp: Vector3 = new Vector3();
+  private _predictedPositionTemp: Vector3 = new Vector3()
 
   /**
    * Updates the character's position and rotation based on the target values.
@@ -136,16 +133,16 @@ export class RemoteCharacterController extends CharacterController {
    */
   private updateMovement(deltaTime: number): void {
     // Calculate predicted position based on velocity
-    this._predictedPositionTemp.copyFrom(this.targetPosition);
+    this._predictedPositionTemp.copyFrom(this.targetPosition)
 
     // Add velocity-based prediction for smoother movement
     if (this.currentVelocity.lengthSquared() > 0.01) {
-      this.currentVelocity.scaleToRef(deltaTime, this._predictedPositionTemp);
-      this.targetPosition.addToRef(this._predictedPositionTemp, this._predictedPositionTemp);
+      this.currentVelocity.scaleToRef(deltaTime, this._predictedPositionTemp)
+      this.targetPosition.addToRef(this._predictedPositionTemp, this._predictedPositionTemp)
     }
 
-    this.lerpPosition(this._predictedPositionTemp, this.positionInterpolationFactor);
-    this.lerpRotationY(this.targetYRotation, this.rotationInterpolationFactor);
+    this.lerpPosition(this._predictedPositionTemp, this.positionInterpolationFactor)
+    this.lerpRotationY(this.targetYRotation, this.rotationInterpolationFactor)
   }
 
   /**

@@ -27,6 +27,7 @@
     "colyseus": "0.16.3",
     "colyseus.js": "0.16.15",
     "express-basic-auth": "1.2.1",
+    "js-sha256": "^0.11.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "valtio": "^2.1.4",
