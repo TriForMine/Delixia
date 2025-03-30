@@ -15,6 +15,7 @@ import { CharacterState } from './CharacterState'
 export class CharacterController {
   private readonly ingredientLoader: IngredientLoader
   private currentIngredientMesh: Mesh | undefined = undefined
+  private plateMesh: Mesh | undefined = undefined
   readonly scene: Scene
   readonly model: AbstractMesh
   readonly physicsAggregate: PhysicsAggregate
@@ -34,6 +35,7 @@ export class CharacterController {
   protected readonly impostorMesh: AbstractMesh
   protected currentState: CharacterState = CharacterState.IDLE
   protected ingredient: Ingredient = Ingredient.None
+  protected holdingPlate: boolean = false
 
   protected constructor(characterMesh: AbstractMesh, scene: Scene, ingredientLoader: IngredientLoader, animationGroups: AnimationGroup[]) {
     this.scene = scene
@@ -116,6 +118,11 @@ export class CharacterController {
         return
     }
 
+    // If holding a plate, only allow picking up onigiri
+    if (this.holdingPlate && ingredient !== Ingredient.Onigiri) {
+      return
+    }
+
     this.forceSetIngredient(ingredient)
   }
 
@@ -123,27 +130,94 @@ export class CharacterController {
     if (ingredient === Ingredient.None) {
       if (this.currentIngredientMesh) {
         this.currentIngredientMesh.dispose()
+        this.currentIngredientMesh = undefined
       }
+
       return
     }
 
     this.ingredient = ingredient
 
+    this.updatePlateMesh()
+
     if (this.ingredientLoader) {
       if (this.currentIngredientMesh) {
         this.currentIngredientMesh.dispose()
       }
+
+      // Get the ingredient mesh
       this.currentIngredientMesh = this.ingredientLoader.getIngredientMesh(ingredient)
       this.currentIngredientMesh.parent = this.model
-      this.currentIngredientMesh.position = new Vector3(0, 0.5, 1)
+
+      // Adjust position based on whether holding a plate
+      if (this.holdingPlate) {
+        // Position the ingredient on top of the plate
+        this.currentIngredientMesh.position = new Vector3(0, 0.55, 1)
+      } else {
+        this.currentIngredientMesh.position = new Vector3(0, 0.5, 1)
+      }
+
       this.currentIngredientMesh.rotationQuaternion = Quaternion.Identity()
       this.currentIngredientMesh.scaling = new Vector3(0.5, 0.5, 0.5)
       this.currentIngredientMesh.isPickable = false
+    }
+
+
+  }
+
+  pickupPlate() {
+    if (this.ingredient !== Ingredient.None) {
+      return
+    }
+
+    console.log('pickupPlate')
+    this.holdingPlate = true
+    this.updatePlateMesh()
+  }
+
+  dropPlate() {
+    this.holdingPlate = false
+
+    // Remove the plate mesh if it exists
+    if (this.plateMesh) {
+      this.plateMesh.dispose()
+      this.plateMesh = undefined
+    }
+  }
+
+  updatePlateMesh() {
+    // If holding a plate, show the plate
+    if (this.holdingPlate) {
+      // Dispose of the existing plate mesh if it exists
+      if (this.plateMesh) {
+        this.plateMesh.dispose()
+      }
+
+      if (this.ingredientLoader) {
+        this.plateMesh = this.ingredientLoader.getIngredientMesh(Ingredient.Plate)
+        this.plateMesh.parent = this.model
+        this.plateMesh.position = new Vector3(0, 0.5, 1)
+        this.plateMesh.rotationQuaternion = Quaternion.Identity()
+        this.plateMesh.scaling = new Vector3(0.5, 0.5, 0.5)
+        this.plateMesh.isPickable = false
+      }
     }
   }
 
   get holdedIngredient() {
     return this.ingredient
+  }
+
+  get isHoldingPlate() {
+    return this.holdingPlate
+  }
+
+  set isHoldingPlate(value: boolean) {
+    if (value && !this.holdingPlate) {
+      this.pickupPlate()
+    } else if (!value && this.holdingPlate) {
+      this.dropPlate()
+    }
   }
 
   get position() {
@@ -179,6 +253,12 @@ export class CharacterController {
   }
 
   public dispose() {
+    if (this.currentIngredientMesh) {
+      this.currentIngredientMesh.dispose()
+    }
+    if (this.plateMesh) {
+      this.plateMesh.dispose()
+    }
     this.impostorMesh.dispose()
     this.model.dispose()
     this.physicsAggregate.dispose()

@@ -93,6 +93,11 @@ export class GameRoomState extends Schema {
     const player = this.players.get(playerId)
     if (!player) return
 
+    // If player is holding a plate, only allow picking up onigiri or finished recipes
+    if (player.holdingPlate && ingredient !== Ingredient.Onigiri) {
+      return
+    }
+
     console.log('Picking up ingredient', ingredient)
     player.holdedIngredient = ingredient
   }
@@ -102,5 +107,30 @@ export class GameRoomState extends Schema {
     if (!player) return
 
     player.holdedIngredient = Ingredient.None
+  }
+
+  pickupPlate(playerId: string) {
+    const player = this.players.get(playerId)
+    if (!player) return
+
+    // Can't pick up a plate if already holding an ingredient
+    if (player.holdedIngredient !== Ingredient.None) {
+      return
+    }
+
+    console.log('Player picked up a plate', playerId)
+    player.holdingPlate = true
+  }
+
+  dropPlate(playerId: string) {
+    const player = this.players.get(playerId)
+    if (!player) return
+
+    player.holdingPlate = false
+  }
+
+  isHoldingPlate(playerId: string) {
+    const player = this.players.get(playerId)
+    return player ? player.holdingPlate : false
   }
 }

@@ -25,4 +25,7 @@ export class Player extends Schema {
 
   @type('number')
   holdedIngredient: Ingredient = Ingredient.None
+
+  @type('boolean')
+  holdingPlate = false
 }

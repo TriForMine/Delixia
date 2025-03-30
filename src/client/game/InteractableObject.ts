@@ -6,7 +6,7 @@ import {ParticleSystem} from '@babylonjs/core/Particles/particleSystem'
 import {Texture} from '@babylonjs/core/Materials/Textures/texture'
 import {DynamicTexture} from '@babylonjs/core/Materials/Textures/dynamicTexture'
 import type {Scene} from '@babylonjs/core/scene'
-import {type Ingredient, InteractType} from '@shared/types/enums.ts'
+import {Ingredient, InteractType} from '@shared/types/enums.ts'
 import type {LocalCharacterController} from '@client/game/LocalCharacterController.ts'
 import type {IngredientLoader} from '@client/game/IngredientLoader.ts'
 
@@ -382,10 +382,26 @@ export class InteractableObject {
         break;
 
       case InteractType.Stock:
-        if (character) character.pickupIngredient(this.ingredientType);
+        if (character) {
+          // Handle plates differently
+          if (this.ingredientType === Ingredient.Plate) {
+            character.pickupPlate();
+          } else {
+            character.pickupIngredient(this.ingredientType);
+          }
+        }
         break;
       case InteractType.Trash:
-        if (character) character.dropIngredient();
+        if (character) {
+          // Drop ingredient if holding one
+          if (character.holdedIngredient !== Ingredient.None) {
+            character.dropIngredient();
+          } 
+          // Drop plate if holding one
+          else if (character.isHoldingPlate) {
+            character.dropPlate();
+          }
+        }
         break;
       default:
         console.warn('Unknown interact type:', this.interactType);

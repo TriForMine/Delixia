@@ -45,21 +45,35 @@ export class GameRoom extends Room<GameRoomState> {
             }
 
             const ingredient = obj?.ingredient
-            this.state.pickupIngredient(client.sessionId, ingredient as Ingredient)
+
+            // Handle plates differently
+            if (ingredient === Ingredient.Plate) {
+              this.state.pickupPlate(client.sessionId)
+              logger.info(`Player ${client.sessionId} picked up a plate`)
+            } else {
+              // For other ingredients, check if player can pick them up (based on plate status)
+              this.state.pickupIngredient(client.sessionId, ingredient as Ingredient)
+              logger.info(`Player ${client.sessionId} picked up ${Ingredient[ingredient as Ingredient]}`)
+            }
             break
           case InteractType.Trash: {
             const playerIngredient = this.state.getIngredient(client.sessionId)
+            const isHoldingPlate = this.state.isHoldingPlate(client.sessionId)
 
             if (playerIngredient !== undefined && playerIngredient !== Ingredient.None) {
               this.state.dropIngredient(client.sessionId)
               logger.info(`Player ${client.sessionId} dropped ${Ingredient[playerIngredient]} in the trash`)
+            } else if (isHoldingPlate) {
+              this.state.dropPlate(client.sessionId)
+              logger.info(`Player ${client.sessionId} dropped a plate in the trash`)
             } else {
-              client.send('noIngredient', {message: 'You are not carrying any ingredient!'})
+              client.send('noIngredient', {message: 'You are not carrying any ingredient or plate!'})
             }
             break
           }
           case InteractType.ChoppingBoard:
             const playerIngredient = this.state.getIngredient(client.sessionId)
+            const isHoldingPlate = this.state.isHoldingPlate(client.sessionId)
 
             // If player is carrying an ingredient, place it on the board
             if (playerIngredient !== undefined && playerIngredient !== Ingredient.None) {
@@ -169,6 +183,13 @@ export class GameRoom extends Room<GameRoomState> {
               if (obj.ingredientsOnBoard.length > 0) {
                 // Get the first ingredient on the board (should be the only one if it's an onigiri)
                 const ingredient = obj.ingredientsOnBoard[0] as Ingredient;
+
+                // If it's an onigiri, player can pick it up regardless of plate status
+                // If it's not an onigiri and player is holding a plate, they can't pick it up
+                if (ingredient !== Ingredient.Onigiri && isHoldingPlate) {
+                  client.send('invalidIngredient', { message: 'You can only pick up onigiri with a plate!' })
+                  return
+                }
 
                 // Give the ingredient to the player
                 this.state.pickupIngredient(client.sessionId, ingredient);

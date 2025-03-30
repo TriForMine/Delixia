@@ -41,6 +41,11 @@ export class RemoteCharacterController extends CharacterController {
     // Set the impostor mesh to be enabled
     this.impostorMesh.setEnabled(true)
 
+    // Update plate status first
+    if (newPlayer.holdingPlate !== undefined) {
+      this.isHoldingPlate = newPlayer.holdingPlate
+    }
+
     // Update the ingredient if necessary
     if (newPlayer.holdedIngredient !== undefined) {
       this.forceSetIngredient(newPlayer.holdedIngredient as Ingredient)
@@ -76,6 +81,11 @@ export class RemoteCharacterController extends CharacterController {
     this.lastUpdateTime = now;
 
     this.updateAnimationState(newPlayer.animationState);
+
+    // Update plate status
+    if (newPlayer.holdingPlate !== undefined) {
+      this.isHoldingPlate = newPlayer.holdingPlate
+    }
 
     this.forceSetIngredient(newPlayer.holdedIngredient as Ingredient);
   }

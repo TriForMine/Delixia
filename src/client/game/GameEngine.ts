@@ -287,11 +287,6 @@ export class GameEngine {
 
             const interactable = this.interactables.find((obj) => obj.id === Number(objState.id))
             if (!interactable) {
-              if (objState.type === InteractType.ChoppingBoard) {
-                // Create a new interactable object
-                const newInteractable = kitchenLoader.createInteractableObject(objState)
-                this.interactables.push(newInteractable)
-              }
                 return
             }
 
@@ -494,7 +489,11 @@ export class GameEngine {
         this.localController?.setRotationY(player.rot)
 
         $(player).onChange(() => {
-          this.localController?.forceSetIngredient(player.holdedIngredient as Ingredient)
+          if (!this.localController) return;
+
+          // Update ingredient
+          this.localController.isHoldingPlate = player.holdingPlate
+          this.localController.forceSetIngredient(player.holdedIngredient as Ingredient)
         })
 
         return
