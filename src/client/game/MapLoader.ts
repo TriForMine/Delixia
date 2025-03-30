@@ -7,7 +7,7 @@ import { AssetsManager } from '@babylonjs/core/Misc/assetsManager'
 import { PhysicsAggregate } from '@babylonjs/core/Physics/v2/physicsAggregate'
 import type { AssetContainer } from '@babylonjs/core/assetContainer'
 import type { Scene } from '@babylonjs/core/scene'
-import type { MapModelConfig } from '@shared/types/map.ts'
+import type { MapModelConfig } from '@shared/utils/mapUtils.ts'
 import { InteractableObject } from './InteractableObject'
 import {Ingredient} from '@shared/types/enums.ts'
 import type { IngredientLoader } from './IngredientLoader'
@@ -101,7 +101,7 @@ export class MapLoader {
 
           if (modelConfig.interaction ?? placement.interaction) {
             const interaction = modelConfig.interaction ?? placement.interaction
-            if (!interaction) {
+            if (!interaction || !interaction.id) {
                 console.warn(`Missing interaction for model "${modelConfig.fileName}"`)
                 return
             }

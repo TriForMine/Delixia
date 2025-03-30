@@ -31,6 +31,7 @@
     "react-dom": "19.1.0",
     "valtio": "^2.1.4",
     "vite-plugin-static-copy": "2.3.0",
+    "zod": "^3.24.2",
     "zustand": "^5.0.3"
   },
   "devDependencies": {

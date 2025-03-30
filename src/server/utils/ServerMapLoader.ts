@@ -1,5 +1,4 @@
-import type { InteractionConfig } from '@shared/types/map'
-import type { MapModelConfig } from '@shared/types/map.ts'
+import {InteractionConfig, MapModelConfig} from "@shared/utils/mapUtils"
 
 export class ServerMapLoader {
   private readonly configs: MapModelConfig[]

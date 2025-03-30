@@ -14,6 +14,10 @@ export class GameRoom extends Room<GameRoomState> {
 
   onCreate(_options: any) {
     serverMapLoader.loadInteractables().forEach((interaction) => {
+      if (!interaction.id) {
+        logger.error('Interaction ID is missing:', interaction)
+        return
+      }
       this.state.createInteractableObject(interaction.id, interaction.interactType, interaction.ingredient)
     })
 
