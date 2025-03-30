@@ -19,4 +19,7 @@ export class InteractableObjectState extends Schema {
 
   @type({ array: "number" })
   ingredientsOnBoard: ArraySchema<number> = new ArraySchema<number>()
+
+  @type('boolean')
+  disabled: boolean = false
 }

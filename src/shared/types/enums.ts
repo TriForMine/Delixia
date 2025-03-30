@@ -6,7 +6,8 @@ export enum InteractType {
   Sink,
   Stock,
   Ingredient,
-  Trash
+  Trash,
+  ServingOrder
 }
 
 export enum Ingredient {

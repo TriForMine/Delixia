@@ -99,19 +99,35 @@ export const mapConfigs: MapModelConfig[] = [
       // Chaise Coin Gauche Devant
       {
         position: { x: 8, y: 0.4, z: -7 },
+        interaction: {
+          id: 12,
+          interactType: InteractType.ServingOrder,
+        },
       },
       {
         position: { x: 7, y: 0.4, z: -8 },
         rotation: { y: Math.PI },
+        interaction: {
+          id: 13,
+          interactType: InteractType.ServingOrder,
+        },
       },
 
       // Chaise Coin Droite Devant
       {
         position: { x: -7, y: 0.4, z: -8 },
+        interaction: {
+          id: 14,
+          interactType: InteractType.ServingOrder,
+        },
       },
       {
         position: { x: -8, y: 0.4, z: -7 },
         rotation: { y: Math.PI },
+        interaction: {
+          id: 15,
+          interactType: InteractType.ServingOrder,
+        },
       },
 
       // Chaise Gauche Volant
@@ -258,13 +274,25 @@ export const mapConfigs: MapModelConfig[] = [
       // Chaise Devant
       {
         position: { x: 1.35, y: 0.4, z: -7.8 },
+        interaction: {
+          id: 16,
+          interactType: InteractType.ServingOrder,
+        },
       },
       {
         position: { x: 0, y: 0.4, z: -6.5 },
         rotation: { y: Math.PI },
+        interaction: {
+          id: 17,
+          interactType: InteractType.ServingOrder,
+        },
       },
       {
         position: { x: -1.35, y: 0.4, z: -7.8 },
+        interaction: {
+          id: 18,
+          interactType: InteractType.ServingOrder,
+        },
       },
     ],
   },

@@ -71,6 +71,40 @@ export class GameRoom extends Room<GameRoomState> {
             }
             break
           }
+          case InteractType.ServingOrder:
+            const servingPlayerIngredient = this.state.getIngredient(client.sessionId)
+            const servingIsHoldingPlate = this.state.isHoldingPlate(client.sessionId)
+
+            // Check if player is holding a plate with an onigiri
+            if (servingIsHoldingPlate && servingPlayerIngredient === Ingredient.Onigiri) {
+              // Find an incomplete order for onigiri
+              const onigiriOrder = this.state.orders.find(order => 
+                order.recipeId === "onigiri" && !order.completed
+              );
+
+              if (onigiriOrder) {
+                // Mark the order as completed
+                onigiriOrder.completed = true;
+                logger.info(`Player ${client.sessionId} completed order ${onigiriOrder.id} for onigiri`);
+
+                // Remove the ingredient from the player but keep the plate
+                this.state.dropIngredient(client.sessionId);
+
+                // Send success message to client
+                client.send('orderCompleted', { message: 'Order completed successfully!' });
+              } else {
+                // No matching order found
+                client.send('noMatchingOrder', { message: 'There is no order for this item!' });
+              }
+            } else if (!servingIsHoldingPlate) {
+              // Player is not holding a plate
+              client.send('needPlate', { message: 'You need to serve the food on a plate!' });
+            } else {
+              // Player is holding a plate but not with the right ingredient
+              client.send('wrongIngredient', { message: 'This is not what was ordered!' });
+            }
+            break;
+
           case InteractType.ChoppingBoard:
             const playerIngredient = this.state.getIngredient(client.sessionId)
             const isHoldingPlate = this.state.isHoldingPlate(client.sessionId)

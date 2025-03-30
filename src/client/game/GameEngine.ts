@@ -272,6 +272,9 @@ export class GameEngine {
 
               if (!interactable) return
 
+              // Update disabled state
+              interactable.setDisabled(objState.disabled);
+
               if (objState.isActive) {
                 interactable.activate(objState.activeSince) // e.g. start fire ParticleSystem
               } else {
@@ -289,6 +292,9 @@ export class GameEngine {
             if (!interactable) {
               return
             }
+
+            // Set initial disabled state
+            interactable.setDisabled(objState.disabled);
 
             if (objState.isActive) {
               interactable.activate(objState.activeSince) // e.g. start fire ParticleSystem

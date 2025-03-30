@@ -82,6 +82,14 @@ export class GameRoomState extends Schema {
         obj.isActive = false
       }, 5000)
     }
+
+    if (typeof changes.disabled !== 'undefined') {
+      obj.disabled = changes.disabled
+    }
+  }
+
+  disableInteractableObject(id: number, disabled: boolean = true) {
+    this.updateInteractableObject(id, { disabled })
   }
 
   getIngredient(playerId: string) {

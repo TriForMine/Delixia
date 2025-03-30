@@ -211,7 +211,25 @@ export class InteractableObject {
     this.sparkleSystem.disposeOnStop = false; // Allow reuse
   }
 
+  private disabled: boolean = false;
+
+  public setDisabled(disabled: boolean): void {
+    this.disabled = disabled;
+    if (disabled) {
+      this.showPrompt(false);
+    }
+  }
+
+  public isDisabled(): boolean {
+    return this.disabled;
+  }
+
   public showPrompt(show: boolean): void {
+    // Don't show prompt if object is disabled
+    if (this.disabled) {
+      show = false;
+    }
+
     this.promptDisc.setEnabled(show)
     if (this.sparkleSystem) {
       if (show) this.sparkleSystem.start()
@@ -221,6 +239,14 @@ export class InteractableObject {
 
   public activate(start: number, character?: LocalCharacterController): void {
     switch (this.interactType) {
+      case InteractType.ServingOrder:
+        // For serving order, we just send the interaction to the server
+        // The server will handle the logic for completing orders
+        if (character) {
+          // Visual feedback can be added here if needed
+          console.log('Serving order interaction');
+        }
+        break;
       case InteractType.Oven:
         // Particle texture cache is initialized at class definition
 
@@ -415,6 +441,11 @@ export class InteractableObject {
   }
 
   public interact(character: LocalCharacterController, timestamp: number): void {
+    // Don't allow interaction if object is disabled
+    if (this.disabled) {
+      return;
+    }
+
     this.activate(timestamp, character)
   }
 
