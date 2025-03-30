@@ -10,23 +10,34 @@ import { sha256 } from 'js-sha256'
  * @returns A hexadecimal SHA-256 hash string.
  */
 export function generateMapHash(mapConfigs: any[]): string {
-  // Create a deterministic string representation of the map configs
+  // Create a deterministic string representation of the map configs.
+  // Skip the "hash" property so that we don't include an already generated hash.
   const stringifiedConfig = JSON.stringify(mapConfigs, (_key, value) => {
+    if (_key === 'hash') {
+      return undefined // Omit the hash property
+    }
     if (Array.isArray(value)) {
-      return [...value].sort()
+      // Sort array elements deterministically.
+      return value.slice().sort((a, b) => {
+        const aStr = JSON.stringify(a)
+        const bStr = JSON.stringify(b)
+        return aStr < bStr ? -1 : aStr > bStr ? 1 : 0
+      })
     }
     if (value && typeof value === 'object' && !(value instanceof Date)) {
-      return Object.keys(value)
+      // Create a new object with sorted keys.
+      const ordered: any = {}
+      Object.keys(value)
         .sort()
-        .reduce((result, key) => {
-          result[key] = value[key]
-          return result
-        }, {} as any)
+        .forEach((key) => {
+          ordered[key] = value[key]
+        })
+      return ordered
     }
     return value
   })
 
-  // Generate and return the hash using js-sha256
+  // Generate and return the hash using js-sha256.
   return sha256(stringifiedConfig)
 }
 

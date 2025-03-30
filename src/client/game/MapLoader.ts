@@ -10,7 +10,7 @@ import type { Scene } from '@babylonjs/core/scene'
 import type { MapModelConfig } from '@shared/utils/mapUtils.ts'
 import { generateMapHash } from '@shared/utils/mapUtils.ts'
 import { InteractableObject } from './InteractableObject'
-import {Ingredient} from '@shared/types/enums.ts'
+import { Ingredient } from '@shared/types/enums.ts'
 import type { IngredientLoader } from './IngredientLoader'
 
 export class MapLoader {
@@ -38,29 +38,30 @@ export class MapLoader {
   }
 
   public loadAndPlaceModels(
-    folder: string, 
-    modelConfigs: MapModelConfig[], 
-    onFinish: () => void, 
-    onProgress?: (progress: number) => void, 
-    serverMapHash?: string
+    folder: string,
+    modelConfigs: MapModelConfig[],
+    onFinish: () => void,
+    onProgress?: (progress: number) => void,
+    serverMapHash?: string,
   ): void {
     // Reset InteractableObject static properties to prevent issues when reloading the map
-    InteractableObject.reset();
+    InteractableObject.reset()
 
     // Clear existing interactables array
-    this.interactables = [];
+    this.interactables = []
 
     // Verify map hash if provided
     if (serverMapHash) {
-      const clientMapHash = generateMapHash(modelConfigs);
+      const clientMapHash = generateMapHash(modelConfigs)
 
       if (clientMapHash !== serverMapHash) {
-        console.error(`Map hash mismatch! Client: ${clientMapHash}, Server: ${serverMapHash}`);
-        alert('Warning: Your game map version differs from the server. This may cause gameplay issues.');
-        // We continue loading anyway, but the user has been warned
+        console.error(`Map hash mismatch! Client: ${clientMapHash}, Server: ${serverMapHash}`)
+        alert('Warning: Your game map version differs from the server. This may cause gameplay issues.')
       } else {
-        console.log(`Map hash verified: ${clientMapHash}`);
+        console.log(`Map hash verified: ${clientMapHash}`)
       }
+    } else {
+      console.warn('No map hash provided for verification, the client hash is:', generateMapHash(modelConfigs), 'this may cause gameplay issues.')
     }
 
     // 1. Create a unique loading task for each distinct `fileName`
@@ -122,8 +123,8 @@ export class MapLoader {
           if (modelConfig.interaction ?? placement.interaction) {
             const interaction = modelConfig.interaction ?? placement.interaction
             if (!interaction || !interaction.id) {
-                console.warn(`Missing interaction for model "${modelConfig.fileName}"`)
-                return
+              console.warn(`Missing interaction for model "${modelConfig.fileName}"`)
+              return
             }
 
             const offset = modelConfig.billboardOffset
@@ -132,12 +133,12 @@ export class MapLoader {
             const interactableObj = new InteractableObject(
               root,
               this.scene,
-                interaction.interactType,
-                interaction.ingredient ?? Ingredient.None,
-                interaction.id,
+              interaction.interactType,
+              interaction.ingredient ?? Ingredient.None,
+              interaction.id,
               offset,
               'E',
-              this.ingredientLoader
+              this.ingredientLoader,
             )
             interactableObj.interactionDistance = 2
             this.interactables.push(interactableObj)

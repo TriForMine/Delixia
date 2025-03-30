@@ -400,7 +400,7 @@ export class GameEngine {
       const positionChanged = Vector3.Distance(currentPosition, this.lastSentPosition) > this.POSITION_THRESHOLD
       const rotationChanged = Math.abs(currentRotation - this.lastSentRotation) > this.ROTATION_THRESHOLD
 
-      if (timeSinceLastUpdate >= this.NETWORK_UPDATE_INTERVAL || positionChanged || rotationChanged) {
+      if (timeSinceLastUpdate >= this.NETWORK_UPDATE_INTERVAL && (positionChanged || rotationChanged)) {
         // Send position update to server
         this.room.send('move', {
           position: {
