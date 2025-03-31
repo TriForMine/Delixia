@@ -55,6 +55,7 @@ export class GameEngine {
   // Network optimization properties
   private lastNetworkUpdateTime: number = 0
   private readonly NETWORK_UPDATE_INTERVAL: number = 10 // Send updates every 100ms instead of every frame
+  private readonly MAX_NETWORK_UPDATE_INTERVAL: number = 100 // Maximum interval for network updates
   private readonly POSITION_THRESHOLD: number = 0.01 // Only send position updates if moved more than this distance
   private readonly ROTATION_THRESHOLD: number = 0.05 // Only send rotation updates if rotated more than this angle
   private lastSentPosition: Vector3 = new Vector3()
@@ -391,7 +392,11 @@ export class GameEngine {
       const positionChanged = Vector3.Distance(currentPosition, this.lastSentPosition) > this.POSITION_THRESHOLD
       const rotationChanged = Math.abs(currentRotation - this.lastSentRotation) > this.ROTATION_THRESHOLD
 
-      if (timeSinceLastUpdate >= this.NETWORK_UPDATE_INTERVAL && (positionChanged || rotationChanged)) {
+      if (
+        timeSinceLastUpdate >= this.MAX_NETWORK_UPDATE_INTERVAL &&
+        timeSinceLastUpdate >= this.NETWORK_UPDATE_INTERVAL &&
+        (positionChanged || rotationChanged)
+      ) {
         // Send position update to server
         this.room.send('move', {
           position: {
