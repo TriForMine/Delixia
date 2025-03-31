@@ -58,7 +58,7 @@ bun install
 bun run dev
 ```
 
-Ouvrez la page `http://localhost:5173` dans votre navigateur pour commencer à jouer !
+Ouvrez la page `http://localhost:3000` dans votre navigateur pour commencer à jouer !
 
 ## Remerciements
 
