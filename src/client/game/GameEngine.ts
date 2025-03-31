@@ -60,6 +60,7 @@ export class GameEngine {
   private readonly ROTATION_THRESHOLD: number = 0.05 // Only send rotation updates if rotated more than this angle
   private lastSentPosition: Vector3 = new Vector3()
   private lastSentRotation: number = 0
+  private lastSentAnimationState: string = ''
 
   constructor(scene: Scene, room: any) {
     this.scene = scene
@@ -391,11 +392,11 @@ export class GameEngine {
       const timeSinceLastUpdate = currentTime - this.lastNetworkUpdateTime
       const positionChanged = Vector3.Distance(currentPosition, this.lastSentPosition) > this.POSITION_THRESHOLD
       const rotationChanged = Math.abs(currentRotation - this.lastSentRotation) > this.ROTATION_THRESHOLD
+      const animationStateChanged = this.lastSentAnimationState !== animationState
 
       if (
-        timeSinceLastUpdate >= this.MAX_NETWORK_UPDATE_INTERVAL &&
-        timeSinceLastUpdate >= this.NETWORK_UPDATE_INTERVAL &&
-        (positionChanged || rotationChanged)
+        timeSinceLastUpdate >= this.MAX_NETWORK_UPDATE_INTERVAL ||
+        (timeSinceLastUpdate >= this.NETWORK_UPDATE_INTERVAL && (positionChanged || rotationChanged || animationStateChanged))
       ) {
         // Send position update to server
         this.room.send('move', {
@@ -412,6 +413,7 @@ export class GameEngine {
         // Update last sent values
         this.lastSentPosition.copyFrom(currentPosition)
         this.lastSentRotation = currentRotation
+        this.lastSentAnimationState = animationState
         this.lastNetworkUpdateTime = currentTime
       }
     }
