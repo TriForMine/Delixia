@@ -24,6 +24,7 @@ jobs:
         run: bun run client:build
         env:
           PUBLIC_COLYSEUS_ENDPOINT: https://delixia-server.triformine.dev/
+          PUBLIC_APP_VERSION: ${{ github.sha }}
 
       - name: Upload production-ready build files
         uses: actions/upload-artifact@v4
