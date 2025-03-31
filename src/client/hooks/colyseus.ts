@@ -8,7 +8,7 @@ export const {
   useColyseusState: useGameColyseusState,
   useConnectionStatus: useGameConnectionStatus,
   useConnectionError: useGameConnectionError,
-} = colyseus<GameRoomState>(import.meta.env.VITE_COLYSEUS_ENDPOINT ?? 'ws://localhost:2567')
+} = colyseus<GameRoomState>(import.meta.env?.PUBLIC_COLYSEUS_ENDPOINT ?? 'ws://localhost:2567')
 
 export const {
   connect: lobbyConnect,
@@ -16,6 +16,6 @@ export const {
   useLobbyRooms: useLobbyRooms,
   useConnectionStatus: useLobbyConnectionStatus,
   useConnectionError: useLobbyConnectionError,
-} = colyseus(import.meta.env.VITE_COLYSEUS_ENDPOINT ?? 'ws://localhost:2567')
+} = colyseus(import.meta.env?.PUBLIC_COLYSEUS_ENDPOINT ?? 'ws://localhost:2567')
 
 export { ConnectionStatus }

@@ -79,7 +79,7 @@ const App: React.FC = () => {
               </div>
 
               <div className="fixed bottom-4 text-sm opacity-70 text-white">
-                Version {import.meta.env.VITE_APP_VERSION || '0.0.0'}
+                Version {import.meta.env?.PUBLIC_APP_VERSION || '0.0.0'}
               </div>
             </div>
         )}
