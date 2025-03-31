@@ -9,17 +9,12 @@ export default defineConfig({
     template: './index.html',
   },
   source: {
+    define: {
+      'import.meta.env': {},
+    },
     entry: {
       index: './src/client/main.tsx',
     },
-  },
-  output: {
-    copy: [
-      {
-        from: './node_modules/@babylonjs/havok/lib/esm/HavokPhysics.wasm',
-        to: '../public',
-      },
-    ],
   },
   plugins: [pluginReact()],
 })
