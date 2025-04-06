@@ -56,7 +56,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
             <div className="flex-shrink-0">
                 <div className="w-11 h-11 bg-white rounded-md overflow-hidden flex items-center justify-center shadow">
                     <img
-                        src={`/icons/${recipe.name}.png`}
+                        src={`/icons/${recipe.name.toLowerCase()}.png`}
                         alt={recipe.name}
                         className="object-contain w-9 h-9"
                         onError={(e) => (e.currentTarget.src = '/icons/placeholder.png')}
