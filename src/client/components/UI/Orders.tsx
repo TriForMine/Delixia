@@ -58,7 +58,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                     <img
                         src={`/icons/${recipe.name}.png`}
                         alt={recipe.name}
-                        className="object-contain w-8 h-8"
+                        className="object-contain w-9 h-9"
                         onError={(e) => (e.currentTarget.src = '/icons/placeholder.png')}
                     />
                 </div>
@@ -66,7 +66,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
 
             <div className="flex-grow flex flex-col gap-1 min-w-0">
                 {ingredients.length > 0 ? (
-                    <div className="flex flex-wrap gap-1 items-center">
+                    <div className="flex flex-wrap gap-2 items-center">
                         {ingredients.map((ingredientData) => (
                             <div
                                 key={`ingredient-${ingredientData.keySuffix}-${ingredientData.iconUrl}`}
@@ -75,12 +75,12 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                                 <img
                                     src={ingredientData.iconUrl}
                                     alt={ingredientData.needsCooking ? "Ingredient to cook" : "Ingredient"}
-                                    className="w-8 h-8 object-contain bg-white/50 rounded-sm p-0.5"
+                                    className="w-9 h-9 object-contain bg-white/50 rounded-sm p-0.5"
                                     onError={(e) => (e.currentTarget.style.display = 'none')}
                                 />
                                 {ingredientData.needsCooking && (
                                     <Flame
-                                        className="w-3 h-3 absolute -bottom-1 -right-1 drop-shadow animate-pulse text-orange-500"
+                                        className="w-4 h-4 absolute -bottom-1 -right-1 drop-shadow animate-pulse text-orange-500"
                                         strokeWidth={2.5}
                                         fill="currentColor"
                                     />
