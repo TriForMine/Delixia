@@ -17,7 +17,7 @@ export default function Timer() {
     const normalBgClasses = "bg-gradient-to-br from-purple-300 via-pink-200 to-yellow-100";
     const urgentBgClasses = "bg-gradient-to-br from-red-400 via-orange-300 to-yellow-200";
 
-    const baseTextClasses = "text-lg font-bold transition-colors duration-300 ease-in-out";
+    const baseTextClasses = "text-2xl font-md transition-colors duration-300 ease-in-out";
     const normalTextClasses = "text-gray-800";
     const urgentTextClasses = "text-red-700 font-extrabold";
 
@@ -32,7 +32,7 @@ export default function Timer() {
         <div className={`${baseContainerClasses} ${isUrgent ? urgentBgClasses : normalBgClasses} ${animationClass}`}>
             <div className="flex items-center justify-center">
                 <Clock
-                    strokeWidth={3.5}
+                    strokeWidth={4}
                     className={`${baseIconClasses} ${isUrgent ? urgentIconClasses : normalIconClasses}`}
                 />
                 <span className={`${baseTextClasses} ${isUrgent ? urgentTextClasses : normalTextClasses}`}>
