@@ -9,6 +9,8 @@ import {generateMapHash} from '@shared/utils/mapUtils.ts';
 
 const serverMapLoader = new ServerMapLoader(mapConfigs)
 
+const POINTS_PER_ORDER = 100;
+
 export class GameRoom extends Room<GameRoomState> {
   state = new GameRoomState()
   maxClients = 4
@@ -96,6 +98,9 @@ export class GameRoom extends Room<GameRoomState> {
                 // Mark the order as completed
                 onigiriOrder.completed = true;
                 logger.info(`Player ${client.sessionId} completed order ${onigiriOrder.id} for onigiri`);
+
+                this.state.score += POINTS_PER_ORDER;
+                logger.info(`Player ${client.sessionId} scored ${POINTS_PER_ORDER} points. Total score: ${this.state.score}`);
 
                 // Remove the ingredient from the player but keep the plate
                 this.state.dropIngredient(client.sessionId);
@@ -301,6 +306,8 @@ export class GameRoom extends Room<GameRoomState> {
   private ORDER_INTERVAL: number = 20 * 1000;
 
   update(deltaTime: number) {
+    this.state.timeLeft -= deltaTime;
+
     // deltaTime is provided in milliseconds.
     // Accumulate the deltaTime into orderTimer.
     this.orderTimer += deltaTime;

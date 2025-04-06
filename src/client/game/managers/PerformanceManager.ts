@@ -43,7 +43,7 @@ export class PerformanceManager {
     this.fpsText.color = 'white'
     this.fpsText.fontSize = 16
     this.fpsText.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT
-    this.fpsText.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP
+    this.fpsText.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM
     this.fpsText.paddingRight = '10px'
     this.fpsText.paddingTop = '10px'
     advancedTexture.addControl(this.fpsText)

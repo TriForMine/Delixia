@@ -18,7 +18,7 @@ export const RoomList = () => {
     <div className="flex flex-col items-center justify-center flex-1 bg-base-200 bg-opacity-90 p-4">
       <div className="flex items-center justify-between w-full max-w-md mb-4">
         <button
-          className="btn-dream"
+          className="btn-dream-small"
           onClick={() => {
             setMode('menu')
           }}
@@ -26,7 +26,7 @@ export const RoomList = () => {
           Back to menu
         </button>
           <button
-              className="btn-dream"
+              className="btn-dream-small"
               onClick={() => {
                   setRoomToJoin({ roomName: 'game', forceCreate: true })
                   setMode('game')
@@ -48,7 +48,7 @@ export const RoomList = () => {
     {room.clients} / {room.maxClients}
   </span>
                     <button
-                        className="btn-dream"
+                        className="btn-dream-small"
                         aria-label={`Join room ${room.name}`}
                         onClick={() => {
                             setRoomToJoin({ roomId: room.roomId })

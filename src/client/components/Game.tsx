@@ -1,6 +1,6 @@
 import type { Scene } from '@babylonjs/core/scene'
 import { ConnectionStatus, useGameColyseusRoom, useGameConnectionError, useGameConnectionStatus } from '@client/hooks/colyseus.ts'
-import { type RefObject, useCallback, useEffect, useRef } from 'react'
+import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { GameEngine } from '../game/GameEngine'
 import { BabylonScene } from './BabylonScene'
 import GameUI from "@client/components/UI/GameUI.tsx";
@@ -36,12 +36,20 @@ const ConnectionStatusComponent = ({
 export const Game = ({ onBackToMenu }: { onBackToMenu: () => void }) => {
   const room = useGameColyseusRoom()
   const gameEngineRef = useRef<GameEngine>(undefined)
+  const [isLoaded, setIsLoaded] = useState(false)
 
   // When the Babylon scene is ready, instantiate our GameEngine
   const onSceneReady = useCallback(
     async (scene: Scene) => {
       if (!room) return
       gameEngineRef.current = new GameEngine(scene, room)
+
+      // Set up an observer to detect when loading is complete
+      const engine = scene.getEngine();
+      engine.onEndFrameObservable.add(() => {
+          setIsLoaded(true);
+      });
+
       await gameEngineRef.current.init()
     },
     [room],
@@ -57,7 +65,7 @@ export const Game = ({ onBackToMenu }: { onBackToMenu: () => void }) => {
     <div className="relative w-full h-full">
       <BabylonScene antialias onSceneReady={onSceneReady} onRender={onRender} id="my-canvas" className="w-full h-full" />
       <ConnectionStatusComponent onBackToMenu={onBackToMenu} gameEngineRef={gameEngineRef} />
-      <GameUI onBackToMenu={onBackToMenu} />
+      {isLoaded && <GameUI onBackToMenu={onBackToMenu} />}
     </div>
   )
 }

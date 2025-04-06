@@ -2,80 +2,113 @@ import React from "react";
 import { useGameColyseusState } from "@client/hooks/colyseus";
 import { RECIPES } from "@shared/recipes";
 import type { Order } from "@shared/schemas/Order.ts";
-import { Ingredient } from "@shared/types/enums";
+import { Ingredient, InteractType } from "@shared/types/enums";
+import { Flame } from "lucide-react";
 
-// Fonction utilitaire pour extraire les ingrédients d'une recette
-const extractIngredients = (recipe: typeof RECIPES[0]): string[] => {
-    const ingredients: string[] = [];
-    recipe.steps.forEach((step) => {
+interface IngredientWithStatus {
+    iconUrl: string;
+    needsCooking: boolean;
+    keySuffix: string;
+}
+
+const extractIngredientsWithStatus = (recipe: typeof RECIPES[0]): IngredientWithStatus[] => {
+    const allIngredients: IngredientWithStatus[] = [];
+
+    recipe.steps.forEach((step, stepIndex) => {
         if (step.ingredients) {
-            step.ingredients.forEach(({ ingredient, quantity }) => {
-                // Utilisation de l'enum pour obtenir le nom (ex: Ingredient[ingredient])
-                ingredients.push(`${quantity} x ${Ingredient[ingredient]}`);
+            step.ingredients.forEach(({ ingredient, quantity }, ingredientIndex) => {
+                const iconUrl = `/ingredients/${Ingredient[ingredient].toLowerCase()}.png`;
+                const needsCooking = step.machine === InteractType.Oven;
+
+                for (let i = 0; i < quantity; i++) {
+                    allIngredients.push({
+                        iconUrl,
+                        needsCooking,
+                        keySuffix: `${stepIndex}-${ingredientIndex}-${i}`
+                    });
+                }
             });
         }
     });
-    return ingredients;
+
+    return allIngredients;
 };
+
 
 interface OrderCardProps {
     order: Order;
 }
 
 const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
-    // Recherche de la recette correspondante au recipeId
     const recipe = RECIPES.find((r) => r.id === order.recipeId);
+    const ingredients = recipe ? extractIngredientsWithStatus(recipe) : [];
 
-    // Extraction de la liste d'ingrédients depuis les étapes (si disponibles)
-    const ingredientsList = recipe ? extractIngredients(recipe) : [];
-
-    // Utilisation d'une image de remplacement si la recette ne définit pas d'imageUrl
-    const imageUrl = (recipe as any)?.imageUrl || "https://dummyimage.com/48";
+    if (!recipe) {
+        return (
+            <div className="bg-red-200 rounded-lg shadow-md p-2 w-full text-red-800 text-xs">
+                Error: Recipe not found for order {order.id}
+            </div>
+        );
+    }
 
     return (
-        <div className="bg-gradient-to-br from-purple-300 via-pink-200 to-yellow-100 rounded-xl shadow-lg p-3 flex flex-col gap-2 transition-all duration-300">
-            {/* En-tête : image et infos du plat */}
-            <div className="flex items-center gap-2">
-                <div className="w-12 h-12 bg-white rounded-md overflow-hidden flex items-center justify-center">
+        <div className="bg-gradient-to-br from-purple-300 via-pink-200 to-yellow-100 rounded-lg shadow-md px-2.5 py-2 w-full flex items-center gap-3 transition-all duration-300">
+            <div className="flex-shrink-0">
+                <div className="w-11 h-11 bg-white rounded-md overflow-hidden flex items-center justify-center shadow">
                     <img
-                        src={imageUrl}
-                        alt={recipe ? recipe.name : "Unknown Dish"}
-                        className="object-cover w-full h-full"
+                        src={`/icons/${recipe.name}.png`}
+                        alt={recipe.name}
+                        className="object-contain w-8 h-8"
+                        onError={(e) => (e.currentTarget.src = '/icons/placeholder.png')}
                     />
-                </div>
-                <div>
-                    <h2 className="text-sm font-bold text-gray-800">
-                        {recipe ? recipe.name : "Unknown Dish"}
-                    </h2>
-                    <p className="text-xs text-gray-600">ID: {order.id}</p>
                 </div>
             </div>
 
-            {/* Liste des ingrédients */}
-            <div>
-                <h3 className="text-xs font-semibold text-gray-700">Ingredients:</h3>
-                <ul className="list-disc list-inside text-xs text-gray-600">
-                    {ingredientsList.length > 0 ? (
-                        ingredientsList.map((ing, idx) => <li key={idx}>{ing}</li>)
-                    ) : (
-                        <li>None</li>
-                    )}
-                </ul>
+            <div className="flex-grow flex flex-col gap-1 min-w-0">
+                {ingredients.length > 0 ? (
+                    <div className="flex flex-wrap gap-1 items-center">
+                        {ingredients.map((ingredientData) => (
+                            <div
+                                key={`ingredient-${ingredientData.keySuffix}-${ingredientData.iconUrl}`}
+                                className="relative flex-shrink-0" // position: relative pour la flamme
+                            >
+                                <img
+                                    src={ingredientData.iconUrl}
+                                    alt={ingredientData.needsCooking ? "Ingredient to cook" : "Ingredient"}
+                                    className="w-8 h-8 object-contain bg-white/50 rounded-sm p-0.5"
+                                    onError={(e) => (e.currentTarget.style.display = 'none')}
+                                />
+                                {ingredientData.needsCooking && (
+                                    <Flame
+                                        className="w-3 h-3 absolute -bottom-1 -right-1 drop-shadow animate-pulse text-orange-500"
+                                        strokeWidth={2.5}
+                                        fill="currentColor"
+                                    />
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-xs text-gray-600 italic">
+                        No ingredients required?
+                    </div>
+                )}
             </div>
         </div>
     );
 };
 
 export default function Orders() {
-    // Récupère l'état des commandes depuis Colyseus
     const orders = useGameColyseusState((state) => state.orders);
 
     return (
-        // Overlay discret en haut à droite, adapté pour une UI dans un jeu 3D
-            <div className="fixed top-4 right-4 w-64 max-h-[80vh] overflow-y-auto p-3 bg-opacity-75 rounded-lg shadow-lg space-y-2">
-                {orders?.map((order) => (
-                    <OrderCard key={order.id} order={order}  />
-                ))}
-            </div>
+        <div className="fixed top-2 right-2 z-10 w-64 max-h-[60vh] overflow-y-auto p-2 bg-opacity-60 backdrop-blur-sm rounded-lg shadow-lg space-y-2">
+            {orders?.map((order) => (
+                <OrderCard key={order.id} order={order} />
+            ))}
+            {(!orders || orders.length === 0) && (
+                <p className="text-center text-gray-300 text-xs italic py-4">No pending orders</p>
+            )}
+        </div>
     );
 }

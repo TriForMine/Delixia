@@ -6,7 +6,7 @@
       <script value="dev" />
     </scripts>
     <node-interpreter value="$USER_HOME$/.bun/bin/bun" />
-    <package-manager value="C:\Users\quent\.bun\bin\bun.exe" />
+    <package-manager value="C:\Users\TriForMine\.bun\bin\bun.exe" />
     <envs />
     <method v="2" />
   </configuration>

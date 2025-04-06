@@ -14,8 +14,17 @@ export class GameRoomState extends Schema {
   @type({ array: Order })
   orders = new ArraySchema<Order>();
 
+  // Hash of the map configuration for version verification
   @type("string")
-  mapHash: string = "";  // Hash of the map configuration for version verification
+  mapHash: string = "";
+
+  // Time left for the current game round, defaults to 5 minutes
+  @type("number")
+  timeLeft: number = 5 * 60 * 1000
+
+  @type("number")
+  score: number = 0
+
 
   createPlayer(id: string) {
     const player = new Player()
@@ -41,12 +50,12 @@ export class GameRoomState extends Schema {
   }
 
   updatePlayer(
-    id: string,
-    data: {
-      position: { x: number; y: number; z: number }
-      rotation: { y: number }
-      animationState: string
-    },
+      id: string,
+      data: {
+        position: { x: number; y: number; z: number }
+        rotation: { y: number }
+        animationState: string
+      },
   ) {
     const player = this.players.get(id)
     if (!player) return

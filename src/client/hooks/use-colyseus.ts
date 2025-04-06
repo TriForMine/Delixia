@@ -113,7 +113,8 @@ export const colyseus = <S extends Schema>(endpoint: string, schema?: new (...ar
         // @ts-ignore
         const value = $(room.state)[key]
 
-        if (typeof value !== 'object' || !value.onAdd || !value.onRemove) {
+        // @ts-ignore
+        if (typeof room.state[key] !== 'object') {
           continue
         }
 
