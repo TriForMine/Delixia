@@ -1,21 +1,31 @@
 import { useGameColyseusState } from "@client/hooks/colyseus.ts";
-import {Euro} from "lucide-react";
 
 export default function Score() {
     const score = useGameColyseusState((state) => state.score) ?? 0;
 
     return (
-        // Add the animationClass here
-        <div className="border border-gradient-to-br from-purple-300 via-pink-200 to-yellow-100 rounded-full shadow-lg px-3 py-1 w-fit absolute bottom-3 left-12 transform -translate-x-1/2 z-10 pointer-events-none transition-colors duration-300 ease-in-out bg-gray-800">
-            <div className="flex items-center justify-center">
-                <Euro
-                    strokeWidth={3}
-                    className={"inline-block h-5 w-5 mr-2 transition-colors duration-300 ease-in-out text-gradient-to-br from-purple-300 via-pink-200 to-yellow-100"}
-                />
-                <span className="text-2xl font-bold transition-colors duration-300 ease-in-out text-gradient-to-br from-purple-300 via-pink-200 to-yellow-100">
-                    {score}
-                </span>
-            </div>
+        <div
+            className="
+                absolute bottom-3 left-20 transform -translate-x-1/2 z-10 pointer-events-none
+                w-32 h-32
+                shadow-lg
+                bg-[url('../../public/icons/coin.png')]
+                bg-cover
+                bg-center
+                bg-no-repeat
+                flex items-center justify-center
+                overflow-hidden
+            "
+        >
+            <span
+                className="
+                    text-4xl font-bold
+                    text-white
+                    [text-shadow:_-1px_-1px_0_#000,_1px_-1px_0_#000,_-1px_1px_0_#000,_1px_1px_0_#000]
+                "
+            >
+                {score.toLocaleString()}
+            </span>
         </div>
     );
 }

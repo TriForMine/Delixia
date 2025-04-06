@@ -3,12 +3,11 @@ import { Clock } from "lucide-react"; // Changed from TimerIcon to Clock as per 
 
 export default function Timer() {
     const timeLeft = useGameColyseusState((state) => state.timeLeft) ?? 0;
-    // Make sure it's positive time and under the threshold
     const isUrgent = timeLeft <= 10000;
 
     const minutes = Math.floor(timeLeft / 60000);
     const seconds = Math.floor((timeLeft % 60000) / 1000);
-    // Prevent displaying negative numbers if timeLeft somehow goes below 0
+
     const displayMinutes = Math.max(0, minutes);
     const displaySeconds = Math.max(0, seconds);
     const formattedTime = `${String(displayMinutes).padStart(2, '0')}:${String(displaySeconds).padStart(2, '0')}`;
@@ -28,7 +27,6 @@ export default function Timer() {
     const animationClass = isUrgent ? 'animate-pulse' : '';
 
     return (
-        // Add the animationClass here
         <div className={`${baseContainerClasses} ${isUrgent ? urgentBgClasses : normalBgClasses} ${animationClass}`}>
             <div className="flex items-center justify-center">
                 <Clock

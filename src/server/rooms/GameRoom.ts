@@ -305,8 +305,15 @@ export class GameRoom extends Room<GameRoomState> {
   // Order creation interval (e.g., every 20 seconds)
   private ORDER_INTERVAL: number = 20 * 1000;
 
+  private timeLeftBatch: number = 0;
+
   update(deltaTime: number) {
-    this.state.timeLeft -= deltaTime;
+    this.timeLeftBatch += deltaTime;
+
+    if (this.timeLeftBatch >= 250) {
+      this.state.timeLeft -= this.timeLeftBatch;
+      this.timeLeftBatch = 0;
+    }
 
     // deltaTime is provided in milliseconds.
     // Accumulate the deltaTime into orderTimer.
