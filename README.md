@@ -47,7 +47,7 @@ graph LR
         B -- Utilise --> G
     end
 
-    subgraph "Serveur Dédié (Tourne en continu)"
+    subgraph "Serveur Dédié"
         H["Colyseus Server (Bun Runtime)"]
         I["GameRoom (State Management)"]
         K["Bun WebSockets"]
@@ -89,7 +89,7 @@ graph LR
     sequenceDiagram
         participant Joueur
         participant Client
-        participant "Serveur (GameRoom)"
+        participant Serveur (GameRoom)
 
         Joueur->>Client: Appuie sur 'E' près d'un objet
         Client->>Client: Détecte l'objet le plus proche (SpatialGrid)
