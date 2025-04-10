@@ -31,13 +31,13 @@ Le jeu repose sur une architecture client-serveur pour permettre le jeu multijou
 ```mermaid
 graph LR
     subgraph "Navigateur Client (Chaque Joueur)"
-        A[React UI]
-        B[Babylon.js Engine]
-        C[LocalCharacterController]
-        D[RemoteCharacterController]
-        E[Colyseus Client]
-        F[Physics (Havok)]
-        G[MapLoader & Config]
+        A["React UI"]
+        B["Babylon.js Engine"]
+        C["LocalCharacterController"]
+        D["RemoteCharacterController"]
+        E["Colyseus Client"]
+        F["Physics (Havok)"]
+        G["MapLoader & Config"]
         A -- Interagit avec --> B
         C -- Contrôle local --> B
         D -- Réplique état --> B
@@ -48,17 +48,17 @@ graph LR
     end
 
     subgraph "Serveur Dédié (Tourne en continu)"
-        H[Colyseus Server (Bun Runtime)]
-        I[GameRoom (State Management)]
-        K[Bun WebSockets]
-        L[ServerMapLoader & Config]
+        H["Colyseus Server (Bun Runtime)"]
+        I["GameRoom (State Management)"]
+        K["Bun WebSockets"]
+        L["ServerMapLoader & Config"]
         H -- Gère --> I
         I -- Définit la logique --> H
         H -- Utilise --> K
         I -- Utilise --> L
     end
 
-    E -- Connexion WebSocket --> K
+    E -- "Connexion WebSocket" --> K
 ```
 
 ### Moteur 3D & Physique (Babylon.js - Côté Client)
@@ -89,19 +89,19 @@ graph LR
     sequenceDiagram
         participant Joueur
         participant Client
-        participant Serveur (GameRoom)
+        participant "Serveur (GameRoom)"
 
         Joueur->>Client: Appuie sur 'E' près d'un objet
         Client->>Client: Détecte l'objet le plus proche (SpatialGrid)
-        Client->>Serveur: Envoie message 'interact' { objectId: 123 }
-        Note over Serveur: Valide l'interaction (peut interagir ? état du joueur ? état de l'objet ?)
+        Client->>Serveur (GameRoom): Envoie message 'interact' { objectId: 123 }
+        Note over Serveur (GameRoom): Valide l'interaction (peut interagir ? état du joueur ? état de l'objet ?)
         alt Interaction Valide
-            Serveur->>Serveur: Modifie GameRoomState (ex: obj.isActive = true, joueur prend ingrédient)
-            Server-->>Client: Met à jour GameRoomState (broadcast Schema à tous les clients)
+            Serveur (GameRoom)->>Serveur (GameRoom): Modifie GameRoomState (ex: obj.isActive = true, joueur prend ingrédient)
+            Serveur (GameRoom)-->>Client: Met à jour GameRoomState (broadcast Schema à tous les clients)
             Client->>Client: Reçoit l'état mis à jour
             Client->>Client: Met à jour l'affichage (ex: active effet visuel, montre ingrédient porté)
         else Interaction Invalide
-            Server-->>Client: (Optionnel) Envoie message d'erreur spécifique
+            Serveur (GameRoom)-->>Client: (Optionnel) Envoie message d'erreur spécifique
         end
     ```
 
@@ -114,27 +114,26 @@ graph LR
 -   **IDs & Hash Déterministes** : Les IDs interactifs sont générés automatiquement et un hash SHA-256 de la configuration est calculé pour garantir la cohérence entre client et serveur.
     ```mermaid
      graph TD
-        A[Fichier Config Partagé (.ts)] --> B(Process Map Config);
-        B -- Génère IDs --> C{Configuration avec IDs};
-        C -- Calcule Hash --> D[Map Hash SHA-256];
+        A["Fichier Config Partagé (.ts)"] --> B("Process Map Config");
+        B -- "Génère IDs" --> C{"Configuration avec IDs"};
+        C -- "Calcule Hash" --> D["Map Hash SHA-256"];
 
         subgraph Serveur
-            E[ServerMapLoader] --> F{Charge Config + Génère IDs};
-            F --> G[Stocke Map Hash & Crée InteractableObjectState];
+            E["ServerMapLoader"] --> F{"Charge Config + Génère IDs"};
+            F --> G["Stocke Map Hash & Crée InteractableObjectState"];
         end
 
         subgraph Client
-            H[MapLoader] --> I{Charge Config + Génère IDs};
-            I --> J[Calcule Map Hash Client];
-            J --> K{Compare avec Hash Serveur};
-            K -- OK --> L[Charge Modèles 3D & Crée InteractableObjects];
-            K -- Différent --> M[Affiche Alerte];
+            H["MapLoader"] --> I{"Charge Config + Génère IDs"};
+            I --> J["Calcule Map Hash Client"];
+            J --> K{"Compare avec Hash Serveur"};
+            K -- "OK" --> L["Charge Modèles 3D & Crée InteractableObjects"];
+            K -- "Différent" --> M["Affiche Alerte"];
         end
 
         A --> E;
         A --> H;
-        G -->|state.mapHash| K;
-
+        G -- "state.mapHash" --> K;
     ```
 -   **Chargement Serveur** : La `GameRoom` initialise l'état des objets interactifs à partir de la configuration.
 -   **Chargement Client** : Le `MapLoader` charge les modèles 3D et vérifie la correspondance du hash de la carte avec celui reçu du serveur.
