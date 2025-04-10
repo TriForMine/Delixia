@@ -36,6 +36,9 @@ Les assets (modèles 3D, textures, sons…) proviennent de sources **libres de d
 
 ## 🔧 Implémentation Technique Détaillée
 
+<details>
+<summary>Cliquez pour déplier les détails techniques</summary>
+
 Le jeu repose sur une architecture client-serveur pour permettre le jeu multijoueur en ligne en temps réel.
 
 ### Architecture Générale
@@ -176,6 +179,8 @@ graph LR
 -   **Formatage/Linting** : Biome.
 -   **Conteneurisation** : Dockerfile pour le serveur.
 -   **CI/CD & Déploiement** : Workflow GitHub Actions pour le client (GitHub Pages & Cloudflare Pages) ; déploiement serveur via Docker Compose sur serveur dédié (hors dépôt).
+
+</details>
 
 ---
 
