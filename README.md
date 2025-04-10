@@ -45,13 +45,13 @@ Le jeu repose sur une architecture client-serveur pour permettre le jeu multijou
 
 ```mermaid
 graph LR
-    subgraph "Client (Navigateur)"
+    subgraph Client ["Client (Navigateur)"]
         UI[Interface React]
         Engine[Moteur Babylon.js]
         LocalChar[Contrôleur Local Perso]
         RemoteChar[Contrôleur Distant Perso]
         NetworkClient[Client Colyseus]
-        Physics[Physique (Havok)]
+        Physics["Physique (Havok)"]
         MapLoad[Chargeur Carte & Config]
 
         UI -- interagit --> Engine
@@ -63,11 +63,11 @@ graph LR
         Engine -- utilise --> MapLoad
     end
 
-    subgraph "Serveur (Dédié)"
-        ColyseusServer[Serveur Colyseus (Bun)]
+    subgraph Serveur ["Serveur (Dédié)"]
+        ColyseusServer["Serveur Colyseus (Bun)"]
         GameRoomLogic["Salle de Jeu (Logique & État)"]
-        WebSockets[WebSockets Bun]
-        ServerMapLoad[Chargeur Carte Serveur & Config]
+        WebSockets["WebSockets Bun"]
+        ServerMapLoad["Chargeur Carte Serveur & Config"]
 
         ColyseusServer -- gère --> GameRoomLogic
         GameRoomLogic -- définit logique --> ColyseusServer
@@ -107,18 +107,18 @@ graph LR
     sequenceDiagram
         participant Joueur
         participant Client
-        participant "Serveur (GameRoom)"
+        participant Serveur ["Serveur (GameRoom)"]
 
         Joueur->>Client: Appuie sur 'E' près d'un objet
         Client->>Client: Trouve l'objet proche (SpatialGrid)
-        Client->>"Serveur (GameRoom)": Envoie msg 'interact' { objectId }
-        Note over "Serveur (GameRoom)": Validation (état joueur/objet)
+        Client->>Serveur: Envoie msg 'interact' { objectId }
+        Note over Serveur: Validation (état joueur/objet)
         alt Interaction Valide
-            "Serveur (GameRoom)"->>"Serveur (GameRoom)": Modifie ÉtatJeu (état objet, inventaire joueur)
-            "Serveur (GameRoom)"-->>Client: Broadcast ÉtatJeu mis à jour (diff Schema)
+            Serveur->>Serveur: Modifie ÉtatJeu (état objet, inventaire joueur)
+            Serveur-->>Client: Broadcast ÉtatJeu mis à jour (diff Schema)
             Client->>Client: Applique changements (MàJ UI, visuels)
         else Interaction Invalide
-            "Serveur (GameRoom)"-->>Client: (Optionnel) Envoie msg d'erreur
+            Serveur-->>Client: (Optionnel) Envoie msg d'erreur
         end
     ```
 
@@ -131,20 +131,20 @@ graph LR
 -   **IDs & Hash Déterministes** : Les IDs interactifs sont générés automatiquement et un hash SHA-256 de la configuration est calculé pour garantir la cohérence entre client et serveur.
     ```mermaid
      graph TD
-        A["Fichier Config Partagé (.ts)"] --> B(Traiter Config);
+        A["Fichier Config Partagé (.ts)"] --> B("Traiter Config");
         B -- "Génère IDs" --> C{"Config avec IDs"};
         C -- "Calcule Hash" --> D["Hash Carte (SHA-256)"];
 
-        subgraph "Côté Serveur"
+        subgraph Server ["Côté Serveur"]
             E["Chargeur Serveur"] --> F{"Charge Config + Génère IDs"};
-            F --> G["Stocke Hash Carte\nCrée États Objets"];
+            F --> G["Stocke Hash Carte<br>Crée États Objets"];
         end
 
-        subgraph "Côté Client"
+        subgraph Client ["Côté Client"]
             H["Chargeur Client"] --> I{"Charge Config + Génère IDs"};
             I --> J["Calcule Hash Carte Client"];
             J --> K{"Compare Hashs"};
-            K -- Correspondance --> L["Charge Modèles 3D\nCrée Objets Interactifs"];
+            K -- Correspondance --> L["Charge Modèles 3D<br>Crée Objets Interactifs"];
             K -- Différence --> M["Affiche Alerte"];
         end
 
