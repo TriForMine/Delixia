@@ -36,22 +36,19 @@ Les assets (modèles 3D, textures, sons…) proviennent de sources **libres de d
 
 ## 🔧 Implémentation Technique Détaillée
 
-<details>
-<summary>Cliquez pour déplier les détails techniques</summary>
-
 Le jeu repose sur une architecture client-serveur pour permettre le jeu multijoueur en ligne en temps réel.
 
 ### Architecture Générale
 
 ```mermaid
 graph LR
-    subgraph Client [&quot;Client (Navigateur)&quot;]
+    subgraph Client ["Client (Navigateur)"]
         UI[Interface React]
         Engine[Moteur Babylon.js]
         LocalChar[Contrôleur Local Perso]
         RemoteChar[Contrôleur Distant Perso]
         NetworkClient[Client Colyseus]
-        Physics[&quot;Physique (Havok)&quot;]
+        Physics["Physique (Havok)"]
         MapLoad[Chargeur Carte & Config]
 
         UI -- interagit --> Engine
@@ -63,11 +60,11 @@ graph LR
         Engine -- utilise --> MapLoad
     end
 
-    subgraph Serveur [&quot;Serveur (Dédié)&quot;]
-        ColyseusServer[&quot;Serveur Colyseus (Bun)&quot;]
-        GameRoomLogic[&quot;Salle de Jeu (Logique & État)&quot;]
-        WebSockets[&quot;WebSockets Bun&quot;]
-        ServerMapLoad[&quot;Chargeur Carte Serveur & Config&quot;]
+    subgraph Serveur ["Serveur (Dédié)"]
+        ColyseusServer["Serveur Colyseus (Bun)"]
+        GameRoomLogic["Salle de Jeu (Logique & État)"]
+        WebSockets["WebSockets Bun"]
+        ServerMapLoad["Chargeur Carte Serveur & Config"]
 
         ColyseusServer -- gère --> GameRoomLogic
         GameRoomLogic -- définit logique --> ColyseusServer
@@ -75,7 +72,7 @@ graph LR
         GameRoomLogic -- utilise --> ServerMapLoad
     end
 
-    NetworkClient -- &quot;Connexion WebSocket&quot; --> WebSockets
+    NetworkClient -- "Connexion WebSocket" --> WebSockets
 ```
 
 ### Moteur 3D & Physique (Babylon.js - Côté Client)
@@ -107,7 +104,7 @@ graph LR
     sequenceDiagram
         participant Joueur
         participant Client
-        participant Serveur [&quot;Serveur (GameRoom)&quot;]
+        participant Serveur ["Serveur (GameRoom)"]
 
         Joueur->>Client: Appuie sur 'E' près d'un objet
         Client->>Client: Trouve l'objet proche (SpatialGrid)
@@ -131,26 +128,26 @@ graph LR
 -   **IDs & Hash Déterministes** : Les IDs interactifs sont générés automatiquement et un hash SHA-256 de la configuration est calculé pour garantir la cohérence entre client et serveur.
     ```mermaid
      graph TD
-        A[&quot;Fichier Config Partagé (.ts)&quot;] --> B(&quot;Traiter Config&quot;);
-        B -- &quot;Génère IDs&quot; --> C{&quot;Config avec IDs&quot;};
-        C -- &quot;Calcule Hash&quot; --> D[&quot;Hash Carte (SHA-256)&quot;];
+        A["Fichier Config Partagé (.ts)"] --> B("Traiter Config");
+        B -- "Génère IDs" --> C{"Config avec IDs"};
+        C -- "Calcule Hash" --> D["Hash Carte (SHA-256)"];
 
-        subgraph Server [&quot;Côté Serveur&quot;]
-            E[&quot;Chargeur Serveur&quot;] --> F{&quot;Charge Config + Génère IDs&quot;};
-            F --> G[&quot;Stocke Hash Carte<br>Crée États Objets&quot;];
+        subgraph Server ["Côté Serveur"]
+            E["Chargeur Serveur"] --> F{"Charge Config + Génère IDs"};
+            F --> G["Stocke Hash Carte<br>Crée États Objets"];
         end
 
-        subgraph Client [&quot;Côté Client&quot;]
-            H[&quot;Chargeur Client&quot;] --> I{&quot;Charge Config + Génère IDs&quot;};
-            I --> J[&quot;Calcule Hash Carte Client&quot;];
-            J --> K{&quot;Compare Hashs&quot;};
-            K -- Correspondance --> L[&quot;Charge Modèles 3D<br>Crée Objets Interactifs&quot;];
-            K -- Différence --> M[&quot;Affiche Alerte&quot;];
+        subgraph Client ["Côté Client"]
+            H["Chargeur Client"] --> I{"Charge Config + Génère IDs"};
+            I --> J["Calcule Hash Carte Client"];
+            J --> K{"Compare Hashs"};
+            K -- Correspondance --> L["Charge Modèles 3D<br>Crée Objets Interactifs"];
+            K -- Différence --> M["Affiche Alerte"];
         end
 
         A --> E;
         A --> H;
-        G -- &quot;state.mapHash&quot; --> K;
+        G -- "state.mapHash" --> K;
     ```
 -   **Chargement Serveur** : La `GameRoom` initialise l'état des objets interactifs à partir de la configuration.
 -   **Chargement Client** : Le `MapLoader` charge les modèles 3D (en utilisant l'instanciation) et vérifie la correspondance du hash de la carte avec celui reçu du serveur.
@@ -179,8 +176,6 @@ graph LR
 -   **Formatage/Linting** : Biome.
 -   **Conteneurisation** : Dockerfile pour le serveur.
 -   **CI/CD & Déploiement** : Workflow GitHub Actions pour le client (GitHub Pages & Cloudflare Pages) ; déploiement serveur via Docker Compose sur serveur dédié (hors dépôt).
-
-</details>
 
 ---
 
