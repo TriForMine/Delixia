@@ -6,6 +6,16 @@
 
 **Delixia** est un jeu de cuisine **multijoueur en ligne** inspiré de la série *Overcooked*. Vous y incarnez un(e) chef qui doit prendre les commandes qui apparaissent, préparer les plats demandés et les servir rapidement aux points de service désignés, le tout en coopérant avec d'autres joueurs connectés via un **serveur dédié**. Le jeu se déroule actuellement dans une **cuisine japonaise**.
 
+<p align="center">
+  <a href="https://delixia.pages.dev/" target="_blank">
+    <img src="https://img.shields.io/badge/Jouer%20sur-Cloudflare%20Pages-F38020?style=for-the-badge&logo=cloudflarepages" alt="Jouer sur Cloudflare Pages">
+  </a>
+  &nbsp;&nbsp;&nbsp;
+  <a href="https://delixia.triformine.dev/" target="_blank">
+    <img src="https://img.shields.io/badge/Jouer%20sur-Triformine%20Dev-blue?style=for-the-badge" alt="Jouer sur Triformine Dev">
+  </a>
+</p>
+
 ## 🎮 Mécaniques de jeu principales
 
 1.  **Gestion des commandes** : Les commandes (actuellement des Onigiris 🍙) apparaissent dans l'interface utilisateur. Préparez-les et servez-les avant la fin du temps imparti !
@@ -35,7 +45,7 @@ Le jeu repose sur une architecture client-serveur pour permettre le jeu multijou
 
 ```mermaid
 graph LR
-    subgraph Client (Navigateur)
+    subgraph "Client (Navigateur)"
         UI[Interface React]
         Engine[Moteur Babylon.js]
         LocalChar[Contrôleur Local Perso]
@@ -53,9 +63,9 @@ graph LR
         Engine -- utilise --> MapLoad
     end
 
-    subgraph Serveur (Dédié)
+    subgraph "Serveur (Dédié)"
         ColyseusServer[Serveur Colyseus (Bun)]
-        GameRoomLogic[Salle de Jeu (Logique & État)]
+        GameRoomLogic["Salle de Jeu (Logique & État)"]
         WebSockets[WebSockets Bun]
         ServerMapLoad[Chargeur Carte Serveur & Config]
 
@@ -79,8 +89,8 @@ graph LR
 
 ### Réseau & Multijoueur (Colyseus - Client & Serveur)
 
--   **Serveur** : Serveur **Colyseus** tournant sur **Bun** pour de meilleures performances I/O, utilisant `@colyseus/bun-websockets`. Ce serveur tourne en continu pour héberger les parties.
-    -   **Outils Dev** : Inclut le **Playground** (`http://localhost:2567`) et le **Monitor** (`http://localhost:2567/monitor`, login `admin:admin`) pour le débogage et la supervision en développement.
+-   **Serveur** : Serveur **Colyseus** tournant sur **Bun** pour de meilleures performances I/O, utilisant `@colyseus/bun-websockets`. Ce serveur tourne en continu pour héberger les parties (sur `delixia-server.triformine.dev`).
+    -   **Outils Dev** : Inclut le **Playground** (`http://localhost:2567`) et le **Monitor** (`http://localhost:2567/monitor`, login `admin:admin`) pour le débogage et la supervision en développement local.
 -   **Synchronisation d'état** : Utilisation de `Schema` Colyseus pour synchroniser l'état du jeu (`GameRoomState`, `Player`, `InteractableObjectState`, `Order`) en temps réel entre le serveur et tous les clients connectés.
 -   **Gestion des Salles** : Système de lobby et de salles de jeu avec listing en temps réel, permettant aux joueurs de rejoindre des parties existantes ou d'en créer de nouvelles.
 -   **Communication** : Échange de messages spécifiques via WebSocket pour les actions (mouvement, interaction).
@@ -97,18 +107,18 @@ graph LR
     sequenceDiagram
         participant Joueur
         participant Client
-        participant Serveur
+        participant "Serveur (GameRoom)"
 
         Joueur->>Client: Appuie sur 'E' près d'un objet
         Client->>Client: Trouve l'objet proche (SpatialGrid)
-        Client->>Serveur: Envoie msg 'interact' { objectId }
-        Note over Serveur: Validation (état joueur/objet)
+        Client->>"Serveur (GameRoom)": Envoie msg 'interact' { objectId }
+        Note over "Serveur (GameRoom)": Validation (état joueur/objet)
         alt Interaction Valide
-            Serveur->>Serveur: Modifie ÉtatJeu (état objet, inventaire joueur)
-            Serveur-->>Client: Broadcast ÉtatJeu mis à jour (diff Schema)
+            "Serveur (GameRoom)"->>"Serveur (GameRoom)": Modifie ÉtatJeu (état objet, inventaire joueur)
+            "Serveur (GameRoom)"-->>Client: Broadcast ÉtatJeu mis à jour (diff Schema)
             Client->>Client: Applique changements (MàJ UI, visuels)
         else Interaction Invalide
-            Serveur-->>Client: (Optionnel) Envoie msg d'erreur
+            "Serveur (GameRoom)"-->>Client: (Optionnel) Envoie msg d'erreur
         end
     ```
 
@@ -125,12 +135,12 @@ graph LR
         B -- "Génère IDs" --> C{"Config avec IDs"};
         C -- "Calcule Hash" --> D["Hash Carte (SHA-256)"];
 
-        subgraph Côté Serveur
+        subgraph "Côté Serveur"
             E["Chargeur Serveur"] --> F{"Charge Config + Génère IDs"};
             F --> G["Stocke Hash Carte\nCrée États Objets"];
         end
 
-        subgraph Côté Client
+        subgraph "Côté Client"
             H["Chargeur Client"] --> I{"Charge Config + Génère IDs"};
             I --> J["Calcule Hash Carte Client"];
             J --> K{"Compare Hashs"};
@@ -168,13 +178,13 @@ graph LR
 -   **Langage** : TypeScript (v5.x).
 -   **Formatage/Linting** : Biome.
 -   **Conteneurisation** : Dockerfile pour le serveur.
--   **CI/CD & Déploiement** : Workflow GitHub Actions pour le client (GitHub Pages) ; déploiement serveur via Docker Compose sur serveur dédié (hors dépôt).
+-   **CI/CD & Déploiement** : Workflow GitHub Actions pour le client (GitHub Pages & Cloudflare Pages) ; déploiement serveur via Docker Compose sur serveur dédié (hors dépôt).
 
 </details>
 
 ---
 
-## 🚀 Installation et exécution
+## 🚀 Installation et exécution (pour le développement)
 
 ### Prérequis
 
@@ -189,7 +199,7 @@ cd delixia
 bun install
 ```
 
-### Lancer le jeu en Développement
+### Lancer le jeu en Développement Local
 
 Exécutez la commande suivante à la racine du projet :
 
