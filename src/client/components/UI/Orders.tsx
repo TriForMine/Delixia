@@ -3,11 +3,17 @@ import { useGameColyseusState } from "@client/hooks/colyseus";
 import { RECIPES } from "@shared/recipes";
 import type { Order } from "@shared/schemas/Order.ts";
 import { Ingredient, InteractType } from "@shared/types/enums";
-import { Flame } from "lucide-react";
+import {Flame, Slice} from "lucide-react";
+
+enum IngredientStep {
+    None = 0,
+    Chopping = 1,
+    Cooking = 2,
+}
 
 interface IngredientWithStatus {
     iconUrl: string;
-    needsCooking: boolean;
+    step: IngredientStep;
     keySuffix: string;
 }
 
@@ -18,12 +24,11 @@ const extractIngredientsWithStatus = (recipe: typeof RECIPES[0]): IngredientWith
         if (step.ingredients) {
             step.ingredients.forEach(({ ingredient, quantity }, ingredientIndex) => {
                 const iconUrl = `/ingredients/${Ingredient[ingredient].toLowerCase()}.png`;
-                const needsCooking = step.machine === InteractType.Oven;
 
                 for (let i = 0; i < quantity; i++) {
                     allIngredients.push({
                         iconUrl,
-                        needsCooking,
+                        step: step.machine === InteractType.ChoppingBoard ? IngredientStep.Chopping : (step.machine === InteractType.Oven ? IngredientStep.Cooking : IngredientStep.None),
                         keySuffix: `${stepIndex}-${ingredientIndex}-${i}`
                     });
                 }
@@ -56,7 +61,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
             <div className="flex-shrink-0">
                 <div className="w-11 h-11 bg-white rounded-md overflow-hidden flex items-center justify-center shadow">
                     <img
-                        src={`/icons/${recipe.name}.png`}
+                        src={`/icons/${recipe.name.toLowerCase()}.png`}
                         alt={recipe.name}
                         className="object-contain w-9 h-9"
                         onError={(e) => (e.currentTarget.src = '/icons/placeholder.png')}
@@ -74,13 +79,20 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                             >
                                 <img
                                     src={ingredientData.iconUrl}
-                                    alt={ingredientData.needsCooking ? "Ingredient to cook" : "Ingredient"}
+                                    alt={ingredientData.step === IngredientStep.Chopping ? "Chopping" : ingredientData.step === IngredientStep.Cooking ? "Cooking" : "Ingredient"}
                                     className="w-9 h-9 object-contain bg-white/50 rounded-sm p-0.5"
                                     onError={(e) => (e.currentTarget.style.display = 'none')}
                                 />
-                                {ingredientData.needsCooking && (
+                                {ingredientData.step === IngredientStep.Cooking && (
                                     <Flame
                                         className="w-4 h-4 absolute -bottom-1 -right-1 drop-shadow animate-pulse text-orange-500"
+                                        strokeWidth={2.5}
+                                        fill="currentColor"
+                                    />
+                                )}
+                                {ingredientData.step === IngredientStep.Chopping && (
+                                    <Slice
+                                        className="w-4 h-4 absolute -bottom-1 -right-1 drop-shadow animate-pulse text-green-500"
                                         strokeWidth={2.5}
                                         fill="currentColor"
                                     />

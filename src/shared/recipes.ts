@@ -24,11 +24,6 @@ export const RECIPES: Recipe[] = [
             {
                 instruction: "Take rice from the stock and place it on a chopping board.",
                 ingredients: [{ ingredient: Ingredient.Rice, quantity: 1 }],
-                machine: InteractType.Oven,
-            },
-            {
-                instruction: "Take rice from the stock and place it on a chopping board.",
-                ingredients: [{ ingredient: Ingredient.Rice, quantity: 1 }],
                 machine: InteractType.ChoppingBoard,
             },
             {

@@ -1,6 +1,7 @@
 import type {Schema} from '@colyseus/schema'
 import {Client, getStateCallbacks, type Room, type RoomAvailable} from 'colyseus.js'
 import { useSyncExternalStore } from 'react'
+import {GameRoomState} from "@shared/schemas/GameRoomState.ts";
 
 // Recoverable error codes that should trigger reconnection
 const RECOVERABLE_ERROR_CODES = [1000, 1001, 1005, 1006]
@@ -107,28 +108,32 @@ export const colyseus = <S extends Schema>(endpoint: string, schema?: new (...ar
       stateStore.set(room.state)
       const updatedCollectionsMap: { [key in keyof S]?: boolean } = {}
 
-      const $ = getStateCallbacks(room)
+      room.onStateChange.once((state) => {
+        const $ = getStateCallbacks(room)
 
-      for (const key of Object.keys(room.state as Schema)) {
-        // @ts-ignore
-        const value = $(room.state)[key]
+        for (const key of Object.keys(state as Schema)) {
+          // @ts-ignore
+          const value = $(state)[key]
 
-        // @ts-ignore
-        if (typeof room.state[key] !== 'object') {
-          continue
-        }
+          // @ts-ignore
+          if (typeof state[key] !== "object") {
+            continue
+          }
 
-        updatedCollectionsMap[key as keyof S] = false
-        value.onAdd((item: any) => {
-          updatedCollectionsMap[key as keyof S] = true
-          $(item).onChange(() => {
+          updatedCollectionsMap[key as keyof S] = false
+
+          value.onAdd((item: any) => {
+            updatedCollectionsMap[key as keyof S] = true
+            $(item).onChange(() => {
+              updatedCollectionsMap[key as keyof S] = true
+            })
+          })
+          value.onRemove(() => {
             updatedCollectionsMap[key as keyof S] = true
           })
-        })
-        value.onRemove(() => {
-          updatedCollectionsMap[key as keyof S] = true
-        })
-      }
+        }
+      })
+
 
       room.onStateChange((state) => {
         if (!state) return
