@@ -46,6 +46,8 @@ export class GameEngine {
   private inputManager: InputManager
   private performanceManager?: PerformanceManager
   private loadedCharacterContainer: any
+  private onGameOverCallback: (score: number) => void = () => {};
+
   // Pre-allocated vector for position calculations
   private _playerPosTemp: Vector3 = new Vector3()
   private loadingState = {
@@ -84,9 +86,10 @@ export class GameEngine {
   private isTimerTickingSoundPlaying: boolean = false;
   private timerTickIntervalId: number | null = null;
 
-  constructor(scene: Scene, room: any) {
+  constructor(scene: Scene, room: any, onGameOver: (score: number) => void) {
     this.scene = scene
     this.room = room
+    this.onGameOverCallback = onGameOver;
 
     this.audioManager = new AudioManager(this.scene)
     this.inputManager = new InputManager(this.scene, this.audioManager)
@@ -504,6 +507,7 @@ export class GameEngine {
     this.room.onMessage('invalidServe', () => this.playSfx('error', 0.8));
     this.room.onMessage('stationBusy', () => this.playSfx('error', 0.8));
     this.room.onMessage('cannotPickup', () => this.playSfx('error', 0.8));
+    this.room.onMessage('invalidPickup', () => this.playSfx('error', 0.8));
     this.room.onMessage('boardNotEmpty', () => this.playSfx('error', 0.8));
     this.room.onMessage('boardEmpty', () => this.playSfx('error', 0.8));
     this.room.onMessage('error', (payload) => { // Generic error handler
@@ -512,6 +516,23 @@ export class GameEngine {
     });
 
     this.room.onMessage('orderCompleted', () => this.playSfx('orderComplete', 0.8));
+
+    this.room.onMessage("gameOver", (payload: { finalScore: number }) => {
+      console.log("Game Over! Final Score:", payload.finalScore);
+
+      // Call the callback provided by the React component
+      this.onGameOverCallback(payload.finalScore);
+
+      // Stop game actions
+      this.localController?.inputMap.clear(); // Disable local player input
+      this.audioManager.stopSound('ovenLoop'); // Stop oven sound if playing
+      this.stopTimerTickingSound(); // Stop timer tick sound if playing
+
+      // Unlock pointer if locked
+      if (this.scene.getEngine().isPointerLock) {
+        document.exitPointerLock();
+      }
+    });
   }
 
   private stopTimerTickingSound(): void {

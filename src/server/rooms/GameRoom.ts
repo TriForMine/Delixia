@@ -295,7 +295,7 @@ export class GameRoom extends Room<GameRoomState> {
 
   private timeLeftBatch: number = 0;
 
-  update(deltaTime: number) {
+  async update(deltaTime: number) {
     const now = Date.now();
 
     // Batch time left updates
@@ -310,10 +310,9 @@ export class GameRoom extends Room<GameRoomState> {
       if (this.state.timeLeft <= 0) {
         logger.info("Game time ended!");
         // Add logic to handle game end (e.g., lock room, broadcast final score)
-        this.lock(); // Prevent new players from joining
+        await this.lock(); // Prevent new players from joining
         this.broadcast("gameOver", { finalScore: this.state.score });
-        // Maybe disconnect players after a delay?
-        setTimeout(() => this.disconnect(), 10000); // Disconnect after 10s
+        await this.disconnect()
         return; // Stop further updates
       }
     }
