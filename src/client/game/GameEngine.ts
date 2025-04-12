@@ -250,18 +250,6 @@ export class GameEngine {
       this.loadingState.assets.progress = 100
       this.loadingState.currentTask = 'Assets loaded, preparing map and sounds...'
 
-      this.audioManager.loadSounds(this.soundList, undefined, () => {
-        soundsLoaded = true
-        checkLoadingComplete()
-      })
-
-      this.ingredientLoader.loadIngredientModels().then(() => {
-        ingredientModelsLoaded = true
-        checkLoadingComplete()
-      }).catch((error) => {
-        console.error('Error loading ingredient models:', error)
-      })
-
       const engine = this.scene.getEngine()
       if (engine.loadingScreen instanceof CustomLoadingScreen) {
         engine.loadingScreen.loadingUIText = this.loadingState.currentTask
@@ -304,6 +292,18 @@ export class GameEngine {
       }
     }
 
+    this.audioManager.loadSounds(this.soundList, undefined, () => {
+      soundsLoaded = true
+      checkLoadingComplete()
+    })
+
+    this.ingredientLoader.loadIngredientModels().then(() => {
+      ingredientModelsLoaded = true
+      checkLoadingComplete()
+    }).catch((error) => {
+      console.error('Error loading ingredient models:', error)
+    })
+
     // Start asset loading.
     this.assetsManager.load()
 
@@ -336,7 +336,7 @@ export class GameEngine {
             interactable.setDisabled(objState.disabled)
 
             if (objState.isActive) {
-              interactable.activate(objState.activeSince) // e.g. start fire ParticleSystem
+              interactable.activate() // e.g. start fire ParticleSystem
             } else {
               interactable.deactivate() // e.g. stop the effect
             }
@@ -350,6 +350,7 @@ export class GameEngine {
 
           const interactable = this.interactables.find((obj) => obj.id === Number(objState.id))
           if (!interactable) {
+            console.warn(`Interactable with ID ${objState.id} not found`)
             return
           }
 
@@ -357,7 +358,7 @@ export class GameEngine {
           interactable.setDisabled(objState.disabled)
 
           if (objState.isActive) {
-            interactable.activate(objState.activeSince) // e.g. start fire ParticleSystem
+            interactable.activate() // e.g. start fire ParticleSystem
           } else {
             interactable.deactivate() // e.g. stop the effect
           }
@@ -424,7 +425,7 @@ export class GameEngine {
           const currentIngredients = objState.ingredientsOnBoard;
 
           const currentArray = [...currentIngredients.values()];
-          // Check if an item was ADDED or REMOVED
+
           if (currentArray.length !== previousIngredients.length) {
             this.playSfx('pickupPlace', 0.8);
           }
@@ -433,13 +434,12 @@ export class GameEngine {
         });
       }
 
-      // Update interactable visual/particle state (existing logic)
       $(objState).onChange(() => {
         const interactable = this.interactables.find((obj) => obj.id === Number(objState.id))
         if (!interactable) return
         interactable.setDisabled(objState.disabled)
-        if (objState.isActive && interactable.interactType !== InteractType.Oven) { // Don't double-trigger activate for oven
-          interactable.activate(objState.activeSince)
+        if (objState.isActive && interactable.interactType !== InteractType.Oven) {
+          interactable.activate()
         } else if (!objState.isActive && interactable.interactType !== InteractType.Oven) {
           interactable.deactivate()
         }
@@ -458,7 +458,7 @@ export class GameEngine {
         }
         // Activate non-oven items initially if needed
         if (objState.isActive && initialInteractable.interactType !== InteractType.Oven) {
-          initialInteractable.activate(objState.activeSince)
+          initialInteractable.activate()
         }
       }
     });
@@ -657,7 +657,7 @@ export class GameEngine {
       Vector3.Distance(this._nearestInteractable.mesh.position, characterController.position) <= this._nearestInteractable.interactionDistance
     ) {
       // Trigger interaction with the cached nearest
-      this._nearestInteractable.interact(characterController, Date.now())
+      this._nearestInteractable.interact()
 
       this.room.send('interact', {
         objectId: this._nearestInteractable.id,
@@ -686,7 +686,7 @@ export class GameEngine {
       this._nearestInteractable = nearest
 
       // Trigger interaction
-      nearest.interact(characterController, Date.now())
+      nearest.interact()
 
       this.room.send('interact', {
         objectId: nearest.id,

@@ -7,7 +7,8 @@ export interface ItemDefinition {
     icon: string;         // Base name for icon lookup (e.g., "nori" -> /ingredients/nori.png)
     model: string;        // GLB file name (e.g., "Nori.glb")
     isPlate?: boolean;    // Special flag for plates
-    isResult?: boolean;   // Flag indicating if it's a recipe result (useful for serving)
+    isResult?: boolean;   // Flag indicating if it's a result item in a recipe
+    isFinal?: boolean;    // Flag indicating if it's the final item in a recipe, which can be served
 }
 
 // --- Item Registry ---
@@ -15,14 +16,108 @@ export const ITEM_REGISTRY: Record<Ingredient, ItemDefinition> = {
     [Ingredient.None]: { id: Ingredient.None, name: "None", icon: "", model: "" },
     [Ingredient.Nori]: { id: Ingredient.Nori, name: "Nori", icon: "nori", model: "Nori.glb" },
     [Ingredient.Rice]: { id: Ingredient.Rice, name: "Rice", icon: "rice", model: "Rice Ball.glb" },
-    [Ingredient.CookedRice]: { id: Ingredient.CookedRice, name: "Cooked Rice", icon: "rice", model: "Rice Ball.glb" },
-    [Ingredient.Onigiri]: { id: Ingredient.Onigiri, name: "Onigiri", icon: "onigiri", model: "Onigiri.glb", isResult: true },
+    [Ingredient.CookedRice]: { id: Ingredient.CookedRice, name: "Cooked Rice", icon: "rice", model: "Rice Ball.glb", isResult: true },
+    [Ingredient.Onigiri]: { id: Ingredient.Onigiri, name: "Onigiri", icon: "onigiri", model: "Onigiri.glb", isResult: true, isFinal: true },
     [Ingredient.Plate]: { id: Ingredient.Plate, name: "Plate", icon: "plate", model: "Plate.glb", isPlate: true },
 };
 
 // Helper function to get item definition by ID
 export function getItemDefinition(id: Ingredient): ItemDefinition | undefined {
     return ITEM_REGISTRY[id];
+}
+
+// Helper function to find a recipe that produces a specific ingredient
+function findRecipeByResult(ingredientId: Ingredient): Recipe | undefined {
+    if (ingredientId === Ingredient.None) return undefined;
+    for (const recipeId in RECIPE_REGISTRY) {
+        const recipe = RECIPE_REGISTRY[recipeId];
+        if (recipe.result.ingredient === ingredientId) {
+            return recipe;
+        }
+    }
+    return undefined;
+}
+
+export interface RecipeStepInfo {
+    type: 'GET' | 'PROCESS';      // Type of step
+    ingredient: Ingredient;      // Ingredient being obtained (GET) or *produced* (PROCESS)
+    stationType: InteractType;    // Station involved (Source for GET, Processing station for PROCESS)
+    requiredIngredients?: Ingredient[]; // Ingredients needed *at the station* for a PROCESS step
+    isFinalStep?: boolean;       // Is this the final item for the order?
+}
+
+// --- REVISED Recursive Helper ---
+function buildStepsRecursive(
+    ingredientToMake: Ingredient,
+    stepsArray: RecipeStepInfo[],
+    processedIngredients: Set<Ingredient>,
+    isFinalTarget: boolean = false
+): void {
+
+    if (processedIngredients.has(ingredientToMake) || ingredientToMake === Ingredient.None) {
+        return;
+    }
+
+    const producingRecipe = findRecipeByResult(ingredientToMake);
+
+    if (!producingRecipe) {
+        // --- BASE INGREDIENT ---
+        const itemDef = getItemDefinition(ingredientToMake);
+        if (!itemDef) return;
+
+        // Find a Stock station providing this, otherwise assume Fridge/Generic Stock
+        let sourceStation = InteractType.Fridge; // Default source
+        // Example: Check map config if needed later for specific source stations
+        // For now, Fridge/Stock is fine.
+
+        stepsArray.push({
+            type: 'GET',
+            ingredient: ingredientToMake,
+            stationType: sourceStation, // Indicate source
+            requiredIngredients: [], // GET steps don't require inputs *at the station*
+        });
+        processedIngredients.add(ingredientToMake);
+
+    } else {
+        // --- PROCESSED INGREDIENT ---
+        // Ensure all required ingredients are processed first
+        producingRecipe.requiredIngredients.forEach(req => {
+            buildStepsRecursive(req.ingredient, stepsArray, processedIngredients);
+        });
+
+        // Add the processing step itself
+        stepsArray.push({
+            type: 'PROCESS',
+            ingredient: ingredientToMake, // The result
+            stationType: producingRecipe.stationType,
+            // Explicitly list ingredients needed *at this station* for this recipe
+            requiredIngredients: producingRecipe.requiredIngredients.map(req => req.ingredient),
+            isFinalStep: isFinalTarget
+        });
+        processedIngredients.add(ingredientToMake);
+    }
+}
+
+// --- REVISED getRecipeSteps (Main Function) ---
+/**
+ * Generates a logical sequence of steps (get, process) needed to create a target recipe item.
+ * @param targetRecipeId The ID of the final recipe for the order.
+ * @returns An array of RecipeStepInfo representing the cooking flow.
+ */
+export function getRecipeSteps(targetRecipeId: string): RecipeStepInfo[] {
+    const finalRecipe = getRecipeDefinition(targetRecipeId);
+    if (!finalRecipe) return [];
+
+    const steps: RecipeStepInfo[] = [];
+    const processed = new Set<Ingredient>();
+
+    buildStepsRecursive(finalRecipe.result.ingredient, steps, processed, true);
+
+    // --- Optional: Optimization/Merging Pass ---
+    // Example: If Get Rice -> Process Rice happens consecutively, maybe merge visually?
+    // For now, the raw step list is clear enough. Let the UI handle presentation.
+
+    return steps;
 }
 
 // --- Recipe Definition ---

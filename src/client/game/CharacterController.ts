@@ -130,7 +130,7 @@ export class CharacterController {
 
     const ingredient_def = getItemDefinition(ingredient)
 
-    if (this.holdingPlate && !ingredient_def?.isResult) {
+    if (this.holdingPlate && !ingredient_def?.isFinal) {
       return
     }
 
@@ -197,9 +197,9 @@ export class CharacterController {
 
   pickupPlate() {
     const currentIngredient = this.ingredient;
-    const currentIngredientIsResult = currentIngredient !== Ingredient.None && !!getItemDefinition(currentIngredient)?.isResult;
-    if (currentIngredient !== Ingredient.None && !currentIngredientIsResult) {
-      console.warn("Client: Cannot pick up plate while holding non-result.");
+    const currentIngredientIsFinal = currentIngredient !== Ingredient.None && !!getItemDefinition(currentIngredient)?.isFinal;
+    if (currentIngredient !== Ingredient.None && !currentIngredientIsFinal) {
+      console.warn("Client: Cannot pick up plate while holding non-final.");
       return;
     }
 
@@ -218,7 +218,7 @@ export class CharacterController {
     // If dropping plate also drops ingredient on it
     if (this.ingredient !== Ingredient.None) {
       const itemDef = getItemDefinition(this.ingredient);
-      if (itemDef?.isResult) { // Only results sit on plates
+      if (itemDef?.isFinal) { // Only results sit on plates
         this.ingredient = Ingredient.None;
       }
     }

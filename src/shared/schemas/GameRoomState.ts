@@ -121,7 +121,7 @@ export class GameRoomState extends Schema {
       return; // Already holding something
     }
     // If holding a plate, only allow picking up results
-    if (player.holdingPlate && (!ingredientDef || !ingredientDef.isResult)) {
+    if (player.holdingPlate && (!ingredientDef || !ingredientDef.isFinal)) {
       return;
     }
 
@@ -140,9 +140,9 @@ export class GameRoomState extends Schema {
     if (!player) return
 
     const currentIngredient = player.holdedIngredient;
-    const currentIngredientIsResult = currentIngredient !== Ingredient.None && !!getItemDefinition(currentIngredient)?.isResult;
+    const currentIngredientIsFinal = currentIngredient !== Ingredient.None && !!getItemDefinition(currentIngredient)?.isFinal;
 
-    if (currentIngredient !== Ingredient.None && !currentIngredientIsResult) {
+    if (currentIngredient !== Ingredient.None && !currentIngredientIsFinal) {
       return;
     }
 
@@ -159,7 +159,7 @@ export class GameRoomState extends Schema {
 
     if (player.holdedIngredient !== Ingredient.None) {
       const heldItemDef = getItemDefinition(player.holdedIngredient);
-      if (heldItemDef?.isResult) {
+      if (heldItemDef?.isFinal) {
         player.holdedIngredient = Ingredient.None;
       }
     }

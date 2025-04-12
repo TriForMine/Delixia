@@ -71,15 +71,15 @@ export class GameRoom extends Room<GameRoomState> {
           }
 
           // Can't pick up if holding something incompatible
-          if (playerIngredient !== Ingredient.None && !isHoldingPlate && !playerIngredientDef?.isResult) {
+          if (playerIngredient !== Ingredient.None && !isHoldingPlate && !playerIngredientDef?.isFinal) {
             client.send('alreadyCarrying', { message: 'You are already carrying something!' });
             return;
           }
-          if (isHoldingPlate && !stockItemDef.isPlate && !stockItemDef.isResult) {
+          if (isHoldingPlate && !stockItemDef.isPlate && !stockItemDef.isFinal) {
             client.send('alreadyCarrying', { message: 'Cannot pick that up while holding a plate!' });
             return;
           }
-          if (playerIngredientDef?.isResult && !stockItemDef.isPlate) {
+          if (playerIngredientDef?.isFinal && !stockItemDef.isPlate) {
             client.send('alreadyCarrying', { message: 'You are already carrying a completed dish!' });
             return;
           }
@@ -113,7 +113,7 @@ export class GameRoom extends Room<GameRoomState> {
           const heldItemDef = getItemDefinition(playerIngredient);
 
           // Must be holding a plate AND a recipe result
-          if (!isHoldingPlate || !heldItemDef || !heldItemDef.isResult) {
+          if (!isHoldingPlate || !heldItemDef || !heldItemDef.isFinal) {
             client.send('invalidServe', { message: 'You need to serve a completed dish on a plate!' });
             return;
           }
@@ -162,11 +162,13 @@ export class GameRoom extends Room<GameRoomState> {
             // Check if the station is currently processing something
             if (this.processingTimers.has(objectId)) {
               client.send('stationBusy', { message: 'Station is currently processing!' });
+              console.warn(`Player ${client.sessionId} tried to place an ingredient on a busy station ${objectId}.`);
               return;
             }
 
-            if (obj.ingredientsOnBoard.length > 0 && obj.ingredientsOnBoard.reduce((acc, curr) => acc + (getItemDefinition(curr)?.isResult ? 1 : 0), 0) > 0) {
+            if (obj.ingredientsOnBoard.length > 0 && obj.ingredientsOnBoard.reduce((acc, curr) => acc + (getItemDefinition(curr)?.isFinal ? 1 : 0), 0) > 0) {
               client.send('boardNotEmpty', { message: 'Clear the station first!' });
+              console.warn(`Player ${client.sessionId} tried to place an ingredient on a non-empty station ${objectId}.`);
               return;
             }
 
@@ -177,6 +179,7 @@ export class GameRoom extends Room<GameRoomState> {
 
             if (!isValidForAnyRecipe) {
               client.send('invalidIngredient', { message: 'This ingredient cannot be used here!' });
+                console.warn(`Player ${client.sessionId} tried to place an invalid ingredient ${playerIngredientDef?.name} on station ${objectId}.`);
               return;
             }
 
@@ -215,35 +218,29 @@ export class GameRoom extends Room<GameRoomState> {
               client.send('stationBusy', { message: 'Station is currently processing!' });
               return;
             }
-            // Check if there's a single completed item on the board
-            if (obj.ingredientsOnBoard.length === 1) {
+
+            if (obj.ingredientsOnBoard.length > 0) {
               const itemOnBoard = obj.ingredientsOnBoard[0];
               const itemDefOnBoard = getItemDefinition(itemOnBoard);
 
               if (!itemDefOnBoard) {
                 console.warn(`Player ${client.sessionId} tried to pick up an invalid item from ${objectId}.`);
-                client.send('error', { message: 'Internal server error.' });
+                client.send('error', {message: 'Internal server error.'});
                 return;
               }
 
               // Check plate compatibility
-              if (isHoldingPlate && !itemDefOnBoard.isResult && !itemDefOnBoard.isPlate) {
+              if (isHoldingPlate && !itemDefOnBoard.isFinal && !itemDefOnBoard.isPlate) {
                 console.warn(`Player ${client.sessionId} tried to pick up ${itemDefOnBoard.name} while holding a plate.`);
-                client.send('invalidPickup', { message: 'Cannot pick that up while holding a plate!' });
+                client.send('invalidPickup', {message: 'Cannot pick that up while holding a plate!'});
                 return;
               }
 
               this.state.pickupIngredient(client.sessionId, itemOnBoard);
-              obj.ingredientsOnBoard.clear(); // Remove from board
+              obj.ingredientsOnBoard.shift();
               obj.activeSince = Date.now();
-              console.log(`Player ${client.sessionId} picked up ${itemDefOnBoard.name} from ${InteractType[obj.type]} ${objectId}`);
               logger.info(`Player ${client.sessionId} picked up ${itemDefOnBoard.name} from ${InteractType[obj.type]} ${objectId}`);
-            } else if (obj.ingredientsOnBoard.length > 1) {
-              // This shouldn't happen with the current logic, but good to handle
-              console.warn(`Player ${client.sessionId} tried to pick up from a station with multiple items.`);
-              client.send('boardNotEmpty', { message: 'Clear the station first!' });
-            }
-            else {
+            } else {
               console.warn(`Player ${client.sessionId} tried to pick up from an empty station ${objectId}.`);
               client.send('boardEmpty', { message: 'Nothing to pick up!' });
             }

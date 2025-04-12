@@ -18,10 +18,6 @@ export class InteractableObject {
   private static promptTextures: Map<string, DynamicTexture> = new Map<string, DynamicTexture>()
   // Static particle texture cache
   private static particleTextures: Map<string, Texture> = new Map<string, Texture>()
-  // Particle system pool for reuse
-  private static particleSystemPool: ParticleSystem[] = []
-  // Pool for craft complete effects
-  private static craftCompleteEffectPool: ParticleSystem[] = [];
 
   public mesh: Mesh
   public interactionDistance = 2.5
@@ -134,86 +130,20 @@ export class InteractableObject {
       texture.dispose()
     })
     this.particleTextures.clear()
-
-    // Dispose and clear particle system pool
-    this.particleSystemPool.forEach((system) => {
-      system.dispose()
-    })
-    this.particleSystemPool = []
-
-    // Dispose and clear craft complete effect pool
-    this.craftCompleteEffectPool.forEach((system) => {
-      system.dispose();
-    });
-    this.craftCompleteEffectPool = [];
   }
-
-  /**
-   * Get a particle system from the pool or create a new one
-   */
-  private static getParticleSystem(name: string, capacity: number, scene: Scene): ParticleSystem {
-    // Check if we have a system in the pool
-    if (this.particleSystemPool.length > 0) {
-      const system = this.particleSystemPool.pop()!
-      system.name = name
-      // Ensure capacity matches request, dispose/recreate if not (or adjust existing)
-      if (system.getCapacity() !== capacity) {
-        console.warn(`Recreating particle system ${name} due to capacity mismatch.`);
-        system.dispose();
-        return new ParticleSystem(name, capacity, scene);
-      }
-      return system
-    }
-
-    // Create a new system if none available in pool
-    return new ParticleSystem(name, capacity, scene)
-  }
-
-  /**
-   * Return a particle system to the pool for reuse
-   */
-  private static returnParticleSystemToPool(system: ParticleSystem): void {
-    system.stop()
-    system.reset()
-    // Reset common properties that might change
-    system.emitter = Vector3.Zero(); // Reset emitter
-    this.particleSystemPool.push(system)
-  }
-
-  // --- NEW: Craft Complete Effect Pool ---
-  private static getCraftCompleteEffectSystem(name: string, capacity: number, scene: Scene): ParticleSystem {
-    if (this.craftCompleteEffectPool.length > 0) {
-      const system = this.craftCompleteEffectPool.pop()!;
-      system.name = name;
-      if (system.getCapacity() !== capacity) {
-        console.warn(`Recreating craft complete particle system ${name} due to capacity mismatch.`);
-        system.dispose();
-        return new ParticleSystem(name, capacity, scene);
-      }
-      return system;
-    }
-    return new ParticleSystem(name, capacity, scene);
-  }
-
-  private static returnCraftCompleteEffectSystemToPool(system: ParticleSystem): void {
-    system.stop();
-    system.reset();
-    system.emitter = Vector3.Zero();
-    this.craftCompleteEffectPool.push(system);
-  }
-  // --- END NEW ---
 
 
   /**
    * Create optimized sparkle effect with reduced particle count
    */
   private createSparkleEffect() {
-    // Use pooled particle system with reduced capacity
-    this.sparkleSystem = InteractableObject.getParticleSystem(
+    this.sparkleSystem = new ParticleSystem(
         `${this.mesh.name}_sparkles`,
         15, // Reduced from 30 to 15 particles
         this.scene,
     )
+
+    this.sparkleSystem.disposeOnStop = true
 
     // Use the prompt disc as emitter (it moves with the object)
     this.sparkleSystem.emitter = this.promptDisc // Use the moving disc
@@ -308,7 +238,7 @@ export class InteractableObject {
           InteractableObject.particleTextures.set(texturePath, fireTexture);
         }
 
-        const fire = InteractableObject.getParticleSystem('fire', 600, this.scene);
+        const fire = new ParticleSystem('fire', 600, this.scene);
         fire.particleTexture = fireTexture;
         const firePosition = new Vector3();
         firePosition.copyFrom(this.mesh.getAbsolutePosition());
@@ -361,7 +291,7 @@ export class InteractableObject {
           smokeTexture.hasAlpha = true;
           InteractableObject.particleTextures.set(smokeTexturePath, smokeTexture);
         }
-        const smoke = InteractableObject.getParticleSystem('smoke', 200, this.scene);
+        const smoke = new ParticleSystem('smoke', 200, this.scene);
         smoke.particleTexture = smokeTexture;
         smoke.emitter = firePosition;
         smoke.minEmitBox = new Vector3(-0.4, 0.1, -0.4);
@@ -412,12 +342,9 @@ export class InteractableObject {
     if (!this.isActive) return; // Already inactive
     this.isActive = false;
 
-    // Stop and return any active particle systems to their pools
+    // Stop any active particle systems
     this.activeParticleSystems.forEach(system => {
       system.stop();
-      if (system.name === 'fire' || system.name === 'smoke') {
-        InteractableObject.returnParticleSystemToPool(system);
-      }
     });
     this.activeParticleSystems = [];
   }
@@ -427,8 +354,6 @@ export class InteractableObject {
     if (this.disabled && !this.isActive) {
       return
     }
-
-    // We don't visually 'activate' stock or trash here, server handles state change.
   }
 
   public updateIngredientsOnBoard(ingredients: Ingredient[]): void {
@@ -478,7 +403,7 @@ export class InteractableObject {
 
   private playCraftCompleteEffect(): void {
     const capacity = 50; // Number of particles for the effect
-    const effectSystem = InteractableObject.getCraftCompleteEffectSystem(
+    const effectSystem = new ParticleSystem(
         `${this.mesh.name}_craft_complete`,
         capacity,
         this.scene
@@ -535,7 +460,6 @@ export class InteractableObject {
     setTimeout(() => {
       if (effectSystem) { // Check if system still exists
         effectSystem.stop();
-        InteractableObject.returnCraftCompleteEffectSystemToPool(effectSystem);
       }
     }, (effectSystem.maxLifeTime + 0.2) * 1000); // Stop slightly after max lifetime
   }
@@ -553,11 +477,6 @@ export class InteractableObject {
     this.deactivate(); // Ensure active effects are stopped/returned
     this.clearIngredientsOnBoard(); // Ensure displayed items are removed
     this.promptDisc.dispose();
-    // Dispose particles if any created directly here
-    if (this.sparkleSystem) {
-      InteractableObject.returnParticleSystemToPool(this.sparkleSystem); // Return to pool
-      this.sparkleSystem = undefined;
-    }
 
     console.log(`InteractableObject ${this.id} disposed`);
   }
