@@ -78,6 +78,8 @@ export class SpatialGrid {
         const cellObjects = this.cells.get(key);
         if (cellObjects) {
           for (const obj of cellObjects) {
+            if (obj.isDisabled() || obj.isActive) continue;
+
             const dist = Vector3.Distance(obj.mesh.position, position);
             if (dist <= maxDistance) {
               result.push(obj);

@@ -12,7 +12,7 @@ import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
 import { getItemDefinition } from "@shared/definitions.ts"; // Ensure this import exists
 
 export class InteractableObject {
-  private isActive: boolean = false
+  isActive: boolean = false
 
   // Static texture cache for sharing textures between instances
   private static promptTextures: Map<string, DynamicTexture> = new Map<string, DynamicTexture>()
@@ -359,8 +359,8 @@ export class InteractableObject {
   public updateIngredientsOnBoard(ingredients: Ingredient[]): void {
     // Detect if a *result* ingredient just appeared
     const justGotResult = ingredients.length > 0 &&
-        getItemDefinition(ingredients[0])?.isResult && // Check if the first/only item is a result
-        !this.lastIngredientsOnBoard.some(ing => getItemDefinition(ing)?.isResult); // And we didn't have a result before
+        getItemDefinition(ingredients[0])?.isFinal && // Check if the first/only item is a result
+        !this.lastIngredientsOnBoard.some(ing => getItemDefinition(ing)?.isFinal); // And we didn't have a result before
 
     this.clearIngredientsOnBoard(); // Clear previous visuals
 

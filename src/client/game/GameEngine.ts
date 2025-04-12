@@ -71,15 +71,15 @@ export class GameEngine {
   private soundList: SoundConfig[] = [
     { name: 'pickupPlace', path: 'assets/audio/pickup_place.ogg', options: { volume: 0.3 } },
     { name: 'trash', path: 'assets/audio/trash.ogg', options: { volume: 0.2 } },
-    { name: 'orderComplete', path: 'assets/audio/order_complete.ogg', options: { volume: 1.0 } },
-    { name: 'error', path: 'assets/audio/error.ogg', options: { volume: 0.3 } },
+    { name: 'orderComplete', path: 'assets/audio/order_complete.ogg', options: { volume: 0.4 } },
+    { name: 'error', path: 'assets/audio/error.ogg', options: { volume: 0.2 } },
     { name: 'ovenLoop', path: 'assets/audio/oven_loop.ogg', options: { volume: 0.025, spatialSound: true, loop: true } },
     { name: 'footstep_wood_01', path: 'assets/audio/footstep_wood_001.ogg', options: { volume: 0.7, spatialSound: true, distanceModel: 'linear' } },
     { name: 'footstep_wood_02', path: 'assets/audio/footstep_wood_002.ogg', options: { volume: 0.7, spatialSound: true, distanceModel: 'linear' } },
     { name: 'footstep_wood_03', path: 'assets/audio/footstep_wood_003.ogg', options: { volume: 0.7, spatialSound: true, distanceModel: 'linear' } },
     { name: 'footstep_wood_04', path: 'assets/audio/footstep_wood_004.ogg', options: { volume: 0.7, spatialSound: true, distanceModel: 'linear' } },
     { name: 'jumpLand', path: 'assets/audio/jump_land.ogg', options: { volume: 0.5, spatialSound: true, distanceModel: 'linear' } },
-    { name: 'timerTick', path: 'assets/audio/timer_tick.ogg', options: { volume: 0.8 } },
+    { name: 'timerTick', path: 'assets/audio/timer_tick.ogg', options: { volume: 0.4 } },
   ]
 
   // --- state for timer sound ---
@@ -427,7 +427,7 @@ export class GameEngine {
           const currentArray = [...currentIngredients.values()];
 
           if (currentArray.length !== previousIngredients.length) {
-            this.playSfx('pickupPlace', 0.8);
+            this.playSfx('pickupPlace');
           }
 
           previousIngredients = currentArray;
@@ -474,12 +474,12 @@ export class GameEngine {
           clearInterval(this.timerTickIntervalId);
         }
         // Play immediately once
-        this.playSfx('timerTick', 0.8);
+        this.playSfx('timerTick');
         // Then play every second
         this.timerTickIntervalId = window.setInterval(() => {
           // Check again inside interval in case state changed rapidly
           if (this.room.state.timeLeft <= 10000 && this.room.state.timeLeft > 0) {
-            this.playSfx('timerTick', 0.8);
+            this.playSfx('timerTick');
           } else {
             // Stop if time went up or reached zero during the interval
             this.stopTimerTickingSound();
@@ -496,26 +496,27 @@ export class GameEngine {
 
 
     // --- Listen for Server Messages (Errors, etc.) ---
-    this.room.onMessage('alreadyCarrying', () => this.playSfx('error', 0.8));
-    this.room.onMessage('noIngredient', () => this.playSfx('error', 0.8));
-    this.room.onMessage('invalidIngredient', () => this.playSfx('error', 0.8));
-    this.room.onMessage('noMatchingOrder', () => this.playSfx('error', 0.8));
-    this.room.onMessage('needPlate', () => this.playSfx('error', 0.8));
-    this.room.onMessage('wrongIngredient', () => this.playSfx('error', 0.8));
-    this.room.onMessage('orderCompleted', () => this.playSfx('orderComplete', 0.8));
+    this.room.onMessage('alreadyCarrying', () => this.playSfx('error'));
+    this.room.onMessage('noIngredient', () => this.playSfx('error'));
+    this.room.onMessage('invalidIngredient', () => this.playSfx('error'));
+    this.room.onMessage('noMatchingOrder', () => this.playSfx('error'));
+    this.room.onMessage('needPlate', () => this.playSfx('error'));
+    this.room.onMessage('wrongIngredient', () => this.playSfx('error'));
+    this.room.onMessage('orderCompleted', () => this.playSfx('orderComplete'));
 
-    this.room.onMessage('invalidServe', () => this.playSfx('error', 0.8));
-    this.room.onMessage('stationBusy', () => this.playSfx('error', 0.8));
-    this.room.onMessage('cannotPickup', () => this.playSfx('error', 0.8));
-    this.room.onMessage('invalidPickup', () => this.playSfx('error', 0.8));
-    this.room.onMessage('boardNotEmpty', () => this.playSfx('error', 0.8));
-    this.room.onMessage('boardEmpty', () => this.playSfx('error', 0.8));
+    this.room.onMessage('invalidServe', () => this.playSfx('error'));
+    this.room.onMessage('stationBusy', () => this.playSfx('error'));
+    this.room.onMessage('cannotPickup', () => this.playSfx('error'));
+    this.room.onMessage('invalidPickup', () => this.playSfx('error'));
+    this.room.onMessage('invalidCombination', () => this.playSfx('error'));
+    this.room.onMessage('boardNotEmpty', () => this.playSfx('error'));
+    this.room.onMessage('boardEmpty', () => this.playSfx('error'));
     this.room.onMessage('error', (payload) => { // Generic error handler
       console.warn("Received error from server:", payload?.message || 'Unknown error');
-      this.playSfx('error', 0.8);
+      this.playSfx('error');
     });
 
-    this.room.onMessage('orderCompleted', () => this.playSfx('orderComplete', 0.8));
+    this.room.onMessage('orderCompleted', () => this.playSfx('orderComplete'));
 
     this.room.onMessage("gameOver", (payload: { finalScore: number }) => {
       console.log("Game Over! Final Score:", payload.finalScore);
