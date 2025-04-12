@@ -44,7 +44,7 @@ const App: React.FC = () => {
     const audioElement = audioRef.current;
     if (audioElement) {
 
-      audioElement.volume = 0.1;
+      audioElement.volume = 0.01;
 
       const playPromise = audioElement.play();
 
@@ -85,6 +85,7 @@ const App: React.FC = () => {
           src="/assets/music/theme.mp3"
           loop
           preload="auto"
+          autoPlay={true}
       />
 
       {mode === 'menu' && (
