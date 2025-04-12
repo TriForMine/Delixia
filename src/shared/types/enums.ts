@@ -16,4 +16,5 @@ export enum Ingredient {
   Rice,
   Onigiri,
   Plate,
+  CookedRice
 }

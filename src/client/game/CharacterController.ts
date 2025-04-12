@@ -196,8 +196,11 @@ export class CharacterController {
   }
 
   pickupPlate() {
-    if (this.ingredient !== Ingredient.None) {
-      return
+    const currentIngredient = this.ingredient;
+    const currentIngredientIsResult = currentIngredient !== Ingredient.None && !!getItemDefinition(currentIngredient)?.isResult;
+    if (currentIngredient !== Ingredient.None && !currentIngredientIsResult) {
+      console.warn("Client: Cannot pick up plate while holding non-result.");
+      return;
     }
 
     this.forcePickupPlate()

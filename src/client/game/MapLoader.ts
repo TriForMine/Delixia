@@ -10,7 +10,6 @@ import type { Scene } from '@babylonjs/core/scene'
 import type { MapModelConfig } from '@shared/utils/mapUtils.ts'
 import { generateMapHash } from '@shared/utils/mapUtils.ts'
 import { InteractableObject } from './InteractableObject'
-import { Ingredient } from '@shared/types/enums.ts'
 import type { IngredientLoader } from './IngredientLoader'
 
 export class MapLoader {
@@ -134,7 +133,6 @@ export class MapLoader {
               root,
               this.scene,
               interaction.interactType,
-              interaction.ingredient ?? Ingredient.None,
               interaction.id,
               offset,
               'E',

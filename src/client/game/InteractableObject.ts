@@ -1,15 +1,15 @@
+// src/client/game/InteractableObject.ts
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial'
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color'
-import {Quaternion, Vector3} from '@babylonjs/core/Maths/math.vector'
+import { Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector'
 import { Mesh, MeshBuilder } from '@babylonjs/core/Meshes'
 import { ParticleSystem } from '@babylonjs/core/Particles/particleSystem'
 import { Texture } from '@babylonjs/core/Materials/Textures/texture'
 import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture'
 import type { Scene } from '@babylonjs/core/scene'
 import { Ingredient, InteractType } from '@shared/types/enums.ts'
-import type { LocalCharacterController } from '@client/game/LocalCharacterController.ts'
 import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
-import {getItemDefinition} from "@shared/definitions.ts";
+import { getItemDefinition } from "@shared/definitions.ts"; // Ensure this import exists
 
 export class InteractableObject {
   private isActive: boolean = false
@@ -20,6 +20,8 @@ export class InteractableObject {
   private static particleTextures: Map<string, Texture> = new Map<string, Texture>()
   // Particle system pool for reuse
   private static particleSystemPool: ParticleSystem[] = []
+  // Pool for craft complete effects
+  private static craftCompleteEffectPool: ParticleSystem[] = [];
 
   public mesh: Mesh
   public interactionDistance = 2.5
@@ -28,11 +30,13 @@ export class InteractableObject {
   private readonly scene: Scene
   private readonly billboardOffset: Vector3
   readonly interactType: InteractType
-  private readonly ingredientType: Ingredient
   public id: number
   private sparkleSystem?: ParticleSystem
   private readonly ingredientLoader?: IngredientLoader
   private displayedIngredients: Mesh[] = []
+  // Store the last known ingredients to detect changes
+  private lastIngredientsOnBoard: Ingredient[] = [];
+
 
   // Pre-allocated vector for position updates
   private _positionUpdateTemp: Vector3 = new Vector3()
@@ -41,7 +45,6 @@ export class InteractableObject {
       mesh: Mesh,
       scene: Scene,
       interactType: InteractType,
-      ingredientType: Ingredient,
       interactId: number,
       billboardOffset?: Vector3,
       keyPrompt: string = 'E',
@@ -112,7 +115,6 @@ export class InteractableObject {
     this.createSparkleEffect()
 
     this.interactType = interactType
-    this.ingredientType = ingredientType
     this.id = interactId
   }
 
@@ -138,6 +140,12 @@ export class InteractableObject {
       system.dispose()
     })
     this.particleSystemPool = []
+
+    // Dispose and clear craft complete effect pool
+    this.craftCompleteEffectPool.forEach((system) => {
+      system.dispose();
+    });
+    this.craftCompleteEffectPool = [];
   }
 
   /**
@@ -148,6 +156,12 @@ export class InteractableObject {
     if (this.particleSystemPool.length > 0) {
       const system = this.particleSystemPool.pop()!
       system.name = name
+      // Ensure capacity matches request, dispose/recreate if not (or adjust existing)
+      if (system.getCapacity() !== capacity) {
+        console.warn(`Recreating particle system ${name} due to capacity mismatch.`);
+        system.dispose();
+        return new ParticleSystem(name, capacity, scene);
+      }
       return system
     }
 
@@ -161,8 +175,34 @@ export class InteractableObject {
   private static returnParticleSystemToPool(system: ParticleSystem): void {
     system.stop()
     system.reset()
+    // Reset common properties that might change
+    system.emitter = Vector3.Zero(); // Reset emitter
     this.particleSystemPool.push(system)
   }
+
+  // --- NEW: Craft Complete Effect Pool ---
+  private static getCraftCompleteEffectSystem(name: string, capacity: number, scene: Scene): ParticleSystem {
+    if (this.craftCompleteEffectPool.length > 0) {
+      const system = this.craftCompleteEffectPool.pop()!;
+      system.name = name;
+      if (system.getCapacity() !== capacity) {
+        console.warn(`Recreating craft complete particle system ${name} due to capacity mismatch.`);
+        system.dispose();
+        return new ParticleSystem(name, capacity, scene);
+      }
+      return system;
+    }
+    return new ParticleSystem(name, capacity, scene);
+  }
+
+  private static returnCraftCompleteEffectSystemToPool(system: ParticleSystem): void {
+    system.stop();
+    system.reset();
+    system.emitter = Vector3.Zero();
+    this.craftCompleteEffectPool.push(system);
+  }
+  // --- END NEW ---
+
 
   /**
    * Create optimized sparkle effect with reduced particle count
@@ -175,7 +215,8 @@ export class InteractableObject {
         this.scene,
     )
 
-    this.sparkleSystem.emitter = this.promptDisc
+    // Use the prompt disc as emitter (it moves with the object)
+    this.sparkleSystem.emitter = this.promptDisc // Use the moving disc
 
     // Reuse Vector3 instances for emit boxes
     const minEmitBox = new Vector3(-0.1, -0.1, -0.1)
@@ -212,6 +253,7 @@ export class InteractableObject {
     // Optimize for performance
     this.sparkleSystem.preWarmCycles = 0
     this.sparkleSystem.disposeOnStop = false // Allow reuse
+    this.sparkleSystem.stop(); // Start stopped
   }
 
   private disabled: boolean = false
@@ -233,226 +275,173 @@ export class InteractableObject {
       show = false
     }
 
-    this.promptDisc.setEnabled(show)
-    if (this.sparkleSystem) {
-      if (show) this.sparkleSystem.start()
-      else this.sparkleSystem.stop()
+    // Prevent showing prompt if the object is currently active (e.g., oven is on)
+    if (this.isActive) {
+      show = false;
+    }
+
+    // Only change state if needed
+    if (this.promptDisc.isEnabled() !== show) {
+      this.promptDisc.setEnabled(show);
+      if (this.sparkleSystem) {
+        if (show) this.sparkleSystem.start();
+        else this.sparkleSystem.stop();
+      }
     }
   }
 
-  public activate(start: number, character?: LocalCharacterController): void {
-    this.isActive = true
+  public activate(): void {
+    if (this.isActive) return; // Already active
+    this.isActive = true;
+    this.showPrompt(false); // Hide prompt when active
 
     switch (this.interactType) {
       case InteractType.Oven: {
-        // Particle texture cache is initialized at class definition
-
-        // Get or create fire texture - using Star-Texture for better flame appearance
-        let fireTexture: Texture
-        const texturePath = 'assets/particles/Star-Texture.png'
+        // --- Oven Particle Effect Logic (unchanged) ---
+        let fireTexture: Texture;
+        const texturePath = 'assets/particles/Star-Texture.png';
         if (InteractableObject.particleTextures.has(texturePath)) {
-          fireTexture = InteractableObject.particleTextures.get(texturePath)!
+          fireTexture = InteractableObject.particleTextures.get(texturePath)!;
         } else {
-          fireTexture = new Texture(texturePath, this.scene)
-          fireTexture.hasAlpha = true
-          InteractableObject.particleTextures.set(texturePath, fireTexture)
+          fireTexture = new Texture(texturePath, this.scene);
+          fireTexture.hasAlpha = true;
+          InteractableObject.particleTextures.set(texturePath, fireTexture);
         }
 
-        // Get a particle system from the pool with increased capacity for denser gas furnace fire
-        const fire = InteractableObject.getParticleSystem('fire', 600, this.scene) // Increased from 400 to 600 for denser gas furnace fire
-        fire.particleTexture = fireTexture
+        const fire = InteractableObject.getParticleSystem('fire', 600, this.scene);
+        fire.particleTexture = fireTexture;
+        const firePosition = new Vector3();
+        firePosition.copyFrom(this.mesh.getAbsolutePosition());
+        firePosition.y += 1;
+        fire.emitter = firePosition;
+        const minEmitBox = new Vector3(-0.35, 0, -0.35);
+        const maxEmitBox = new Vector3(0.35, 0.2, 0.35);
+        fire.minEmitBox = minEmitBox;
+        fire.maxEmitBox = maxEmitBox;
+        fire.color1 = new Color4(0.6, 0.4, 0.9, 0.8);
+        fire.color2 = new Color4(0.4, 0.7, 0.9, 0.8);
+        fire.colorDead = new Color4(0.2, 0.1, 0.3, 0);
+        fire.addColorGradient(0, new Color4(0.6, 0.4, 0.9, 0.6));
+        fire.addColorGradient(0.3, new Color4(0.7, 0.5, 0.9, 0.7));
+        fire.addColorGradient(0.6, new Color4(0.4, 0.7, 0.9, 0.5));
+        fire.addColorGradient(1.0, new Color4(0.2, 0.5, 0.8, 0));
+        fire.minSize = 0.02;
+        fire.maxSize = 0.12;
+        fire.minLifeTime = 0.2;
+        fire.maxLifeTime = 0.6;
+        fire.addSizeGradient(0, 0.02);
+        fire.addSizeGradient(0.2, 0.08);
+        fire.addSizeGradient(0.4, 0.04);
+        fire.addSizeGradient(0.6, 0.1);
+        fire.addSizeGradient(0.8, 0.06);
+        fire.addSizeGradient(1.0, 0.01);
+        fire.emitRate = 150;
+        fire.blendMode = ParticleSystem.BLENDMODE_ADD;
+        fire.minInitialRotation = 0;
+        fire.maxInitialRotation = Math.PI * 2;
+        const gravity = new Vector3(0, -2, 0);
+        fire.gravity = gravity;
+        const direction1 = new Vector3(-0.3, 2, -0.3);
+        const direction2 = new Vector3(0.3, 3, 0.3);
+        fire.direction1 = direction1;
+        fire.direction2 = direction2;
+        fire.minAngularSpeed = -Math.PI * 1.5;
+        fire.maxAngularSpeed = Math.PI * 1.5;
+        fire.minEmitPower = 0.05;
+        fire.maxEmitPower = 0.2;
+        fire.updateSpeed = 0.01;
+        fire.disposeOnStop = false;
 
-        // Get emitter position and adjust to be at the top of the oven
-        // Create a new Vector3 instance specifically for the fire emitter to prevent it from being affected by other code
-        const firePosition = new Vector3()
-        firePosition.copyFrom(this.mesh.getAbsolutePosition())
-        // Add Y-offset to position the fire at the top of the oven (position + size/2)
-        firePosition.y += 1 // Increased offset to ensure fire appears at the top of the oven
-        fire.emitter = firePosition
-
-        // Create an emission box for gas furnace flame - wider at base, taller for more vertical flame
-        const minEmitBox = new Vector3(-0.35, 0, -0.35) // Wider in X and Z for gas burner shape
-        const maxEmitBox = new Vector3(0.35, 0.2, 0.35) // Taller in Y for more vertical gas flame
-        fire.minEmitBox = minEmitBox
-        fire.maxEmitBox = maxEmitBox
-
-        // Colors - fantasy/dreamland color scheme with pastels and ethereal tones
-        fire.color1 = new Color4(0.6, 0.4, 0.9, 0.8) // Soft purple base
-        fire.color2 = new Color4(0.4, 0.7, 0.9, 0.8) // Dreamy blue tips
-        fire.colorDead = new Color4(0.2, 0.1, 0.3, 0) // Faint purple glow as it fades
-
-        // Add color gradient over lifetime for fantasy/dreamland appearance
-        fire.addColorGradient(0, new Color4(0.6, 0.4, 0.9, 0.6)) // Start with soft purple, more transparent
-        fire.addColorGradient(0.3, new Color4(0.7, 0.5, 0.9, 0.7)) // Transition to lavender
-        fire.addColorGradient(0.6, new Color4(0.4, 0.7, 0.9, 0.5)) // Shift to dreamy blue
-        fire.addColorGradient(1.0, new Color4(0.2, 0.5, 0.8, 0)) // Fade to transparent blue
-
-        // Smaller particles for fantasy/dreamland star effect
-        fire.minSize = 0.02 // Much smaller min size for delicate stars
-        fire.maxSize = 0.12 // Smaller max size for delicate stars
-        fire.minLifeTime = 0.2 // Slightly longer minimum for dreamy effect
-        fire.maxLifeTime = 0.6 // Longer maximum for dreamy effect
-
-        // Add size gradients for magical twinkling effect
-        fire.addSizeGradient(0, 0.02) // Start very small
-        fire.addSizeGradient(0.2, 0.08) // Quick growth
-        fire.addSizeGradient(0.4, 0.04) // First twinkle - shrink
-        fire.addSizeGradient(0.6, 0.1) // Second twinkle - grow
-        fire.addSizeGradient(0.8, 0.06) // Third twinkle - shrink
-        fire.addSizeGradient(1.0, 0.01) // End very small
-        fire.emitRate = 150 // Increased for more numerous tiny stars
-        fire.blendMode = ParticleSystem.BLENDMODE_ADD // ADD blending for ethereal glow effect
-
-        // Enable particle rotation for magical twinkling effect
-        fire.minInitialRotation = 0
-        fire.maxInitialRotation = Math.PI * 2 // Random initial rotation
-
-        // Reduced gravity for floating, dreamy effect
-        const gravity = new Vector3(0, -2, 0) // Much lighter gravity for floating stars
-        fire.gravity = gravity
-
-        // Gentle, swirling direction for fantasy/dreamland effect
-        const direction1 = new Vector3(-0.3, 2, -0.3) // Gentler upward movement with slight spread
-        const direction2 = new Vector3(0.3, 3, 0.3) // Gentler upward movement with slight spread
-        fire.direction1 = direction1
-        fire.direction2 = direction2
-
-        // Enhanced rotation for twinkling, magical effect
-        fire.minAngularSpeed = -Math.PI * 1.5 // Faster rotation for twinkling
-        fire.maxAngularSpeed = Math.PI * 1.5 // Faster rotation for twinkling
-        fire.minEmitPower = 0.05 // Very gentle emission for dreamy floating
-        fire.maxEmitPower = 0.2 // Very gentle emission for dreamy floating
-        fire.updateSpeed = 0.01 // Slower updates for dreamier effect
-
-        // Optimize for performance
-        fire.disposeOnStop = false // Allow reuse
-
-        // Create a second particle system for smoke effect
-        let smokeTexture: Texture
-        const smokeTexturePath = 'assets/particles/ExplosionTexture-Smoke-1.png'
+        let smokeTexture: Texture;
+        const smokeTexturePath = 'assets/particles/ExplosionTexture-Smoke-1.png';
         if (InteractableObject.particleTextures.has(smokeTexturePath)) {
-          smokeTexture = InteractableObject.particleTextures.get(smokeTexturePath)!
+          smokeTexture = InteractableObject.particleTextures.get(smokeTexturePath)!;
         } else {
-          smokeTexture = new Texture(smokeTexturePath, this.scene)
-          smokeTexture.hasAlpha = true
-          InteractableObject.particleTextures.set(smokeTexturePath, smokeTexture)
+          smokeTexture = new Texture(smokeTexturePath, this.scene);
+          smokeTexture.hasAlpha = true;
+          InteractableObject.particleTextures.set(smokeTexturePath, smokeTexture);
         }
+        const smoke = InteractableObject.getParticleSystem('smoke', 200, this.scene);
+        smoke.particleTexture = smokeTexture;
+        smoke.emitter = firePosition;
+        smoke.minEmitBox = new Vector3(-0.4, 0.1, -0.4);
+        smoke.maxEmitBox = new Vector3(0.4, 0.3, 0.4);
+        smoke.color1 = new Color4(0.4, 0.4, 0.5, 0.2);
+        smoke.color2 = new Color4(0.2, 0.2, 0.3, 0.2);
+        smoke.colorDead = new Color4(0.1, 0.1, 0.1, 0);
+        smoke.addColorGradient(0, new Color4(0.4, 0.4, 0.6, 0.0));
+        smoke.addColorGradient(0.1, new Color4(0.3, 0.3, 0.4, 0.2));
+        smoke.addColorGradient(0.6, new Color4(0.2, 0.2, 0.25, 0.15));
+        smoke.addColorGradient(1.0, new Color4(0.1, 0.1, 0.1, 0));
+        smoke.minSize = 0.3;
+        smoke.maxSize = 0.7;
+        smoke.minLifeTime = 0.5;
+        smoke.maxLifeTime = 1.2;
+        smoke.addSizeGradient(0, 0.2);
+        smoke.addSizeGradient(0.3, 0.5);
+        smoke.addSizeGradient(0.7, 0.7);
+        smoke.addSizeGradient(1.0, 0.9);
+        smoke.emitRate = 30;
+        smoke.blendMode = ParticleSystem.BLENDMODE_STANDARD;
+        smoke.minInitialRotation = 0;
+        smoke.maxInitialRotation = Math.PI * 2;
+        smoke.minAngularSpeed = -0.5;
+        smoke.maxAngularSpeed = 0.5;
+        smoke.gravity = new Vector3(0, -1, 0);
+        smoke.direction1 = new Vector3(-0.2, 1, -0.2);
+        smoke.direction2 = new Vector3(0.2, 1.5, 0.2);
+        smoke.minEmitPower = 0.1;
+        smoke.maxEmitPower = 0.3;
+        smoke.updateSpeed = 0.01;
+        smoke.disposeOnStop = false;
 
-        const smoke = InteractableObject.getParticleSystem('smoke', 200, this.scene)
-        smoke.particleTexture = smokeTexture
+        fire.start();
+        smoke.start();
 
-        // Use the same emitter position as the fire
-        smoke.emitter = firePosition
-
-        // Wider emission box for smoke
-        smoke.minEmitBox = new Vector3(-0.4, 0.1, -0.4)
-        smoke.maxEmitBox = new Vector3(0.4, 0.3, 0.4)
-
-        // Smoke colors - grayish with blue tint
-        smoke.color1 = new Color4(0.4, 0.4, 0.5, 0.2)
-        smoke.color2 = new Color4(0.2, 0.2, 0.3, 0.2)
-        smoke.colorDead = new Color4(0.1, 0.1, 0.1, 0)
-
-        // Add color gradient for more realistic smoke appearance
-        smoke.addColorGradient(0, new Color4(0.4, 0.4, 0.6, 0.0)) // Start transparent
-        smoke.addColorGradient(0.1, new Color4(0.3, 0.3, 0.4, 0.2)) // Become visible
-        smoke.addColorGradient(0.6, new Color4(0.2, 0.2, 0.25, 0.15)) // Darker as it rises
-        smoke.addColorGradient(1.0, new Color4(0.1, 0.1, 0.1, 0)) // Fade out
-
-        // Larger, slower smoke particles
-        smoke.minSize = 0.3
-        smoke.maxSize = 0.7
-        smoke.minLifeTime = 0.5
-        smoke.maxLifeTime = 1.2
-
-        // Add size gradients for more realistic smoke appearance
-        smoke.addSizeGradient(0, 0.2) // Start small
-        smoke.addSizeGradient(0.3, 0.5) // Grow as it rises
-        smoke.addSizeGradient(0.7, 0.7) // Continue growing
-        smoke.addSizeGradient(1.0, 0.9) // Largest at the end
-        smoke.emitRate = 30
-        smoke.blendMode = ParticleSystem.BLENDMODE_STANDARD
-
-        // Enable rotation for smoke
-        smoke.minInitialRotation = 0
-        smoke.maxInitialRotation = Math.PI * 2
-        smoke.minAngularSpeed = -0.5
-        smoke.maxAngularSpeed = 0.5
-
-        // Less gravity for smoke to rise
-        smoke.gravity = new Vector3(0, -1, 0)
-
-        // Slower upward movement
-        smoke.direction1 = new Vector3(-0.2, 1, -0.2)
-        smoke.direction2 = new Vector3(0.2, 1.5, 0.2)
-
-        smoke.minEmitPower = 0.1
-        smoke.maxEmitPower = 0.3
-        smoke.updateSpeed = 0.01
-
-        // Start both particle systems
-        fire.start()
-        smoke.start()
-
-        // Return both to pool after use
-        const remainingTime = 5000 - (Date.now() - start)
-        setTimeout(() => {
-          fire.stop()
-          smoke.stop()
-          InteractableObject.returnParticleSystemToPool(fire)
-          InteractableObject.returnParticleSystemToPool(smoke)
-          this.isActive = false
-        }, remainingTime)
-
+        // Store these systems to stop them later in deactivate()
+        this.activeParticleSystems.push(fire, smoke);
       }
         break;
-      case InteractType.Stock:
-        if (character) {
-          // Handle plates differently
-          if (this.ingredientType === Ingredient.Plate) {
-            character.pickupPlate()
-          } else {
-            character.pickupIngredient(this.ingredientType)
-          }
-        }
-        this.isActive = false // Deactivate after interaction
-        break
-      case InteractType.Trash:
-        if (character) {
-          // Drop ingredient if holding one
-          if (character.holdedIngredient !== Ingredient.None) {
-            character.dropIngredient()
-          }
-          // Drop plate if holding one
-          else if (character.isHoldingPlate) {
-            character.dropPlate()
-          }
-        }
-        this.isActive = false // Deactivate after interaction
-        break
-      default:
-        break
     }
   }
 
+  // Store active particle systems to stop them correctly
+  private activeParticleSystems: ParticleSystem[] = [];
+
   public deactivate(): void {
-    this.isActive = false
+    if (!this.isActive) return; // Already inactive
+    this.isActive = false;
+
+    // Stop and return any active particle systems to their pools
+    this.activeParticleSystems.forEach(system => {
+      system.stop();
+      if (system.name === 'fire' || system.name === 'smoke') {
+        InteractableObject.returnParticleSystemToPool(system);
+      }
+    });
+    this.activeParticleSystems = [];
   }
 
-  public interact(character: LocalCharacterController, timestamp: number): void {
+  public interact(): void {
     // Don't allow interaction if object is disabled
     if (this.disabled && !this.isActive) {
       return
     }
 
-    this.activate(timestamp, character)
+    // We don't visually 'activate' stock or trash here, server handles state change.
   }
 
   public updateIngredientsOnBoard(ingredients: Ingredient[]): void {
+    // Detect if a *result* ingredient just appeared
+    const justGotResult = ingredients.length > 0 &&
+        getItemDefinition(ingredients[0])?.isResult && // Check if the first/only item is a result
+        !this.lastIngredientsOnBoard.some(ing => getItemDefinition(ing)?.isResult); // And we didn't have a result before
+
     this.clearIngredientsOnBoard(); // Clear previous visuals
 
     if (!this.ingredientLoader) {
       console.warn("IngredientLoader not available in InteractableObject.");
+      this.lastIngredientsOnBoard = [...ingredients]; // Update memory even if loader fails
       return;
     }
 
@@ -466,7 +455,10 @@ export class InteractableObject {
 
         // Position ingredients on top, slightly offset based on index
         // Adjust offsets as needed for your station models
-        ingredientMesh.position = new Vector3(0, 0.1 + index * 0.05, 0);
+        const yOffset = 0.1 + (index * 0.05); // Base height + stacking offset
+        const xOffset = (ingredients.length > 1) ? (index - (ingredients.length - 1) / 2) * 0.15 : 0; // Spread out if multiple
+
+        ingredientMesh.position = new Vector3(xOffset, yOffset, 0); // Example positioning
         ingredientMesh.scaling = new Vector3(0.5, 0.5, 0.5);
         ingredientMesh.rotationQuaternion = Quaternion.Identity();
         ingredientMesh.isPickable = false; // Usually items on board aren't directly pickable by raycast
@@ -474,7 +466,80 @@ export class InteractableObject {
         this.displayedIngredients.push(ingredientMesh);
       }
     });
+
+    // Trigger craft complete effect if a result just appeared
+    if (justGotResult) {
+      this.playCraftCompleteEffect();
+    }
+
+    // Update the memory of ingredients
+    this.lastIngredientsOnBoard = [...ingredients];
   }
+
+  private playCraftCompleteEffect(): void {
+    const capacity = 50; // Number of particles for the effect
+    const effectSystem = InteractableObject.getCraftCompleteEffectSystem(
+        `${this.mesh.name}_craft_complete`,
+        capacity,
+        this.scene
+    );
+
+    // --- Configure the effect ---
+    // Emitter position slightly above the station center
+    const emitterPos = this.mesh.getAbsolutePosition().add(new Vector3(0, 0.3, 0)); // Adjust Y as needed
+    effectSystem.emitter = emitterPos;
+    effectSystem.particleEmitterType = effectSystem.createSphereEmitter(1.2)
+
+    // Texture (using flare for sparkles)
+    let flareTexture: Texture;
+    const texturePath = 'assets/particles/Star-Texture.png'; // Or use Star-Texture.png
+    if (InteractableObject.particleTextures.has(texturePath)) {
+      flareTexture = InteractableObject.particleTextures.get(texturePath)!;
+    } else {
+      flareTexture = new Texture(texturePath, this.scene);
+      flareTexture.hasAlpha = true;
+      InteractableObject.particleTextures.set(texturePath, flareTexture);
+    }
+    effectSystem.particleTexture = flareTexture;
+
+    // Colors (Bright and celebratory)
+    effectSystem.color1 = new Color4(1.0, 1.0, 0.5, 1.0); // Yellow
+    effectSystem.color2 = new Color4(1.0, 0.8, 0.2, 1.0); // Orange/Gold
+    effectSystem.colorDead = new Color4(0, 0, 0, 0.0); // Fade out completely
+
+    // Size
+    effectSystem.minSize = 0.05;
+    effectSystem.maxSize = 0.15;
+
+    // Lifetime (Short burst)
+    effectSystem.minLifeTime = 0.3;
+    effectSystem.maxLifeTime = 0.8;
+
+    // Emission (Burst)
+    effectSystem.emitRate = capacity / effectSystem.maxLifeTime; // Emit all particles quickly
+    effectSystem.manualEmitCount = capacity; // Ensure all particles are emitted
+    effectSystem.maxEmitPower = 2;
+    effectSystem.minEmitPower = 1;
+    effectSystem.updateSpeed = 0.01;
+
+    // Shape & Movement
+    effectSystem.gravity = new Vector3(0, -3.0, 0); // Slight downward pull
+    effectSystem.direction1 = new Vector3(-1, 2, -1); // Upward and outward burst
+    effectSystem.direction2 = new Vector3(1, 4, 1);
+
+    // Blending
+    effectSystem.blendMode = ParticleSystem.BLENDMODE_ADD;
+
+    // Start & Schedule Stop/Return
+    effectSystem.start();
+    setTimeout(() => {
+      if (effectSystem) { // Check if system still exists
+        effectSystem.stop();
+        InteractableObject.returnCraftCompleteEffectSystemToPool(effectSystem);
+      }
+    }, (effectSystem.maxLifeTime + 0.2) * 1000); // Stop slightly after max lifetime
+  }
+
 
   public clearIngredientsOnBoard(): void {
     // Dispose all displayed ingredients
@@ -485,6 +550,7 @@ export class InteractableObject {
   }
 
   public dispose(): void {
+    this.deactivate(); // Ensure active effects are stopped/returned
     this.clearIngredientsOnBoard(); // Ensure displayed items are removed
     this.promptDisc.dispose();
     // Dispose particles if any created directly here
@@ -492,7 +558,7 @@ export class InteractableObject {
       InteractableObject.returnParticleSystemToPool(this.sparkleSystem); // Return to pool
       this.sparkleSystem = undefined;
     }
-    // Note: The main mesh (this.mesh) is usually disposed by the MapLoader or Scene cleanup
+
     console.log(`InteractableObject ${this.id} disposed`);
   }
 }

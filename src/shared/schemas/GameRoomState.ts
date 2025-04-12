@@ -3,6 +3,7 @@ import { Ingredient, type InteractType } from '../types/enums.ts'
 import { InteractableObjectState } from './InteractableObjectState.ts'
 import { Player } from './Player.ts'
 import {Order} from "@shared/schemas/Order.ts";
+import {getItemDefinition} from "@shared/definitions.ts";
 
 export class GameRoomState extends Schema {
   @type({ map: Player })
@@ -113,12 +114,18 @@ export class GameRoomState extends Schema {
     const player = this.players.get(playerId)
     if (!player) return
 
-    // If player is holding a plate, only allow picking up onigiri or finished recipes
-    if (player.holdingPlate && ingredient !== Ingredient.Onigiri) {
-      return
+    const ingredientDef = getItemDefinition(ingredient);
+
+    // Can't pick up if already holding something incompatible
+    if (player.holdedIngredient !== Ingredient.None) {
+      return; // Already holding something
+    }
+    // If holding a plate, only allow picking up results
+    if (player.holdingPlate && (!ingredientDef || !ingredientDef.isResult)) {
+      return;
     }
 
-    player.holdedIngredient = ingredient
+    player.holdedIngredient = ingredient;
   }
 
   dropIngredient(playerId: string) {
@@ -132,9 +139,15 @@ export class GameRoomState extends Schema {
     const player = this.players.get(playerId)
     if (!player) return
 
-    // Can't pick up a plate if already holding an ingredient
-    if (player.holdedIngredient !== Ingredient.None) {
-      return
+    const currentIngredient = player.holdedIngredient;
+    const currentIngredientIsResult = currentIngredient !== Ingredient.None && !!getItemDefinition(currentIngredient)?.isResult;
+
+    if (currentIngredient !== Ingredient.None && !currentIngredientIsResult) {
+      return;
+    }
+
+    if (player.holdingPlate) {
+      return;
     }
 
     player.holdingPlate = true
@@ -144,7 +157,14 @@ export class GameRoomState extends Schema {
     const player = this.players.get(playerId)
     if (!player) return
 
-    player.holdingPlate = false
+    if (player.holdedIngredient !== Ingredient.None) {
+      const heldItemDef = getItemDefinition(player.holdedIngredient);
+      if (heldItemDef?.isResult) {
+        player.holdedIngredient = Ingredient.None;
+      }
+    }
+
+    player.holdingPlate = false;
   }
 
   isHoldingPlate(playerId: string) {

@@ -15,6 +15,7 @@ export const ITEM_REGISTRY: Record<Ingredient, ItemDefinition> = {
     [Ingredient.None]: { id: Ingredient.None, name: "None", icon: "", model: "" },
     [Ingredient.Nori]: { id: Ingredient.Nori, name: "Nori", icon: "nori", model: "Nori.glb" },
     [Ingredient.Rice]: { id: Ingredient.Rice, name: "Rice", icon: "rice", model: "Rice Ball.glb" },
+    [Ingredient.CookedRice]: { id: Ingredient.CookedRice, name: "Cooked Rice", icon: "rice", model: "Rice Ball.glb" },
     [Ingredient.Onigiri]: { id: Ingredient.Onigiri, name: "Onigiri", icon: "onigiri", model: "Onigiri.glb", isResult: true },
     [Ingredient.Plate]: { id: Ingredient.Plate, name: "Plate", icon: "plate", model: "Plate.glb", isPlate: true },
 };
@@ -38,6 +39,7 @@ export interface Recipe {
     stationType: InteractType;    // Where the combination happens (e.g., ChoppingBoard)
     processingTime?: number;      // Optional: Time in ms for stations like Oven
     scoreValue?: number;          // Optional: Score value for the recipe
+    forServing?: boolean;         // Optional: Flag for serving orders
 }
 
 // --- Recipe Registry ---
@@ -47,12 +49,23 @@ export const RECIPE_REGISTRY: Record<string, Recipe> = {
         name: "Onigiri",
         result: { ingredient: Ingredient.Onigiri, quantity: 1 },
         requiredIngredients: [
-            { ingredient: Ingredient.Rice, quantity: 1 },
+            { ingredient: Ingredient.CookedRice, quantity: 1 },
             { ingredient: Ingredient.Nori, quantity: 1 },
         ],
         stationType: InteractType.ChoppingBoard,
         scoreValue: 100,
+        forServing: true,
     },
+    "cooked_rice_recipe": {
+        id: "cooked_rice_recipe",
+        name: "Cooked Rice",
+        result: { ingredient: Ingredient.CookedRice, quantity: 1 },
+        requiredIngredients: [
+            { ingredient: Ingredient.Rice, quantity: 1 },
+        ],
+        stationType: InteractType.Oven,
+        processingTime: 5000,
+    }
 };
 
 // Helper function to get recipe definition by ID

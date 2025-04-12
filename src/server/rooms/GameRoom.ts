@@ -71,12 +71,16 @@ export class GameRoom extends Room<GameRoomState> {
           }
 
           // Can't pick up if holding something incompatible
-          if (playerIngredient !== Ingredient.None && !isHoldingPlate) {
+          if (playerIngredient !== Ingredient.None && !isHoldingPlate && !playerIngredientDef?.isResult) {
             client.send('alreadyCarrying', { message: 'You are already carrying something!' });
             return;
           }
           if (isHoldingPlate && !stockItemDef.isPlate && !stockItemDef.isResult) {
             client.send('alreadyCarrying', { message: 'Cannot pick that up while holding a plate!' });
+            return;
+          }
+          if (playerIngredientDef?.isResult && !stockItemDef.isPlate) {
+            client.send('alreadyCarrying', { message: 'You are already carrying a completed dish!' });
             return;
           }
 
@@ -152,7 +156,7 @@ export class GameRoom extends Room<GameRoomState> {
           break;
 
         case InteractType.ChoppingBoard:
-        case InteractType.Oven: // Add other processing stations here
+        case InteractType.Oven:
           // Player has an ingredient? Try placing it.
           if (playerIngredient !== Ingredient.None) {
             // Check if the station is currently processing something
@@ -160,6 +164,12 @@ export class GameRoom extends Room<GameRoomState> {
               client.send('stationBusy', { message: 'Station is currently processing!' });
               return;
             }
+
+            if (obj.ingredientsOnBoard.length > 0 && obj.ingredientsOnBoard.reduce((acc, curr) => acc + (getItemDefinition(curr)?.isResult ? 1 : 0), 0) > 0) {
+              client.send('boardNotEmpty', { message: 'Clear the station first!' });
+              return;
+            }
+
             // Check if the ingredient is valid for *any* recipe at this station type
             const isValidForAnyRecipe = Object.values(RECIPE_REGISTRY).some(recipe =>
                 recipe.stationType === obj.type && recipe.requiredIngredients.some(req => req.ingredient === playerIngredient)
@@ -201,6 +211,7 @@ export class GameRoom extends Room<GameRoomState> {
           else {
             // Check if the station is processing something
             if (this.processingTimers.has(objectId)) {
+              console.warn(`Player ${client.sessionId} tried to pick up from a busy station ${objectId}.`);
               client.send('stationBusy', { message: 'Station is currently processing!' });
               return;
             }
@@ -209,37 +220,38 @@ export class GameRoom extends Room<GameRoomState> {
               const itemOnBoard = obj.ingredientsOnBoard[0];
               const itemDefOnBoard = getItemDefinition(itemOnBoard);
 
-              // Can only pick up results or base ingredients (if somehow left there)
-              if (itemDefOnBoard && (itemDefOnBoard.isResult || !Object.values(RECIPE_REGISTRY).some(r => r.result.ingredient === itemOnBoard))) {
-                // Check plate compatibility
-                if (isHoldingPlate && !itemDefOnBoard.isResult && !itemDefOnBoard.isPlate) {
-                  client.send('invalidPickup', { message: 'Cannot pick that up while holding a plate!' });
-                  return;
-                }
-
-                this.state.pickupIngredient(client.sessionId, itemOnBoard);
-                obj.ingredientsOnBoard.clear(); // Remove from board
-                obj.activeSince = Date.now();
-                logger.info(`Player ${client.sessionId} picked up ${itemDefOnBoard.name} from ${InteractType[obj.type]} ${objectId}`);
-              } else {
-                client.send('cannotPickup', { message: 'Cannot pick that up right now.' });
+              if (!itemDefOnBoard) {
+                console.warn(`Player ${client.sessionId} tried to pick up an invalid item from ${objectId}.`);
+                client.send('error', { message: 'Internal server error.' });
+                return;
               }
+
+              // Check plate compatibility
+              if (isHoldingPlate && !itemDefOnBoard.isResult && !itemDefOnBoard.isPlate) {
+                console.warn(`Player ${client.sessionId} tried to pick up ${itemDefOnBoard.name} while holding a plate.`);
+                client.send('invalidPickup', { message: 'Cannot pick that up while holding a plate!' });
+                return;
+              }
+
+              this.state.pickupIngredient(client.sessionId, itemOnBoard);
+              obj.ingredientsOnBoard.clear(); // Remove from board
+              obj.activeSince = Date.now();
+              console.log(`Player ${client.sessionId} picked up ${itemDefOnBoard.name} from ${InteractType[obj.type]} ${objectId}`);
+              logger.info(`Player ${client.sessionId} picked up ${itemDefOnBoard.name} from ${InteractType[obj.type]} ${objectId}`);
             } else if (obj.ingredientsOnBoard.length > 1) {
               // This shouldn't happen with the current logic, but good to handle
+              console.warn(`Player ${client.sessionId} tried to pick up from a station with multiple items.`);
               client.send('boardNotEmpty', { message: 'Clear the station first!' });
             }
             else {
+              console.warn(`Player ${client.sessionId} tried to pick up from an empty station ${objectId}.`);
               client.send('boardEmpty', { message: 'Nothing to pick up!' });
             }
           }
           break;
-
-          // Add cases for other InteractType if needed
-
         default:
           logger.warn(`Interaction logic not implemented for type: ${InteractType[obj.type]}`);
-          // Maybe send a generic "cannot interact" message?
-          // client.send('cannotInteract', { message: 'Cannot interact with this.' });
+          client.send('cannotInteract', { message: 'Cannot interact with this.' });
           break;
       }
     });
@@ -320,14 +332,19 @@ export class GameRoom extends Room<GameRoomState> {
     // --- Order Generation ---
     this.orderTimer += deltaTime;
     if (this.orderTimer >= this.nextOrderInterval && this.state.orders.length < this.MAX_ACTIVE_ORDERS) {
-      const availableRecipeIds = Object.keys(RECIPE_REGISTRY);
+      const availableRecipeIds = Object.keys(RECIPE_REGISTRY).filter(
+          key => RECIPE_REGISTRY[key].forServing
+      );
+
+      console.log(availableRecipeIds)
+
       if (availableRecipeIds.length > 0) {
         const randomRecipeId = availableRecipeIds[Math.floor(Math.random() * availableRecipeIds.length)];
         const recipe = getRecipeDefinition(randomRecipeId);
 
         if (recipe) {
           const order = new Order();
-          order.id = String(Date.now()) + Math.random().toString(36).substring(2, 7); // More unique ID
+          order.id = String(Date.now()) + Math.random().toString(36).substring(2, 7);
           order.recipeId = recipe.id;
           order.completed = false;
           order.createdAt = now;
@@ -350,8 +367,6 @@ export class GameRoom extends Room<GameRoomState> {
       } else if (now > order.deadline) {
         ordersToRemove.push(order);
         logger.warn(`Order ${order.id} has expired and queued for removal.`);
-        // Optional: Penalize score?
-        // this.state.score -= 50;
       }
     });
 
