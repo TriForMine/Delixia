@@ -199,6 +199,7 @@ export class AudioManager {
      */
     public dispose(): void {
         this.staticSounds.forEach((sound) => {
+            sound.stop()
             sound.dispose()
         })
         this.staticSounds.clear()

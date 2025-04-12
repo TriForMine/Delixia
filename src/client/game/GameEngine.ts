@@ -532,6 +532,8 @@ export class GameEngine {
       if (this.scene.getEngine().isPointerLock) {
         document.exitPointerLock();
       }
+
+      this.dispose()
     });
   }
 

@@ -142,8 +142,8 @@ export class GameRoom extends Room<GameRoomState> {
 
             logger.info(`Player ${client.sessionId} completed order ${matchingOrder.id} for ${recipeDef?.name}. Awarded ${points} points. Total score: ${this.state.score}`);
 
-            // Remove the *ingredient* from the player, keep the plate
             this.state.dropIngredient(client.sessionId);
+            this.state.dropPlate(client.sessionId);
 
             client.send('orderCompleted', { message: 'Order completed successfully!' });
           } else {

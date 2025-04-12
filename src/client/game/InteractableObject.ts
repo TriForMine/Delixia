@@ -12,6 +12,8 @@ import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
 import {getItemDefinition} from "@shared/definitions.ts";
 
 export class InteractableObject {
+  private isActive: boolean = false
+
   // Static texture cache for sharing textures between instances
   private static promptTextures: Map<string, DynamicTexture> = new Map<string, DynamicTexture>()
   // Static particle texture cache
@@ -36,14 +38,14 @@ export class InteractableObject {
   private _positionUpdateTemp: Vector3 = new Vector3()
 
   constructor(
-    mesh: Mesh,
-    scene: Scene,
-    interactType: InteractType,
-    ingredientType: Ingredient,
-    interactId: number,
-    billboardOffset?: Vector3,
-    keyPrompt: string = 'E',
-    ingredientLoader?: IngredientLoader,
+      mesh: Mesh,
+      scene: Scene,
+      interactType: InteractType,
+      ingredientType: Ingredient,
+      interactId: number,
+      billboardOffset?: Vector3,
+      keyPrompt: string = 'E',
+      ingredientLoader?: IngredientLoader,
   ) {
     this.mesh = mesh
     this.scene = scene
@@ -168,9 +170,9 @@ export class InteractableObject {
   private createSparkleEffect() {
     // Use pooled particle system with reduced capacity
     this.sparkleSystem = InteractableObject.getParticleSystem(
-      `${this.mesh.name}_sparkles`,
-      15, // Reduced from 30 to 15 particles
-      this.scene,
+        `${this.mesh.name}_sparkles`,
+        15, // Reduced from 30 to 15 particles
+        this.scene,
     )
 
     this.sparkleSystem.emitter = this.promptDisc
@@ -239,16 +241,10 @@ export class InteractableObject {
   }
 
   public activate(start: number, character?: LocalCharacterController): void {
+    this.isActive = true
+
     switch (this.interactType) {
-      case InteractType.ServingOrder:
-        // For serving order, we just send the interaction to the server
-        // The server will handle the logic for completing orders
-        if (character) {
-          // Visual feedback can be added here if needed
-          console.log('Serving order interaction')
-        }
-        break
-      case InteractType.Oven:
+      case InteractType.Oven: {
         // Particle texture cache is initialized at class definition
 
         // Get or create fire texture - using Star-Texture for better flame appearance
@@ -405,9 +401,11 @@ export class InteractableObject {
           smoke.stop()
           InteractableObject.returnParticleSystemToPool(fire)
           InteractableObject.returnParticleSystemToPool(smoke)
+          this.isActive = false
         }, remainingTime)
-        break
 
+      }
+        break;
       case InteractType.Stock:
         if (character) {
           // Handle plates differently
@@ -417,6 +415,7 @@ export class InteractableObject {
             character.pickupIngredient(this.ingredientType)
           }
         }
+        this.isActive = false // Deactivate after interaction
         break
       case InteractType.Trash:
         if (character) {
@@ -429,20 +428,20 @@ export class InteractableObject {
             character.dropPlate()
           }
         }
+        this.isActive = false // Deactivate after interaction
         break
       default:
-        console.warn('Unknown interact type:', this.interactType)
         break
     }
   }
 
   public deactivate(): void {
-    console.log('Deactivating interactable object', this.id)
+    this.isActive = false
   }
 
   public interact(character: LocalCharacterController, timestamp: number): void {
     // Don't allow interaction if object is disabled
-    if (this.disabled) {
+    if (this.disabled && !this.isActive) {
       return
     }
 
