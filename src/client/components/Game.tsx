@@ -73,7 +73,7 @@ export const Game = ({ onBackToMenu }: { onBackToMenu: () => void }) => {
 
     return (
         <div className="relative w-full h-full">
-            { !gameEnded && <BabylonScene antialias onSceneReady={onSceneReady} onRender={onRender} id="my-canvas" className="w-full h-full" /> }
+            { !gameEnded && <BabylonScene antialias onSceneReady={onSceneReady} onRender={onRender} id="my-canvas" className="w-full h-full" />}
             <ConnectionStatusComponent onBackToMenu={onBackToMenu} gameEngineRef={gameEngineRef} />
             {isLoaded && (
                 gameEnded ? (
