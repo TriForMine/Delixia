@@ -18,7 +18,7 @@ import { mapConfigs } from '@shared/maps/japan.ts'
 import type { GameRoomState } from '@shared/schemas/GameRoomState.ts'
 import type { Player } from '@shared/schemas/Player.ts'
 import { type Room, getStateCallbacks } from 'colyseus.js'
-import type { InteractableObject } from './InteractableObject.ts'
+import { InteractableObject } from './InteractableObject.ts'
 import { LocalCharacterController } from './LocalCharacterController'
 import { MapLoader } from './MapLoader.ts'
 import { RemoteCharacterController } from './RemoteCharacterController'
@@ -29,7 +29,9 @@ import { IngredientLoader } from '@client/game/IngredientLoader.ts'
 import { SpatialGrid } from './SpatialGrid'
 import { InputManager } from './managers/InputManager'
 import { PerformanceManager } from './managers/PerformanceManager'
-import { type Ingredient, InteractType } from '@shared/types/enums.ts'
+import { Ingredient, InteractType } from '@shared/types/enums.ts'
+import {AudioManager, SoundConfig} from "@client/game/managers/AudioManager.ts";
+import {AbstractMesh} from "@babylonjs/core/Meshes/abstractMesh";
 
 export class GameEngine {
   public interactables: InteractableObject[] = []
@@ -62,15 +64,35 @@ export class GameEngine {
   private lastSentRotation: number = 0
   private lastSentAnimationState: string = ''
 
+  private readonly audioManager: AudioManager
+
+  private soundList: SoundConfig[] = [
+    { name: 'pickupPlace', path: 'assets/audio/pickup_place.ogg', options: { volume: 0.3 } },
+    { name: 'trash', path: 'assets/audio/trash.ogg', options: { volume: 0.2 } },
+    { name: 'orderComplete', path: 'assets/audio/order_complete.ogg', options: { volume: 1.0 } },
+    { name: 'error', path: 'assets/audio/error.ogg', options: { volume: 0.2 } },
+    { name: 'ovenLoop', path: 'assets/audio/oven_loop.ogg', options: { volume: 0.025, spatialSound: true, loop: true } },
+    { name: 'footstep_wood_01', path: 'assets/audio/footstep_wood_001.ogg', options: { volume: 0.5, spatialSound: true, maxDistance: 10, distanceModel: 'linear' } },
+    { name: 'footstep_wood_02', path: 'assets/audio/footstep_wood_002.ogg', options: { volume: 0.5, spatialSound: true, maxDistance: 10, distanceModel: 'linear' } },
+    { name: 'footstep_wood_03', path: 'assets/audio/footstep_wood_003.ogg', options: { volume: 0.5, spatialSound: true, maxDistance: 10, distanceModel: 'linear' } },
+    { name: 'footstep_wood_04', path: 'assets/audio/footstep_wood_004.ogg', options: { volume: 0.5, spatialSound: true, maxDistance: 10, distanceModel: 'linear' } },
+    { name: 'jumpLand', path: 'assets/audio/jump_land.ogg', options: { volume: 0.65, spatialSound: true, maxDistance: 12, distanceModel: 'linear' } },
+    { name: 'timerTick', path: 'assets/audio/timer_tick.ogg', options: { volume: 0.8 } },
+  ]
+
+  // --- state for timer sound ---
+  private isTimerTickingSoundPlaying: boolean = false;
+  private timerTickIntervalId: number | null = null;
+
   constructor(scene: Scene, room: any) {
     this.scene = scene
     this.room = room
 
+    this.audioManager = new AudioManager(this.scene)
+    this.inputManager = new InputManager(this.scene, this.audioManager)
+
     // Enable hardware scaling to improve performance
     scene.getEngine().setHardwareScalingLevel(1.0)
-
-    // Initialize input manager to handle focus and pointer lock
-    this.inputManager = new InputManager(scene)
 
     // Enable frustum culling for better performance
     scene.skipFrustumClipping = false
@@ -91,7 +113,34 @@ export class GameEngine {
    * Disposes of all resources used by the game engine.
    */
   dispose(): void {
+    this.localController?.dispose()
+    this.remoteControllers.forEach(controller => controller.dispose())
+    this.remoteControllers.clear()
+    this.audioManager.dispose() // Dispose AudioManager
+    this.inputManager.dispose()
+    this.performanceManager?.dispose()
+    InteractableObject.reset(); // Reset static caches in InteractableObject
     this.scene.dispose()
+    console.log("GameEngine disposed")
+  }
+
+  /**
+   * Plays a sound effect. Convenience method.
+   * @param name Name of the sound defined in soundList.
+   * @param volume Optional volume multiplier.
+   * @param loop Optional loop override.
+   * @param attachTo Optional mesh to attach the sound to.
+   */
+  public playSfx(name: string, volume: number = 1.0, loop?: boolean, attachTo?: AbstractMesh): void {
+    this.audioManager.playSound(name, volume, loop, attachTo)
+  }
+
+  /**
+   * Stops a sound effect. Convenience method.
+   * @param name Name of the sound defined in soundList.
+   */
+  public stopSfx(name: string): void {
+    this.audioManager.stopSound(name);
   }
 
   /**
@@ -105,6 +154,8 @@ export class GameEngine {
     // Make sure loading screen is shown
     const engine = this.scene.getEngine()
     engine.displayLoadingUI()
+
+    await this.audioManager.initialize()
 
     // Toggle the Babylon Inspector with Ctrl+Alt+Shift+I (if in development mode)
     if (import.meta.env.DEV) {
@@ -193,7 +244,12 @@ export class GameEngine {
 
       // Update loading state
       this.loadingState.assets.progress = 100
-      this.loadingState.currentTask = 'Assets loaded, preparing map...'
+      this.loadingState.currentTask = 'Assets loaded, preparing map and sounds...'
+
+      this.audioManager.loadSounds(this.soundList, undefined, () => {
+        soundsLoaded = true
+        checkLoadingComplete()
+      })
 
       const engine = this.scene.getEngine()
       if (engine.loadingScreen instanceof CustomLoadingScreen) {
@@ -210,9 +266,10 @@ export class GameEngine {
     // Wait for both assets and map to load before hiding loading screen
     let assetsLoaded = false
     let mapLoaded = false
+    let soundsLoaded = false;
 
     const checkLoadingComplete = () => {
-      if (assetsLoaded && mapLoaded) {
+      if (assetsLoaded && mapLoaded && soundsLoaded) {
         const engine = this.scene.getEngine()
         if (engine.loadingScreen instanceof CustomLoadingScreen) {
           this.loadingState.currentTask = 'Initializing game...'
@@ -254,7 +311,6 @@ export class GameEngine {
           engine.loadingScreen.updateProgress(totalProgress)
           engine.loadingScreen.loadingUIText = this.loadingState.currentTask
         }
-        checkLoadingComplete()
 
         const $ = getStateCallbacks(this.room)
 
@@ -301,6 +357,10 @@ export class GameEngine {
             interactable.updateIngredientsOnBoard(ingredients)
           }
         })
+
+        this.setupGameEventListeners()
+
+        checkLoadingComplete()
       },
       (progress) => {
         this.loadingState.map.progress = progress
@@ -319,6 +379,127 @@ export class GameEngine {
 
     // Request initial pointer lock and focus
     this.inputManager.requestFocusAndPointerLock()
+  }
+
+  private setupGameEventListeners(): void {
+    const $ = getStateCallbacks(this.room)
+
+    // Listen for interactable object changes (e.g., oven state)
+    $(this.room.state).interactableObjects.onAdd((objState, key) => {
+      // Find the corresponding client-side interactable object
+      const interactable = this.interactables.find((obj) => obj.id === Number(key));
+      if (!interactable) return;
+
+      // --- Oven Sound ---
+      if (interactable.interactType === InteractType.Oven) {
+        $(objState).listen("isActive", (currentValue, previousValue) => {
+          if (currentValue === true && previousValue === false) {
+            this.audioManager.playSound('ovenLoop', 0.6, true, interactable.mesh);
+          } else if (currentValue === false && previousValue === true) {
+            this.audioManager.stopSound('ovenLoop');
+          }
+        });
+        // Initial state check for oven
+        if (objState.isActive) {
+          this.audioManager.playSound('ovenLoop', 0.6, true, interactable.mesh);
+        }
+      }
+
+      // --- Chopping Board Sounds ---
+      if (interactable.interactType === InteractType.ChoppingBoard) {
+        let previousIngredients = [...objState.ingredientsOnBoard.values()];
+
+        $(objState).onChange(() => {
+          const currentIngredients = objState.ingredientsOnBoard;
+
+          const currentArray = [...currentIngredients.values()];
+          // Check if an item was ADDED or REMOVED
+          if (currentArray.length !== previousIngredients.length) {
+            this.playSfx('pickupPlace', 0.8);
+          }
+
+          previousIngredients = currentArray;
+        });
+      }
+
+      // Update interactable visual/particle state (existing logic)
+      $(objState).onChange(() => {
+        const interactable = this.interactables.find((obj) => obj.id === Number(objState.id))
+        if (!interactable) return
+        interactable.setDisabled(objState.disabled)
+        if (objState.isActive && interactable.interactType !== InteractType.Oven) { // Don't double-trigger activate for oven
+          interactable.activate(objState.activeSince)
+        } else if (!objState.isActive && interactable.interactType !== InteractType.Oven) {
+          interactable.deactivate()
+        }
+        if (interactable.interactType === InteractType.ChoppingBoard) {
+          const ingredients = objState.ingredientsOnBoard.map((i) => i as Ingredient)
+          interactable.updateIngredientsOnBoard(ingredients)
+        }
+      })
+      // Initial state check (existing logic)
+      const initialInteractable = this.interactables.find((obj) => obj.id === Number(objState.id))
+      if (initialInteractable) {
+        initialInteractable.setDisabled(objState.disabled)
+        if (initialInteractable.interactType === InteractType.ChoppingBoard) {
+          const ingredients = objState.ingredientsOnBoard.map((i) => i as Ingredient)
+          initialInteractable.updateIngredientsOnBoard(ingredients)
+        }
+        // Activate non-oven items initially if needed
+        if (objState.isActive && initialInteractable.interactType !== InteractType.Oven) {
+          initialInteractable.activate(objState.activeSince)
+        }
+      }
+    });
+
+    const handleTimeLeftChange = (newTimeLeft: number) => {
+      const isUrgent = newTimeLeft <= 10000 && newTimeLeft > 0; // Check if time is 10s or less, but not zero
+
+      if (isUrgent && !this.isTimerTickingSoundPlaying) {
+        // Start Ticking Sound (repeatedly)
+        this.isTimerTickingSoundPlaying = true;
+        // Clear any previous interval just in case
+        if (this.timerTickIntervalId !== null) {
+          clearInterval(this.timerTickIntervalId);
+        }
+        // Play immediately once
+        this.playSfx('timerTick', 0.8);
+        // Then play every second
+        this.timerTickIntervalId = window.setInterval(() => {
+          // Check again inside interval in case state changed rapidly
+          if (this.room.state.timeLeft <= 10000 && this.room.state.timeLeft > 0) {
+            this.playSfx('timerTick', 0.8);
+          } else {
+            // Stop if time went up or reached zero during the interval
+            this.stopTimerTickingSound();
+          }
+        }, 1000);
+
+      } else if (!isUrgent && this.isTimerTickingSoundPlaying) {
+        this.stopTimerTickingSound();
+      }
+    };
+
+    // Listen for changes
+    $(this.room.state).listen('timeLeft', handleTimeLeftChange);
+
+
+    // --- Listen for Server Messages (Errors, etc.) ---
+    this.room.onMessage('alreadyCarrying', () => this.playSfx('error', 0.8));
+    this.room.onMessage('noIngredient', () => this.playSfx('error', 0.8));
+    this.room.onMessage('invalidIngredient', () => this.playSfx('error', 0.8));
+    this.room.onMessage('noMatchingOrder', () => this.playSfx('error', 0.8));
+    this.room.onMessage('needPlate', () => this.playSfx('error', 0.8));
+    this.room.onMessage('wrongIngredient', () => this.playSfx('error', 0.8));
+    this.room.onMessage('orderCompleted', () => this.playSfx('orderComplete', 0.8));
+  }
+
+  private stopTimerTickingSound(): void {
+    if (this.timerTickIntervalId !== null) {
+      clearInterval(this.timerTickIntervalId);
+      this.timerTickIntervalId = null;
+    }
+    this.isTimerTickingSoundPlaying = false;
   }
 
   /**

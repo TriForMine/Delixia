@@ -1,4 +1,3 @@
-// src/shared/recipes.ts
 import { Ingredient, InteractType } from "./types/enums";
 
 export interface RecipeStep {

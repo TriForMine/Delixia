@@ -31,6 +31,7 @@ export class LocalCharacterController extends CharacterController {
   private isFalling = false
   private previousJumpKeyState = false
   private previousInteractKeyState = false
+  private previousState: CharacterState = CharacterState.IDLE
 
   private readonly cameraAttachPoint: TransformNode
   private readonly gameEngine: GameEngine
@@ -54,12 +55,24 @@ export class LocalCharacterController extends CharacterController {
   private manifold: Contact[] = []
   public maxSlopeCosine: number = Math.cos(Math.PI * (60 / 180))
 
+  // --- Footstep Sound Properties ---
+  private isPlayingFootsteps: boolean = false;
+  private timeSinceLastStep: number = 0;
+  private readonly stepInterval: number = 0.45;
+  private readonly footstepSoundNames: string[] = [
+    'footstep_wood_01',
+    'footstep_wood_02',
+    'footstep_wood_03',
+    'footstep_wood_04',
+  ];
+  private lastFootstepIndex: number = -1;
+
   constructor(
-    gameEngine: GameEngine,
-    characterMesh: AbstractMesh,
-    ingredientLoader: IngredientLoader,
-    animationGroups: AnimationGroup[],
-    scene: Scene,
+      gameEngine: GameEngine,
+      characterMesh: AbstractMesh,
+      ingredientLoader: IngredientLoader,
+      animationGroups: AnimationGroup[],
+      scene: Scene,
   ) {
     super(characterMesh, scene, ingredientLoader, animationGroups)
 
@@ -69,16 +82,16 @@ export class LocalCharacterController extends CharacterController {
     // Setup keyboard events
     scene.actionManager = new ActionManager(scene)
     scene.actionManager.registerAction(
-      new ExecuteCodeAction(ActionManager.OnKeyDownTrigger, (e) => {
-        const key = (e.sourceEvent as KeyboardEvent).code
-        this.inputMap.set(key, true)
-      }),
+        new ExecuteCodeAction(ActionManager.OnKeyDownTrigger, (e) => {
+          const key = (e.sourceEvent as KeyboardEvent).code
+          this.inputMap.set(key, true)
+        }),
     )
     scene.actionManager.registerAction(
-      new ExecuteCodeAction(ActionManager.OnKeyUpTrigger, (e) => {
-        const key = (e.sourceEvent as KeyboardEvent).code
-        this.inputMap.set(key, false)
-      }),
+        new ExecuteCodeAction(ActionManager.OnKeyUpTrigger, (e) => {
+          const key = (e.sourceEvent as KeyboardEvent).code
+          this.inputMap.set(key, false)
+        }),
     )
 
     // Create a transform for the camera to follow
@@ -109,6 +122,8 @@ export class LocalCharacterController extends CharacterController {
     const hknp = hk._hknp
     this._startCollector = hknp.HP_QueryCollector_Create(16)[1]
     this._castCollector = hknp.HP_QueryCollector_Create(16)[1]
+
+    this.previousState = this.currentState
   }
 
   // Pre-allocated vectors for update method
@@ -133,6 +148,40 @@ export class LocalCharacterController extends CharacterController {
     this.updateMovement()
     this.updateAnimations(deltaSeconds)
     this.updateCameraCollision()
+    this.updateFootstepSounds(deltaSeconds);
+  }
+
+  private updateFootstepSounds(deltaSeconds: number): void {
+    if (this.currentState === CharacterState.WALKING && this.isGrounded) {
+      this.timeSinceLastStep += deltaSeconds;
+
+      if (this.timeSinceLastStep >= this.stepInterval) {
+        // Play a footstep sound
+        let randomIndex;
+        // Simple way to avoid direct repetition
+        do {
+          randomIndex = Math.floor(Math.random() * this.footstepSoundNames.length);
+        } while (this.footstepSoundNames.length > 1 && randomIndex === this.lastFootstepIndex);
+
+        const soundName = this.footstepSoundNames[randomIndex];
+        this.lastFootstepIndex = randomIndex;
+
+        // Play the sound spatially attached to the character's transform node
+        this.gameEngine.playSfx(soundName, 0.55, false); // Play attached to player position implicitly by AudioManager
+
+        // Reset timer (subtract interval to account for potential frame drops)
+        this.timeSinceLastStep -= this.stepInterval;
+      }
+      this.isPlayingFootsteps = true;
+    } else {
+      // If not walking or not grounded, reset state
+      if (this.isPlayingFootsteps) {
+        this.isPlayingFootsteps = false;
+        this.timeSinceLastStep = 0; // Reset timer
+        this.lastFootstepIndex = -1; // Reset last played index
+        // No need to explicitly stop one-shot sounds
+      }
+    }
   }
 
   private handleInput(): void {
@@ -163,21 +212,47 @@ export class LocalCharacterController extends CharacterController {
       this.isJumping = false
     }
 
+    let newState: CharacterState
+
     if (this.inputMap.get(this.keyDance)) {
-      this.currentState = CharacterState.DANCING
+      newState = CharacterState.DANCING
     } else if (supportState === CharacterSupportedState.SUPPORTED) {
-      this.currentState = this.isAnyMovementKeyDown() ? CharacterState.WALKING : CharacterState.IDLE
+      if (this.previousState === CharacterState.FALLING || this.previousState === CharacterState.JUMPING || this.previousState === CharacterState.LANDING) {
+        newState = CharacterState.LANDING;
+      } else {
+        newState = this.isAnyMovementKeyDown() ? CharacterState.WALKING : CharacterState.IDLE;
+      }
     } else if (supportState === CharacterSupportedState.SLIDING) {
-      this.currentState = CharacterState.FALLING
+      newState = CharacterState.FALLING
     } else if (this.isFalling && this.isLanding()) {
-      this.currentState = CharacterState.LANDING
+      newState = CharacterState.LANDING
     } else if (this.isFalling) {
-      this.currentState = CharacterState.FALLING
+      newState = CharacterState.FALLING
     } else if (this.isJumping) {
-      this.currentState = CharacterState.JUMPING
+      newState = CharacterState.JUMPING
     } else {
-      this.currentState = CharacterState.IDLE
+      newState = CharacterState.IDLE
     }
+
+    // --- Play Landing Sound on State Transition ---
+    // Play sound when entering the LANDING state from a non-landing aerial state
+    if (
+        newState === CharacterState.LANDING &&
+        (this.previousState === CharacterState.FALLING || this.previousState === CharacterState.JUMPING)
+    ) {
+      this.gameEngine.playSfx('jumpLand', 0.65, false, this.getTransform());
+    }
+    // If the state remains LANDING but the animation finished, transition out
+    else if (newState === CharacterState.LANDING && this.landingAnim.weight < 0.1) {
+      newState = this.isAnyMovementKeyDown() ? CharacterState.WALKING : CharacterState.IDLE;
+    }
+
+
+    // Update the character's current state *after* checking for transitions
+    this.currentState = newState;
+
+    // Update the previous state for the next frame's check
+    this.previousState = this.currentState;
   }
 
   // Pre-allocated vectors for movement calculations
@@ -453,10 +528,20 @@ export class LocalCharacterController extends CharacterController {
 
   private isAnyMovementKeyDown(): boolean {
     return (
-      (this.inputMap.get(this.keyForward) ||
-        this.inputMap.get(this.keyBackward) ||
-        this.inputMap.get(this.keyLeft) ||
-        this.inputMap.get(this.keyRight)) === true
+        (this.inputMap.get(this.keyForward) ||
+            this.inputMap.get(this.keyBackward) ||
+            this.inputMap.get(this.keyLeft) ||
+            this.inputMap.get(this.keyRight)) === true
     )
+  }
+
+  dropIngredient() {
+    super.dropIngredient();
+    this.gameEngine.playSfx('trash')
+  }
+
+  dropPlate() {
+    super.dropPlate();
+    this.gameEngine.playSfx('trash')
   }
 }
