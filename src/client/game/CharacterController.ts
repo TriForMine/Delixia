@@ -11,8 +11,10 @@ import { Ingredient } from '@shared/types/enums.ts'
 import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
 import type { Mesh } from '@babylonjs/core/Meshes'
 import { CharacterState } from './CharacterState'
+import {AudioManager} from "@client/game/managers/AudioManager.ts";
 
 export class CharacterController {
+  protected readonly audioManager: AudioManager;
   private readonly ingredientLoader: IngredientLoader
   private currentIngredientMesh: Mesh | undefined = undefined
   private plateMesh: Mesh | undefined = undefined
@@ -37,9 +39,16 @@ export class CharacterController {
   protected ingredient: Ingredient = Ingredient.None
   protected holdingPlate: boolean = false
 
-  protected constructor(characterMesh: AbstractMesh, scene: Scene, ingredientLoader: IngredientLoader, animationGroups: AnimationGroup[]) {
+  protected constructor(
+      characterMesh: AbstractMesh,
+      scene: Scene,
+      ingredientLoader: IngredientLoader,
+      animationGroups: AnimationGroup[],
+      audioManager: AudioManager,
+  ) {
     this.scene = scene
     this.ingredientLoader = ingredientLoader
+    this.audioManager = audioManager
 
     this.impostorMesh = MeshBuilder.CreateCapsule('CharacterTransform', { height: 1.5, radius: 0.3 }, scene)
     this.impostorMesh.visibility = 0

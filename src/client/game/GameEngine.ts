@@ -70,13 +70,13 @@ export class GameEngine {
     { name: 'pickupPlace', path: 'assets/audio/pickup_place.ogg', options: { volume: 0.3 } },
     { name: 'trash', path: 'assets/audio/trash.ogg', options: { volume: 0.2 } },
     { name: 'orderComplete', path: 'assets/audio/order_complete.ogg', options: { volume: 1.0 } },
-    { name: 'error', path: 'assets/audio/error.ogg', options: { volume: 0.2 } },
+    { name: 'error', path: 'assets/audio/error.ogg', options: { volume: 0.3 } },
     { name: 'ovenLoop', path: 'assets/audio/oven_loop.ogg', options: { volume: 0.025, spatialSound: true, loop: true } },
-    { name: 'footstep_wood_01', path: 'assets/audio/footstep_wood_001.ogg', options: { volume: 0.5, spatialSound: true, maxDistance: 10, distanceModel: 'linear' } },
-    { name: 'footstep_wood_02', path: 'assets/audio/footstep_wood_002.ogg', options: { volume: 0.5, spatialSound: true, maxDistance: 10, distanceModel: 'linear' } },
-    { name: 'footstep_wood_03', path: 'assets/audio/footstep_wood_003.ogg', options: { volume: 0.5, spatialSound: true, maxDistance: 10, distanceModel: 'linear' } },
-    { name: 'footstep_wood_04', path: 'assets/audio/footstep_wood_004.ogg', options: { volume: 0.5, spatialSound: true, maxDistance: 10, distanceModel: 'linear' } },
-    { name: 'jumpLand', path: 'assets/audio/jump_land.ogg', options: { volume: 0.65, spatialSound: true, maxDistance: 12, distanceModel: 'linear' } },
+    { name: 'footstep_wood_01', path: 'assets/audio/footstep_wood_001.ogg', options: { volume: 0.7, spatialSound: true, distanceModel: 'linear' } },
+    { name: 'footstep_wood_02', path: 'assets/audio/footstep_wood_002.ogg', options: { volume: 0.7, spatialSound: true, distanceModel: 'linear' } },
+    { name: 'footstep_wood_03', path: 'assets/audio/footstep_wood_003.ogg', options: { volume: 0.7, spatialSound: true, distanceModel: 'linear' } },
+    { name: 'footstep_wood_04', path: 'assets/audio/footstep_wood_004.ogg', options: { volume: 0.7, spatialSound: true, distanceModel: 'linear' } },
+    { name: 'jumpLand', path: 'assets/audio/jump_land.ogg', options: { volume: 0.5, spatialSound: true, distanceModel: 'linear' } },
     { name: 'timerTick', path: 'assets/audio/timer_tick.ogg', options: { volume: 0.8 } },
   ]
 
@@ -663,7 +663,7 @@ export class GameEngine {
     const mesh = localInstance.rootNodes[0] as Mesh
     mesh.scaling = new Vector3(1.3, 1.3, 1.3)
     mesh.rotation = new Vector3(0, 0, 0)
-    this.localController = new LocalCharacterController(this, mesh, this.ingredientLoader, localInstance.animationGroups, this.scene)
+    this.localController = new LocalCharacterController(this, mesh, this.ingredientLoader, localInstance.animationGroups, this.scene, this.audioManager)
     this.localController.model.receiveShadows = true
     this.shadowGenerator.addShadowCaster(this.localController.model)
 
@@ -701,7 +701,7 @@ export class GameEngine {
 
       remoteMesh.scaling = new Vector3(1.3, 1.3, 1.3)
       remoteMesh.rotation = new Vector3(0, 0, 0)
-      const remoteController = new RemoteCharacterController(remoteMesh, this.scene, this.ingredientLoader, remoteInstance.animationGroups)
+      const remoteController = new RemoteCharacterController(remoteMesh, this.scene, this.ingredientLoader, remoteInstance.animationGroups, this.audioManager)
       remoteController.setPosition(new Vector3(player.x, player.y, player.z))
       remoteController.setRotationY(player.rot)
 

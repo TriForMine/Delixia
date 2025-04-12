@@ -7,6 +7,7 @@ import type { AnimationGroup } from '@babylonjs/core/Animations/animationGroup'
 import { Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector'
 import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
 import type { Ingredient } from '@shared/types/enums.ts'
+import {AudioManager} from "@client/game/managers/AudioManager.ts";
 
 export class RemoteCharacterController extends CharacterController {
   // Reference to the scene for raycasting
@@ -21,8 +22,26 @@ export class RemoteCharacterController extends CharacterController {
   private positionInterpolationFactor: number = 0.2
   private rotationInterpolationFactor: number = 0.2
 
-  constructor(characterMesh: AbstractMesh, scene: Scene, ingredientLoader: IngredientLoader, animationGroups: AnimationGroup[]) {
-    super(characterMesh, scene, ingredientLoader, animationGroups)
+  // Footstep Sound Properties for Remote
+  private isPlayingFootsteps: boolean = false;
+  private timeSinceLastStep: number = 0;
+  private readonly stepInterval: number = 0.45; // Same as local for consistency
+  private readonly footstepSoundNames: string[] = [
+    'footstep_wood_01',
+    'footstep_wood_02',
+    'footstep_wood_03',
+    'footstep_wood_04',
+  ];
+  private lastFootstepIndex: number = -1;
+
+  constructor(
+      characterMesh: AbstractMesh,
+      scene: Scene,
+      ingredientLoader: IngredientLoader,
+      animationGroups: AnimationGroup[],
+      audioManager: AudioManager,
+  ) {
+    super(characterMesh, scene, ingredientLoader, animationGroups, audioManager)
     this.scene = scene
     this.previousPosition.copyFrom(characterMesh.position)
     this.lastUpdateTime = performance.now()
@@ -50,6 +69,8 @@ export class RemoteCharacterController extends CharacterController {
     if (newPlayer.holdedIngredient !== undefined) {
       this.forceSetIngredient(newPlayer.holdedIngredient as Ingredient)
     }
+
+    this.updateAnimationState(newPlayer.animationState);
   }
 
   /**
@@ -97,8 +118,8 @@ export class RemoteCharacterController extends CharacterController {
    */
   public update(deltaTime: number): void {
     this.updateMovement(deltaTime)
-
     this.updateAnimations(deltaTime)
+    this.updateFootstepSounds(deltaTime);
   }
 
   /**
@@ -150,6 +171,8 @@ export class RemoteCharacterController extends CharacterController {
    * @param animationState The name of the new animation state.
    */
   private updateAnimationState(animationState: string): void {
+    const previousEffectiveState = this.currentState;
+
     switch (animationState) {
       case 'Walking':
         this.currentState = CharacterState.WALKING
@@ -163,11 +186,70 @@ export class RemoteCharacterController extends CharacterController {
       case 'Fall':
         this.currentState = CharacterState.FALLING
         break
-      case 'Landing':
+      case 'Land':
         this.currentState = CharacterState.LANDING
         break
       default:
         this.currentState = CharacterState.IDLE
+    }
+
+    if (this.currentState === CharacterState.WALKING && previousEffectiveState !== CharacterState.WALKING) {
+      this.startFootstepSounds();
+      console.log('Starting footsteps');
+    } else if (this.currentState !== CharacterState.WALKING && previousEffectiveState === CharacterState.WALKING) {
+      this.stopFootstepSounds();
+    }
+
+    if (this.currentState === CharacterState.LANDING && (previousEffectiveState === CharacterState.FALLING || previousEffectiveState === CharacterState.JUMPING)) {
+      this.audioManager.playSound('jumpLand', 0.65, false, this.getTransform());
+    }
+
+  }
+
+  private updateFootstepSounds(deltaTime: number): void {
+    // Only run timer if footsteps should be playing
+    if (!this.isPlayingFootsteps) {
+      return;
+    }
+
+    // Check if the character is still considered walking (based on current state)
+    // Added a check for isEnabled, good practice for remote entities
+    if (this.currentState === CharacterState.WALKING && this.impostorMesh.isEnabled()) {
+      this.timeSinceLastStep += deltaTime;
+
+      if (this.timeSinceLastStep >= this.stepInterval) {
+        let randomIndex;
+        do {
+          randomIndex = Math.floor(Math.random() * this.footstepSoundNames.length);
+        } while (this.footstepSoundNames.length > 1 && randomIndex === this.lastFootstepIndex);
+
+        const soundName = this.footstepSoundNames[randomIndex];
+        this.lastFootstepIndex = randomIndex;
+
+        // Play the sound spatially attached to the remote character's transform
+        this.audioManager.playSound(soundName, 0.55, false, this.getTransform());
+
+        this.timeSinceLastStep -= this.stepInterval; // Reset timer correctly
+      }
+    } else {
+      // If state changed or mesh disabled while timer was running, stop
+      this.stopFootstepSounds();
+    }
+  }
+
+  private startFootstepSounds(): void {
+    if (!this.isPlayingFootsteps) {
+      this.isPlayingFootsteps = true;
+      this.timeSinceLastStep = this.stepInterval; // Play first step almost immediately
+      this.lastFootstepIndex = -1;
+    }
+  }
+
+  private stopFootstepSounds(): void {
+    if (this.isPlayingFootsteps) {
+      this.isPlayingFootsteps = false;
+      this.timeSinceLastStep = 0;
+      this.lastFootstepIndex = -1;
     }
   }
 }

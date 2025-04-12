@@ -16,6 +16,7 @@ import type { HavokPlugin } from '@babylonjs/core/Physics/v2/Plugins/havokPlugin
 import { PhysicsRaycastResult } from '@babylonjs/core/Physics/physicsRaycastResult'
 import type { Contact } from './physics/Contact'
 import { CharacterSupportedState } from './physics/CharacterSupportedState'
+import {AudioManager} from "@client/game/managers/AudioManager.ts";
 
 export class LocalCharacterController extends CharacterController {
   readonly inputMap: Map<string, boolean>
@@ -73,8 +74,9 @@ export class LocalCharacterController extends CharacterController {
       ingredientLoader: IngredientLoader,
       animationGroups: AnimationGroup[],
       scene: Scene,
+      audioManager: AudioManager,
   ) {
-    super(characterMesh, scene, ingredientLoader, animationGroups)
+    super(characterMesh, scene, ingredientLoader, animationGroups, audioManager)
 
     this.gameEngine = gameEngine
     this.inputMap = new Map()
@@ -167,7 +169,7 @@ export class LocalCharacterController extends CharacterController {
         this.lastFootstepIndex = randomIndex;
 
         // Play the sound spatially attached to the character's transform node
-        this.gameEngine.playSfx(soundName, 0.55, false); // Play attached to player position implicitly by AudioManager
+        this.audioManager.playSound(soundName, 0.55, false); // Play attached to player position implicitly by AudioManager
 
         // Reset timer (subtract interval to account for potential frame drops)
         this.timeSinceLastStep -= this.stepInterval;
@@ -240,7 +242,7 @@ export class LocalCharacterController extends CharacterController {
         newState === CharacterState.LANDING &&
         (this.previousState === CharacterState.FALLING || this.previousState === CharacterState.JUMPING)
     ) {
-      this.gameEngine.playSfx('jumpLand', 0.65, false, this.getTransform());
+      this.gameEngine.playSfx('jumpLand', 0.65, false);
     }
     // If the state remains LANDING but the animation finished, transition out
     else if (newState === CharacterState.LANDING && this.landingAnim.weight < 0.1) {
