@@ -61,8 +61,9 @@ export class RemoteCharacterController extends CharacterController {
     this.impostorMesh.setEnabled(true)
 
     // Update plate status first
-    if (newPlayer.holdingPlate !== undefined) {
-      this.isHoldingPlate = newPlayer.holdingPlate
+    if (newPlayer.holdingPlate !== this.isHoldingPlate) {
+      if(newPlayer.holdingPlate) this.forcePickupPlate();
+      else this.dropPlate();
     }
 
     // Update the ingredient if necessary
@@ -195,7 +196,6 @@ export class RemoteCharacterController extends CharacterController {
 
     if (this.currentState === CharacterState.WALKING && previousEffectiveState !== CharacterState.WALKING) {
       this.startFootstepSounds();
-      console.log('Starting footsteps');
     } else if (this.currentState !== CharacterState.WALKING && previousEffectiveState === CharacterState.WALKING) {
       this.stopFootstepSounds();
     }

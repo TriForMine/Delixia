@@ -3,20 +3,26 @@ import {GameRoomState} from '@shared/schemas/GameRoomState.ts'
 import {type Client, logger, Room} from 'colyseus'
 import {ServerMapLoader} from '../utils/ServerMapLoader.ts'
 import {Ingredient, InteractType} from '@shared/types/enums.ts'
-import {RECIPES} from '@shared/recipes';
 import {Order} from '@shared/schemas/Order';
 import {generateMapHash} from '@shared/utils/mapUtils.ts';
+import {
+  findCompletedRecipe,
+  getItemDefinition,
+  getRecipeDefinition, Recipe,
+  RECIPE_REGISTRY
+} from "@shared/definitions.ts";
 
 const serverMapLoader = new ServerMapLoader(mapConfigs)
-
-const POINTS_PER_ORDER = 100;
 
 export class GameRoom extends Room<GameRoomState> {
   state = new GameRoomState()
   maxClients = 4
 
+  // Store processing timers for stations (e.g., ovens)
+  // Key: interactableObjectId, Value: { recipe: Recipe, startTime: number }
+  private processingTimers = new Map<number, { recipe: Recipe; startTime: number }>()
+
   onCreate(_options: any) {
-    // Generate and set the map hash
     const mapHash = generateMapHash(mapConfigs);
     this.state.mapHash = mapHash;
     logger.info(`Map hash set: ${mapHash}`);
@@ -39,224 +45,204 @@ export class GameRoom extends Room<GameRoomState> {
 
     this.onMessage('interact', (client, data: { objectId: number }) => {
       const objectId = data.objectId
-      logger.info('Interact from', client.sessionId, 'on object', objectId)
-
+      const player = this.state.players.get(client.sessionId);
       const obj = this.state.interactableObjects.get(String(objectId))
-      if (obj) {
-        switch (obj.type) {
-          case InteractType.Oven:
-            const newActive = !obj.isActive
-            this.state.updateInteractableObject(objectId, { isActive: newActive })
-            break
-          case InteractType.Stock:
-            const isCarryingStock = this.state.getIngredient(client.sessionId) !== Ingredient.None
 
-            if (isCarryingStock) {
-              client.send('alreadyCarrying', { message: 'Tu portes déjà un ingrédient !' })
-              return
-            }
-
-            const ingredient = obj?.ingredient
-
-            // Handle plates differently
-            if (ingredient === Ingredient.Plate) {
-              this.state.pickupPlate(client.sessionId)
-              logger.info(`Player ${client.sessionId} picked up a plate`)
-            } else {
-              // For other ingredients, check if player can pick them up (based on plate status)
-              this.state.pickupIngredient(client.sessionId, ingredient as Ingredient)
-              logger.info(`Player ${client.sessionId} picked up ${Ingredient[ingredient as Ingredient]}`)
-            }
-            break
-          case InteractType.Trash: {
-            const playerIngredient = this.state.getIngredient(client.sessionId)
-            const isHoldingPlate = this.state.isHoldingPlate(client.sessionId)
-
-            if (playerIngredient !== undefined && playerIngredient !== Ingredient.None) {
-              this.state.dropIngredient(client.sessionId)
-              logger.info(`Player ${client.sessionId} dropped ${Ingredient[playerIngredient]} in the trash`)
-            } else if (isHoldingPlate) {
-              this.state.dropPlate(client.sessionId)
-              logger.info(`Player ${client.sessionId} dropped a plate in the trash`)
-            } else {
-              client.send('noIngredient', {message: 'You are not carrying any ingredient or plate!'})
-            }
-            break
-          }
-          case InteractType.ServingOrder:
-            const servingPlayerIngredient = this.state.getIngredient(client.sessionId)
-            const servingIsHoldingPlate = this.state.isHoldingPlate(client.sessionId)
-
-            // Check if player is holding a plate with an onigiri
-            if (servingIsHoldingPlate && servingPlayerIngredient === Ingredient.Onigiri) {
-              // Find an incomplete order for onigiri
-              const onigiriOrder = this.state.orders.find(order => 
-                order.recipeId === "onigiri" && !order.completed
-              );
-
-              if (onigiriOrder) {
-                // Mark the order as completed
-                onigiriOrder.completed = true;
-                logger.info(`Player ${client.sessionId} completed order ${onigiriOrder.id} for onigiri`);
-
-                this.state.score += POINTS_PER_ORDER;
-                logger.info(`Player ${client.sessionId} scored ${POINTS_PER_ORDER} points. Total score: ${this.state.score}`);
-
-                // Remove the ingredient from the player but keep the plate
-                this.state.dropIngredient(client.sessionId);
-
-                // Send success message to client
-                client.send('orderCompleted', { message: 'Order completed successfully!' });
-              } else {
-                // No matching order found
-                client.send('noMatchingOrder', { message: 'There is no order for this item!' });
-              }
-            } else if (!servingIsHoldingPlate) {
-              // Player is not holding a plate
-              client.send('needPlate', { message: 'You need to serve the food on a plate!' });
-            } else {
-              // Player is holding a plate but not with the right ingredient
-              client.send('wrongIngredient', { message: 'This is not what was ordered!' });
-            }
-            break;
-
-          case InteractType.ChoppingBoard:
-            const playerIngredient = this.state.getIngredient(client.sessionId)
-            const isHoldingPlate = this.state.isHoldingPlate(client.sessionId)
-
-            // If player is carrying an ingredient, place it on the board
-            if (playerIngredient !== undefined && playerIngredient !== Ingredient.None) {
-              // Check if adding this ingredient would correspond to a valid recipe
-              const currentIngredients = [...obj.ingredientsOnBoard.values()] as Ingredient[];
-              const potentialIngredients = [...currentIngredients, playerIngredient];
-
-              // Check if this combination is valid for any recipe
-              let isValidAddition = false;
-
-              // First check: Is this a valid ingredient for any recipe?
-              for (const recipe of RECIPES) {
-                // Get all ingredients required for this recipe
-                const recipeIngredients = recipe.steps
-                  .filter(step => step.ingredients && step.machine === InteractType.ChoppingBoard)
-                  .flatMap(step => step.ingredients?.map(i => i.ingredient) || []);
-
-                // Check if the player's ingredient is used in any recipe
-                if (recipeIngredients.includes(playerIngredient)) {
-                  isValidAddition = true;
-                  break;
-                }
-              }
-
-              // Second check: Would adding this ingredient create a valid partial recipe?
-              if (isValidAddition && currentIngredients.length > 0) {
-                isValidAddition = false; // Reset and check if this specific combination is valid
-
-                for (const recipe of RECIPES) {
-                  // Get all ingredients required for this recipe
-                  const recipeIngredients = recipe.steps
-                    .filter(step => step.ingredients && step.machine === InteractType.ChoppingBoard)
-                    .flatMap(step => step.ingredients?.map(i => i.ingredient) || []);
-
-                  // Check if all potential ingredients are part of this recipe
-                  const allIngredientsValid = potentialIngredients.every(ing => recipeIngredients.includes(ing));
-
-                  // Check if we're not adding duplicates that aren't in the recipe
-                  const ingredientCounts = potentialIngredients.reduce((counts, ing) => {
-                    counts[ing] = (counts[ing] || 0) + 1;
-                    return counts;
-                  }, {} as Record<number, number>);
-
-                  // Count how many of each ingredient are needed in the recipe
-                  const recipeIngredientCounts = recipeIngredients.reduce((counts, ing) => {
-                    counts[ing] = (counts[ing] || 0) + 1;
-                    return counts;
-                  }, {} as Record<number, number>);
-
-                  // Check if we're not exceeding the required quantity for any ingredient
-                  const validQuantities = Object.entries(ingredientCounts).every(
-                    ([ing, count]) => count <= (recipeIngredientCounts[Number(ing)] || 0)
-                  );
-
-                  if (allIngredientsValid && validQuantities) {
-                    isValidAddition = true;
-                    break;
-                  }
-                }
-              }
-
-              if (isValidAddition) {
-                // Add the ingredient to the board
-                obj.ingredientsOnBoard.push(playerIngredient)
-                obj.activeSince = Date.now()
-                logger.info(`Player ${client.sessionId} placed ${Ingredient[playerIngredient]} on chopping board ${objectId}`)
-
-                // Remove the ingredient from the player
-                this.state.dropIngredient(client.sessionId)
-
-                // Check if we've completed a recipe
-                const currentBoardIngredients = [...obj.ingredientsOnBoard.values()] as Ingredient[];
-
-                // Check each recipe to see if we've completed it
-                for (const recipe of RECIPES) {
-                  // Get all ingredients required for this recipe
-                  const recipeIngredients = recipe.steps
-                    .filter(step => step.ingredients && step.machine === InteractType.ChoppingBoard)
-                    .flatMap(step => step.ingredients?.map(i => i.ingredient) || []);
-
-                  // Sort both arrays to compare them regardless of order
-                  const sortedBoardIngredients = [...currentBoardIngredients].sort();
-                  const sortedRecipeIngredients = [...recipeIngredients].sort();
-
-                  // Check if the board has exactly the ingredients needed for this recipe
-                  if (sortedBoardIngredients.length === sortedRecipeIngredients.length && 
-                      sortedBoardIngredients.every((ing, idx) => ing === sortedRecipeIngredients[idx])) {
-
-                    // We've completed a recipe! Clear the board and add the result
-                    obj.ingredientsOnBoard.clear();
-
-                    // For now, we only have onigiri, but this could be expanded
-                    if (recipe.id === "onigiri") {
-                      obj.ingredientsOnBoard.push(Ingredient.Onigiri);
-                      obj.activeSince = Date.now();
-                      logger.info(`Player ${client.sessionId} created ${recipe.name}, placed on board ${objectId}`);
-                    }
-
-                    break;
-                  }
-                }
-              } else {
-                client.send('invalidIngredient', { message: 'This ingredient cannot be placed on the board!' })
-              }
-            } else {
-              // If there are ingredients on the board, pick them up
-              if (obj.ingredientsOnBoard.length > 0) {
-                // Get the first ingredient on the board (should be the only one if it's an onigiri)
-                const ingredient = obj.ingredientsOnBoard[0] as Ingredient;
-
-                // If it's an onigiri, player can pick it up regardless of plate status
-                // If it's not an onigiri and player is holding a plate, they can't pick it up
-                if (ingredient !== Ingredient.Onigiri && isHoldingPlate) {
-                  client.send('invalidIngredient', { message: 'You can only pick up onigiri with a plate!' })
-                  return
-                }
-
-                // Give the ingredient to the player
-                this.state.pickupIngredient(client.sessionId, ingredient);
-                logger.info(`Player ${client.sessionId} picked up ${Ingredient[ingredient]} from chopping board ${objectId}`);
-
-                // Clear the board
-                obj.ingredientsOnBoard.clear();
-                obj.activeSince = Date.now()
-              } else {
-                client.send('noIngredient', { message: 'You are not carrying any ingredient and the board is empty!' })
-              }
-            }
-            break
-          default:
-            break
-        }
+      if (!player || !obj) {
+        logger.warn(`Interaction failed: Player ${client.sessionId} or Object ${objectId} not found.`);
+        return;
       }
-    })
+
+      logger.info(`Interact from ${client.sessionId} on object ${objectId} (Type: ${InteractType[obj.type]})`);
+
+      const playerIngredient = player.holdedIngredient;
+      const isHoldingPlate = player.holdingPlate;
+      const playerIngredientDef = getItemDefinition(playerIngredient);
+
+      switch (obj.type) {
+        case InteractType.Stock:
+          const stockIngredient = obj.ingredient;
+          const stockItemDef = getItemDefinition(stockIngredient);
+
+          if (!stockItemDef) {
+            logger.error(`Stock object ${objectId} has invalid ingredient: ${stockIngredient}`);
+            client.send('error', { message: 'Internal server error.' });
+            return;
+          }
+
+          // Can't pick up if holding something incompatible
+          if (playerIngredient !== Ingredient.None && !isHoldingPlate) {
+            client.send('alreadyCarrying', { message: 'You are already carrying something!' });
+            return;
+          }
+          if (isHoldingPlate && !stockItemDef.isPlate && !stockItemDef.isResult) {
+            client.send('alreadyCarrying', { message: 'Cannot pick that up while holding a plate!' });
+            return;
+          }
+
+          if (stockItemDef.isPlate) {
+            if(isHoldingPlate) {
+              client.send('alreadyCarrying', { message: 'You are already holding a plate!' });
+              return;
+            }
+            this.state.pickupPlate(client.sessionId);
+            logger.info(`Player ${client.sessionId} picked up a plate`);
+          } else {
+            this.state.pickupIngredient(client.sessionId, stockIngredient);
+            logger.info(`Player ${client.sessionId} picked up ${stockItemDef.name}`);
+          }
+          break;
+
+        case InteractType.Trash:
+          if (playerIngredient !== Ingredient.None) {
+            this.state.dropIngredient(client.sessionId);
+            logger.info(`Player ${client.sessionId} dropped ${playerIngredientDef?.name ?? 'item'} in the trash`);
+          } else if (isHoldingPlate) {
+            this.state.dropPlate(client.sessionId);
+            logger.info(`Player ${client.sessionId} dropped a plate in the trash`);
+          } else {
+            client.send('noIngredient', { message: 'You are not carrying anything!' });
+          }
+          break;
+
+        case InteractType.ServingOrder:
+          const heldItemDef = getItemDefinition(playerIngredient);
+
+          // Must be holding a plate AND a recipe result
+          if (!isHoldingPlate || !heldItemDef || !heldItemDef.isResult) {
+            client.send('invalidServe', { message: 'You need to serve a completed dish on a plate!' });
+            return;
+          }
+
+          // Find the recipe that produces this result
+          let servedRecipeId: string | null = null;
+          for (const recipeId in RECIPE_REGISTRY) {
+            if (RECIPE_REGISTRY[recipeId].result.ingredient === playerIngredient) {
+              servedRecipeId = recipeId;
+              break;
+            }
+          }
+
+          if (!servedRecipeId) {
+            logger.error(`Cannot find recipe for result ingredient: ${playerIngredient}`);
+            client.send('error', { message: 'Internal server error.' });
+            return;
+          }
+
+          // Find an incomplete order for this specific recipe
+          const matchingOrder = this.state.orders.find(order =>
+              order.recipeId === servedRecipeId && !order.completed
+          );
+
+          if (matchingOrder) {
+            matchingOrder.completed = true; // Mark as completed (will be removed in update loop)
+            const recipeDef = getRecipeDefinition(servedRecipeId);
+            const points = recipeDef?.scoreValue ?? 100; // Use recipe score or default
+            this.state.score += points;
+
+            logger.info(`Player ${client.sessionId} completed order ${matchingOrder.id} for ${recipeDef?.name}. Awarded ${points} points. Total score: ${this.state.score}`);
+
+            // Remove the *ingredient* from the player, keep the plate
+            this.state.dropIngredient(client.sessionId);
+
+            client.send('orderCompleted', { message: 'Order completed successfully!' });
+          } else {
+            client.send('noMatchingOrder', { message: 'There is no order for this item!' });
+          }
+          break;
+
+        case InteractType.ChoppingBoard:
+        case InteractType.Oven: // Add other processing stations here
+          // Player has an ingredient? Try placing it.
+          if (playerIngredient !== Ingredient.None) {
+            // Check if the station is currently processing something
+            if (this.processingTimers.has(objectId)) {
+              client.send('stationBusy', { message: 'Station is currently processing!' });
+              return;
+            }
+            // Check if the ingredient is valid for *any* recipe at this station type
+            const isValidForAnyRecipe = Object.values(RECIPE_REGISTRY).some(recipe =>
+                recipe.stationType === obj.type && recipe.requiredIngredients.some(req => req.ingredient === playerIngredient)
+            );
+
+            if (!isValidForAnyRecipe) {
+              client.send('invalidIngredient', { message: 'This ingredient cannot be used here!' });
+              return;
+            }
+
+            // Add ingredient to the board/station
+            obj.ingredientsOnBoard.push(playerIngredient);
+            this.state.dropIngredient(client.sessionId); // Take from player
+            obj.activeSince = Date.now(); // Update timestamp (optional visual feedback)
+            logger.info(`Player ${client.sessionId} placed ${playerIngredientDef?.name} on ${InteractType[obj.type]} ${objectId}`);
+
+            // --- Check for Recipe Completion ---
+            const completedRecipe = findCompletedRecipe([...obj.ingredientsOnBoard.values()], obj.type);
+            if (completedRecipe) {
+              logger.info(`Recipe ${completedRecipe.name} requirements met on station ${objectId}.`);
+              // Clear input ingredients immediately
+              obj.ingredientsOnBoard.clear();
+
+              if (completedRecipe.processingTime && completedRecipe.processingTime > 0) {
+                // Start processing timer
+                this.processingTimers.set(objectId, { recipe: completedRecipe, startTime: Date.now() });
+                obj.isActive = true; // Indicate processing visually
+                logger.info(`Starting processing for ${completedRecipe.name} on station ${objectId} for ${completedRecipe.processingTime}ms.`);
+                // Result will be added when timer finishes (in update loop)
+              } else {
+                // Instant recipe completion
+                obj.ingredientsOnBoard.push(completedRecipe.result.ingredient);
+                obj.activeSince = Date.now();
+                logger.info(`Instantly created ${completedRecipe.name} on station ${objectId}`);
+              }
+            }
+          }
+          // Player is empty-handed? Try picking up.
+          else {
+            // Check if the station is processing something
+            if (this.processingTimers.has(objectId)) {
+              client.send('stationBusy', { message: 'Station is currently processing!' });
+              return;
+            }
+            // Check if there's a single completed item on the board
+            if (obj.ingredientsOnBoard.length === 1) {
+              const itemOnBoard = obj.ingredientsOnBoard[0];
+              const itemDefOnBoard = getItemDefinition(itemOnBoard);
+
+              // Can only pick up results or base ingredients (if somehow left there)
+              if (itemDefOnBoard && (itemDefOnBoard.isResult || !Object.values(RECIPE_REGISTRY).some(r => r.result.ingredient === itemOnBoard))) {
+                // Check plate compatibility
+                if (isHoldingPlate && !itemDefOnBoard.isResult && !itemDefOnBoard.isPlate) {
+                  client.send('invalidPickup', { message: 'Cannot pick that up while holding a plate!' });
+                  return;
+                }
+
+                this.state.pickupIngredient(client.sessionId, itemOnBoard);
+                obj.ingredientsOnBoard.clear(); // Remove from board
+                obj.activeSince = Date.now();
+                logger.info(`Player ${client.sessionId} picked up ${itemDefOnBoard.name} from ${InteractType[obj.type]} ${objectId}`);
+              } else {
+                client.send('cannotPickup', { message: 'Cannot pick that up right now.' });
+              }
+            } else if (obj.ingredientsOnBoard.length > 1) {
+              // This shouldn't happen with the current logic, but good to handle
+              client.send('boardNotEmpty', { message: 'Clear the station first!' });
+            }
+            else {
+              client.send('boardEmpty', { message: 'Nothing to pick up!' });
+            }
+          }
+          break;
+
+          // Add cases for other InteractType if needed
+
+        default:
+          logger.warn(`Interaction logic not implemented for type: ${InteractType[obj.type]}`);
+          // Maybe send a generic "cannot interact" message?
+          // client.send('cannotInteract', { message: 'Cannot interact with this.' });
+          break;
+      }
+    });
 
     // Instead of using setInterval, use the update loop.
     this.setSimulationInterval((deltaTime) => this.update(deltaTime))
@@ -296,60 +282,106 @@ export class GameRoom extends Room<GameRoomState> {
   }
 
   onDispose() {
+    this.processingTimers.clear()
     logger.info('Dispose ChatRoom')
   }
 
-  // TODO: Remove this, it's just for testing.
-  // Timer accumulator for order creation (in milliseconds)
-  private orderTimer: number = 20000;
-  // Order creation interval (e.g., every 20 seconds)
-  private ORDER_INTERVAL: number = 20 * 1000;
+  // Order generation properties
+  private orderTimer: number = 5000; // Start generating orders sooner
+  private readonly MIN_ORDER_INTERVAL: number = 15 * 1000; // Minimum 15s between orders
+  private readonly MAX_ORDER_INTERVAL: number = 30 * 1000; // Maximum 30s between orders
+  private nextOrderInterval: number = this.MIN_ORDER_INTERVAL + Math.random() * (this.MAX_ORDER_INTERVAL - this.MIN_ORDER_INTERVAL);
+  private readonly MAX_ACTIVE_ORDERS = 5; // Limit concurrent orders
 
   private timeLeftBatch: number = 0;
 
   update(deltaTime: number) {
-    this.timeLeftBatch += deltaTime;
-
-    if (this.timeLeftBatch >= 250) {
-      this.state.timeLeft -= this.timeLeftBatch;
-      this.timeLeftBatch = 0;
-    }
-
-    // deltaTime is provided in milliseconds.
-    // Accumulate the deltaTime into orderTimer.
-    this.orderTimer += deltaTime;
-
-    // When the accumulated time exceeds our ORDER_INTERVAL, create a new order.
-    if (this.orderTimer >= this.ORDER_INTERVAL) {
-
-      const recipe = RECIPES.find(r => r.id === "onigiri");
-      if (recipe) {
-        const order = new Order();
-        order.id = String(Date.now());
-        order.recipeId = recipe.id;
-        order.completed = false;
-        order.createdAt = Date.now();
-        // Optionally, set a deadline (e.g., 60 seconds from now)
-        order.deadline = Date.now() + 60000;
-        this.state.orders.push(order);
-        logger.info(`Created order ${order.id} for recipe ${order.recipeId}`);
-      }
-      // Subtract the interval from the timer (in case deltaTime overshoots)
-      this.orderTimer -= this.ORDER_INTERVAL;
-    }
-
-    // Check for deadlines and remove completed orders
     const now = Date.now();
+
+    // Batch time left updates
+    this.timeLeftBatch += deltaTime;
+    if (this.timeLeftBatch >= 250) {
+      if (this.state.timeLeft > 0) {
+        this.state.timeLeft = Math.max(0, this.state.timeLeft - this.timeLeftBatch);
+      }
+      this.timeLeftBatch = 0;
+
+      // End game if time runs out
+      if (this.state.timeLeft <= 0) {
+        logger.info("Game time ended!");
+        // Add logic to handle game end (e.g., lock room, broadcast final score)
+        this.lock(); // Prevent new players from joining
+        this.broadcast("gameOver", { finalScore: this.state.score });
+        // Maybe disconnect players after a delay?
+        setTimeout(() => this.disconnect(), 10000); // Disconnect after 10s
+        return; // Stop further updates
+      }
+    }
+
+    // --- Order Generation ---
+    this.orderTimer += deltaTime;
+    if (this.orderTimer >= this.nextOrderInterval && this.state.orders.length < this.MAX_ACTIVE_ORDERS) {
+      const availableRecipeIds = Object.keys(RECIPE_REGISTRY);
+      if (availableRecipeIds.length > 0) {
+        const randomRecipeId = availableRecipeIds[Math.floor(Math.random() * availableRecipeIds.length)];
+        const recipe = getRecipeDefinition(randomRecipeId);
+
+        if (recipe) {
+          const order = new Order();
+          order.id = String(Date.now()) + Math.random().toString(36).substring(2, 7); // More unique ID
+          order.recipeId = recipe.id;
+          order.completed = false;
+          order.createdAt = now;
+          order.deadline = now + 60000; // 60-second deadline
+          this.state.orders.push(order);
+          logger.info(`Created order ${order.id} for recipe ${recipe.name}`);
+        }
+      }
+      // Reset timer and set next random interval
+      this.orderTimer = 0;
+      this.nextOrderInterval = this.MIN_ORDER_INTERVAL + Math.random() * (this.MAX_ORDER_INTERVAL - this.MIN_ORDER_INTERVAL);
+    }
+
+    // --- Order Cleanup & Expiration ---
+    const ordersToRemove: Order[] = [];
     this.state.orders.forEach((order) => {
       if (order.completed) {
-        // Remove the order if it's completed
-        this.state.orders.splice(this.state.orders.indexOf(order), 1);
-        logger.info(`Order ${order.id} completed and removed.`);
+        ordersToRemove.push(order);
+        logger.info(`Order ${order.id} completed and queued for removal.`);
       } else if (now > order.deadline) {
-        // Handle expired orders (e.g., notify players)
-        logger.warn(`Order ${order.id} has expired.`);
-        this.state.orders.splice(this.state.orders.indexOf(order), 1);
+        ordersToRemove.push(order);
+        logger.warn(`Order ${order.id} has expired and queued for removal.`);
+        // Optional: Penalize score?
+        // this.state.score -= 50;
       }
     });
+
+    if (ordersToRemove.length > 0) {
+      ordersToRemove.forEach(order => {
+        const index = this.state.orders.indexOf(order);
+        if (index !== -1) {
+          this.state.orders.splice(index, 1);
+        }
+      });
+    }
+
+
+    // --- Process Station Timers ---
+    const finishedTimers: number[] = [];
+    this.processingTimers.forEach((timerData, objectId) => {
+      if (now >= timerData.startTime + (timerData.recipe.processingTime ?? 0)) {
+        const obj = this.state.interactableObjects.get(String(objectId));
+        if (obj) {
+          obj.ingredientsOnBoard.clear(); // Should be empty already, but ensure
+          obj.ingredientsOnBoard.push(timerData.recipe.result.ingredient);
+          obj.isActive = false; // Processing finished
+          obj.activeSince = now; // Update timestamp
+          logger.info(`Finished processing ${timerData.recipe.name} on station ${objectId}. Result added.`);
+        }
+        finishedTimers.push(objectId);
+      }
+    });
+
+    finishedTimers.forEach(id => this.processingTimers.delete(id));
   }
 }

@@ -113,15 +113,16 @@ export class GameEngine {
    * Disposes of all resources used by the game engine.
    */
   dispose(): void {
-    this.localController?.dispose()
-    this.remoteControllers.forEach(controller => controller.dispose())
-    this.remoteControllers.clear()
-    this.audioManager.dispose() // Dispose AudioManager
-    this.inputManager.dispose()
-    this.performanceManager?.dispose()
-    InteractableObject.reset(); // Reset static caches in InteractableObject
-    this.scene.dispose()
-    console.log("GameEngine disposed")
+    this.localController?.dispose();
+    this.remoteControllers.forEach(controller => controller.dispose());
+    this.remoteControllers.clear();
+    this.audioManager.dispose();
+    this.inputManager.dispose();
+    this.performanceManager?.dispose();
+    InteractableObject.reset();
+    this.ingredientLoader?.dispose(); // Dispose ingredient loader
+    this.scene.dispose();
+    console.log("GameEngine disposed");
   }
 
   /**
@@ -251,6 +252,13 @@ export class GameEngine {
         checkLoadingComplete()
       })
 
+      this.ingredientLoader.loadIngredientModels().then(() => {
+        ingredientModelsLoaded = true
+        checkLoadingComplete()
+      }).catch((error) => {
+        console.error('Error loading ingredient models:', error)
+      })
+
       const engine = this.scene.getEngine()
       if (engine.loadingScreen instanceof CustomLoadingScreen) {
         engine.loadingScreen.loadingUIText = this.loadingState.currentTask
@@ -267,9 +275,10 @@ export class GameEngine {
     let assetsLoaded = false
     let mapLoaded = false
     let soundsLoaded = false;
+    let ingredientModelsLoaded = false;
 
     const checkLoadingComplete = () => {
-      if (assetsLoaded && mapLoaded && soundsLoaded) {
+      if (assetsLoaded && mapLoaded && soundsLoaded && ingredientModelsLoaded) {
         const engine = this.scene.getEngine()
         if (engine.loadingScreen instanceof CustomLoadingScreen) {
           this.loadingState.currentTask = 'Initializing game...'
@@ -294,7 +303,6 @@ export class GameEngine {
 
     // Start asset loading.
     this.assetsManager.load()
-    this.ingredientLoader.loadIngredients()
 
     kitchenLoader.loadAndPlaceModels(
       kitchenFolder,
@@ -491,6 +499,18 @@ export class GameEngine {
     this.room.onMessage('noMatchingOrder', () => this.playSfx('error', 0.8));
     this.room.onMessage('needPlate', () => this.playSfx('error', 0.8));
     this.room.onMessage('wrongIngredient', () => this.playSfx('error', 0.8));
+    this.room.onMessage('orderCompleted', () => this.playSfx('orderComplete', 0.8));
+
+    this.room.onMessage('invalidServe', () => this.playSfx('error', 0.8));
+    this.room.onMessage('stationBusy', () => this.playSfx('error', 0.8));
+    this.room.onMessage('cannotPickup', () => this.playSfx('error', 0.8));
+    this.room.onMessage('boardNotEmpty', () => this.playSfx('error', 0.8));
+    this.room.onMessage('boardEmpty', () => this.playSfx('error', 0.8));
+    this.room.onMessage('error', (payload) => { // Generic error handler
+      console.warn("Received error from server:", payload?.message || 'Unknown error');
+      this.playSfx('error', 0.8);
+    });
+
     this.room.onMessage('orderCompleted', () => this.playSfx('orderComplete', 0.8));
   }
 

@@ -1,6 +1,6 @@
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial'
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color'
-import { Vector3 } from '@babylonjs/core/Maths/math.vector'
+import {Quaternion, Vector3} from '@babylonjs/core/Maths/math.vector'
 import { Mesh, MeshBuilder } from '@babylonjs/core/Meshes'
 import { ParticleSystem } from '@babylonjs/core/Particles/particleSystem'
 import { Texture } from '@babylonjs/core/Materials/Textures/texture'
@@ -9,6 +9,7 @@ import type { Scene } from '@babylonjs/core/scene'
 import { Ingredient, InteractType } from '@shared/types/enums.ts'
 import type { LocalCharacterController } from '@client/game/LocalCharacterController.ts'
 import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
+import {getItemDefinition} from "@shared/definitions.ts";
 
 export class InteractableObject {
   // Static texture cache for sharing textures between instances
@@ -17,30 +18,6 @@ export class InteractableObject {
   private static particleTextures: Map<string, Texture> = new Map<string, Texture>()
   // Particle system pool for reuse
   private static particleSystemPool: ParticleSystem[] = []
-
-  /**
-   * Resets all static properties of the InteractableObject class.
-   * This should be called when reloading the map to prevent issues with cached resources.
-   */
-  public static reset(): void {
-    // Clear prompt textures
-    this.promptTextures.forEach((texture) => {
-      texture.dispose()
-    })
-    this.promptTextures.clear()
-
-    // Clear particle textures
-    this.particleTextures.forEach((texture) => {
-      texture.dispose()
-    })
-    this.particleTextures.clear()
-
-    // Dispose and clear particle system pool
-    this.particleSystemPool.forEach((system) => {
-      system.dispose()
-    })
-    this.particleSystemPool = []
-  }
 
   public mesh: Mesh
   public interactionDistance = 2.5
@@ -135,6 +112,30 @@ export class InteractableObject {
     this.interactType = interactType
     this.ingredientType = ingredientType
     this.id = interactId
+  }
+
+  /**
+   * Resets all static properties of the InteractableObject class.
+   * This should be called when reloading the map to prevent issues with cached resources.
+   */
+  public static reset(): void {
+    // Clear prompt textures
+    this.promptTextures.forEach((texture) => {
+      texture.dispose()
+    })
+    this.promptTextures.clear()
+
+    // Clear particle textures
+    this.particleTextures.forEach((texture) => {
+      texture.dispose()
+    })
+    this.particleTextures.clear()
+
+    // Dispose and clear particle system pool
+    this.particleSystemPool.forEach((system) => {
+      system.dispose()
+    })
+    this.particleSystemPool = []
   }
 
   /**
@@ -412,7 +413,6 @@ export class InteractableObject {
           // Handle plates differently
           if (this.ingredientType === Ingredient.Plate) {
             character.pickupPlate()
-            character.updatePlateMesh()
           } else {
             character.pickupIngredient(this.ingredientType)
           }
@@ -450,22 +450,31 @@ export class InteractableObject {
   }
 
   public updateIngredientsOnBoard(ingredients: Ingredient[]): void {
-    // Clear existing ingredients
-    this.clearIngredientsOnBoard()
+    this.clearIngredientsOnBoard(); // Clear previous visuals
 
-    if (!this.ingredientLoader) return
+    if (!this.ingredientLoader) {
+      console.warn("IngredientLoader not available in InteractableObject.");
+      return;
+    }
 
-    // Create and position new ingredients
-    ingredients.forEach((ingredient, index) => {
-      const ingredientMesh = this.ingredientLoader!.getIngredientMesh(ingredient)
-      ingredientMesh.parent = this.mesh
+    ingredients.forEach((ingredientId, index) => {
+      const itemDef = getItemDefinition(ingredientId);
+      if (!itemDef) return; // Skip if definition not found
 
-      // Position ingredients on top of the chopping board, stacked on each other
-      ingredientMesh.position = new Vector3(0, 0.1 + index * 0.1, 0)
-      ingredientMesh.scaling = new Vector3(0.5, 0.5, 0.5)
+      const ingredientMesh = this.ingredientLoader?.getIngredientMesh(ingredientId);
+      if (ingredientMesh) {
+        ingredientMesh.setParent(this.mesh); // Parent to the station mesh
 
-      this.displayedIngredients.push(ingredientMesh)
-    })
+        // Position ingredients on top, slightly offset based on index
+        // Adjust offsets as needed for your station models
+        ingredientMesh.position = new Vector3(0, 0.1 + index * 0.05, 0);
+        ingredientMesh.scaling = new Vector3(0.5, 0.5, 0.5);
+        ingredientMesh.rotationQuaternion = Quaternion.Identity();
+        ingredientMesh.isPickable = false; // Usually items on board aren't directly pickable by raycast
+
+        this.displayedIngredients.push(ingredientMesh);
+      }
+    });
   }
 
   public clearIngredientsOnBoard(): void {
@@ -474,5 +483,17 @@ export class InteractableObject {
       mesh.dispose()
     })
     this.displayedIngredients = []
+  }
+
+  public dispose(): void {
+    this.clearIngredientsOnBoard(); // Ensure displayed items are removed
+    this.promptDisc.dispose();
+    // Dispose particles if any created directly here
+    if (this.sparkleSystem) {
+      InteractableObject.returnParticleSystemToPool(this.sparkleSystem); // Return to pool
+      this.sparkleSystem = undefined;
+    }
+    // Note: The main mesh (this.mesh) is usually disposed by the MapLoader or Scene cleanup
+    console.log(`InteractableObject ${this.id} disposed`);
   }
 }
