@@ -1,12 +1,11 @@
-// src/client/components/UI/Orders.tsx
 import React, { useState, useEffect, useMemo } from "react";
 import { useGameColyseusState } from "@client/hooks/colyseus";
 import { getItemDefinition, getRecipeDefinition } from "@shared/definitions";
 import type { Order } from "@shared/schemas/Order.ts";
 import { InteractType } from "@shared/types/enums";
 import { Flame, Slice, ChefHat, Clock } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
-// Helper function to calculate display values related to time
 const calculateTimeInfo = (order: Order) => {
     const now = Date.now();
     const timeLeft = Math.max(0, order.deadline - now);
@@ -31,7 +30,6 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
 
     useEffect(() => {
         setTimeInfo(calculateTimeInfo(order));
-
         if (order.deadline > 0 && order.deadline > Date.now()) {
             const intervalId = setInterval(() => {
                 const newTimeInfo = calculateTimeInfo(order);
@@ -59,7 +57,6 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                             className="w-7 h-7 object-contain bg-white/60 rounded-sm p-0.5"
                             onError={(e) => (e.currentTarget.style.display = 'none')}
                         />
-                        {/* Station Icons */}
                         {recipe.stationType === InteractType.Oven && (
                             <Flame className="w-3 h-3 absolute -bottom-0.5 -right-0.5 text-orange-500 drop-shadow" fill="currentColor" strokeWidth={1.5} />
                         )}
@@ -84,7 +81,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
     const resultIconUrl = resultItemDef?.icon ? `/icons/${resultItemDef.icon}.png` : '/icons/placeholder.png';
 
     return (
-        <div className={`bg-gradient-to-br from-purple-300 via-pink-200 to-yellow-100 rounded-lg shadow-md px-2.5 py-2 w-full flex flex-col gap-2 transition-all duration-300 ${timeInfo.isUrgent ? 'animate-pulse' : ''} ${timeInfo.isExpired ? 'opacity-60 grayscale' : ''}`}>
+        <div className={`bg-gradient-to-br from-purple-300 via-pink-200 to-yellow-100 rounded-lg shadow-md px-2.5 py-2 w-full flex flex-col gap-2 transition-colors duration-300 ${timeInfo.isUrgent ? 'animate-pulse' : ''} ${timeInfo.isExpired ? 'opacity-60 grayscale' : ''}`}>
             <div className="flex items-center gap-3">
                 <div className="flex-shrink-0">
                     <div className="w-11 h-11 bg-white rounded-md overflow-hidden flex items-center justify-center shadow">
@@ -95,7 +92,6 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                     {ingredientElements}
                 </div>
             </div>
-
             {timeInfo.totalTime > 0 && (
                 <div className="flex items-center gap-2 w-full">
                     <div className={`flex-grow bg-gray-200/50 rounded-full h-2`}>
@@ -124,20 +120,48 @@ export default function Orders() {
             const bExpired = b.deadline > 0 && b.deadline <= Date.now();
             if (aExpired && !bExpired) return 1;
             if (!aExpired && bExpired) return -1;
-            return (a.deadline || Infinity) - (b.deadline || Infinity); // Sort by deadline ascending
+            return (a.deadline || Infinity) - (b.deadline || Infinity);
         });
     }, [orders]);
 
     return (
-        <div className="fixed top-4 right-2 z-10 w-64 max-h-[calc(100vh-8rem)] overflow-y-auto p-2 bg-black/30 backdrop-blur-sm rounded-lg shadow-lg space-y-2">
-            <h3 className="text-center font-semibold text-white/90 text-sm mb-1 flex items-center justify-center gap-1"><ChefHat size={16} /> Orders</h3>
-            {sortedOrders.length > 0 ? (
-                sortedOrders.map((order) => (
-                    <OrderCard key={order.id} order={order} />
-                ))
-            ) : (
-                <p className="text-center text-gray-300/70 text-xs italic py-4">No pending orders</p>
-            )}
+        <div className="fixed top-4 right-2 z-10 w-64 max-h-[calc(100vh-8rem)] overflow-y-auto overflow-x-hidden p-2 bg-black/30 backdrop-blur-sm rounded-lg shadow-lg flex flex-col">
+            <h3 className="text-center font-semibold text-white/90 text-sm mb-1 flex items-center justify-center gap-1 flex-shrink-0"><ChefHat size={16} /> Orders</h3>
+
+            <div className="flex flex-col">
+                <AnimatePresence initial={false} mode="wait">
+                    {sortedOrders.length > 0 ? (
+                        <motion.div
+                            key="order-list"
+                            className="flex flex-col"
+                        >
+                            {sortedOrders.map((order, index) => (
+                                <motion.div
+                                    key={order.id}
+                                    layout
+                                    initial={{ opacity: 0, y: -10, scale: 0.9 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, x: 30, scale: 0.8, height: 0, marginBottom: 0, transition: { duration: 0.2, marginBottom: { delay: 0.2 } } }}
+                                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                                    className={`flex-shrink-0 ${index < sortedOrders.length - 1 ? 'mb-2' : ''}`}
+                                    style={{ originX: 1 }}
+                                >
+                                    <OrderCard order={order} />
+                                </motion.div>
+                            ))}
+                        </motion.div>
+                    ) : (
+                        <motion.div
+                            key="no-orders"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1, transition: { delay: 0.1 } }}
+                            exit={{ opacity: 0, transition: { duration: 0.1 } }}
+                        >
+                            <p className="text-center text-gray-300/70 text-xs italic py-4">No pending orders</p>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
         </div>
     );
 }
