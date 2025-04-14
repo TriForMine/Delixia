@@ -15,7 +15,7 @@ export class Player extends Schema {
   y = 1
 
   @type('number')
-  z = 5
+  z = 3.5
 
   @type('number')
   rot = 0

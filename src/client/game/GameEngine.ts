@@ -4,7 +4,7 @@ import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight'
 import { CubeTexture } from '@babylonjs/core/Materials/Textures/cubeTexture'
 import { Texture } from '@babylonjs/core/Materials/Textures/texture'
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial'
-import { Color3 } from '@babylonjs/core/Maths/math.color'
+import { Color3, Color4 } from '@babylonjs/core/Maths/math.color'
 import { Vector3 } from '@babylonjs/core/Maths/math.vector'
 import type { Mesh } from '@babylonjs/core/Meshes/mesh'
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder'
@@ -29,9 +29,11 @@ import { IngredientLoader } from '@client/game/IngredientLoader.ts'
 import { SpatialGrid } from './SpatialGrid'
 import { InputManager } from './managers/InputManager'
 import { PerformanceManager } from './managers/PerformanceManager'
-import { Ingredient, InteractType } from '@shared/types/enums.ts'
-import {AudioManager, SoundConfig} from "@client/game/managers/AudioManager.ts";
-import {AbstractMesh} from "@babylonjs/core/Meshes/abstractMesh";
+import { type Ingredient, InteractType } from '@shared/types/enums.ts'
+import { AudioManager, type SoundConfig } from '@client/game/managers/AudioManager.ts'
+import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh'
+import type { Order } from '@shared/schemas/Order.ts'
+import { ParticleSystem } from '@babylonjs/core/Particles/particleSystem'
 
 export class GameEngine {
   public interactables: InteractableObject[] = []
@@ -46,7 +48,9 @@ export class GameEngine {
   private inputManager: InputManager
   private performanceManager?: PerformanceManager
   private loadedCharacterContainer: any
-  private onGameOverCallback: (score: number) => void = () => {};
+  private phantomParticleSystems = new Map<number, ParticleSystem>() // Map chairId to ParticleSystem
+  private phantomTexture: Texture | null = null // Cache the texture
+  private onGameOverCallback: (score: number) => void = () => {}
 
   // Pre-allocated vector for position calculations
   private _playerPosTemp: Vector3 = new Vector3()
@@ -83,13 +87,13 @@ export class GameEngine {
   ]
 
   // --- state for timer sound ---
-  private isTimerTickingSoundPlaying: boolean = false;
-  private timerTickIntervalId: number | null = null;
+  private isTimerTickingSoundPlaying: boolean = false
+  private timerTickIntervalId: number | null = null
 
   constructor(scene: Scene, room: any, onGameOver: (score: number) => void) {
     this.scene = scene
     this.room = room
-    this.onGameOverCallback = onGameOver;
+    this.onGameOverCallback = onGameOver
 
     this.audioManager = new AudioManager(this.scene)
     this.inputManager = new InputManager(this.scene, this.audioManager)
@@ -116,16 +120,25 @@ export class GameEngine {
    * Disposes of all resources used by the game engine.
    */
   dispose(): void {
-    this.localController?.dispose();
-    this.remoteControllers.forEach(controller => controller.dispose());
-    this.remoteControllers.clear();
-    this.audioManager.dispose();
-    this.inputManager.dispose();
-    this.performanceManager?.dispose();
-    InteractableObject.reset();
-    this.ingredientLoader?.dispose(); // Dispose ingredient loader
-    this.scene.dispose();
-    console.log("GameEngine disposed");
+    this.phantomParticleSystems.forEach((ps) => {
+      ps.stop()
+      ps.dispose()
+    })
+    this.phantomParticleSystems.clear()
+    if (this.phantomTexture) {
+      this.phantomTexture.dispose()
+      this.phantomTexture = null
+    }
+    this.localController?.dispose()
+    this.remoteControllers.forEach((controller) => controller.dispose())
+    this.remoteControllers.clear()
+    this.audioManager.dispose()
+    this.inputManager.dispose()
+    this.performanceManager?.dispose()
+    InteractableObject.reset()
+    this.ingredientLoader?.dispose() // Dispose ingredient loader
+    this.scene.dispose()
+    console.log('GameEngine disposed')
   }
 
   /**
@@ -144,7 +157,7 @@ export class GameEngine {
    * @param name Name of the sound defined in soundList.
    */
   public stopSfx(name: string): void {
-    this.audioManager.stopSound(name);
+    this.audioManager.stopSound(name)
   }
 
   /**
@@ -241,6 +254,14 @@ export class GameEngine {
       }
     }
 
+    const phantomTexturePath = 'assets/particles/DarkMagicSmoke.png' // Use a suitable texture
+    try {
+      this.phantomTexture = new Texture(phantomTexturePath, this.scene)
+      this.phantomTexture.hasAlpha = true
+    } catch (error) {
+      console.error('Failed to load phantom particle texture:', error)
+    }
+
     // When all assets are loaded
     this.assetsManager.onFinish = () => {
       // Create UI if needed for other elements
@@ -265,8 +286,8 @@ export class GameEngine {
     // Wait for both assets and map to load before hiding loading screen
     let assetsLoaded = false
     let mapLoaded = false
-    let soundsLoaded = false;
-    let ingredientModelsLoaded = false;
+    let soundsLoaded = false
+    let ingredientModelsLoaded = false
 
     const checkLoadingComplete = () => {
       if (assetsLoaded && mapLoaded && soundsLoaded && ingredientModelsLoaded) {
@@ -297,12 +318,15 @@ export class GameEngine {
       checkLoadingComplete()
     })
 
-    this.ingredientLoader.loadIngredientModels().then(() => {
-      ingredientModelsLoaded = true
-      checkLoadingComplete()
-    }).catch((error) => {
-      console.error('Error loading ingredient models:', error)
-    })
+    this.ingredientLoader
+      .loadIngredientModels()
+      .then(() => {
+        ingredientModelsLoaded = true
+        checkLoadingComplete()
+      })
+      .catch((error) => {
+        console.error('Error loading ingredient models:', error)
+      })
 
     // Start asset loading.
     this.assetsManager.load()
@@ -364,7 +388,7 @@ export class GameEngine {
           }
 
           // Update ingredients on chopping board if it's a chopping board
-          if (interactable.interactType === InteractType.ChoppingBoard) {
+          if (interactable.interactType === InteractType.ChoppingBoard || interactable.interactType === InteractType.Oven) {
             const ingredients = objState.ingredientsOnBoard.map((i) => i as Ingredient)
             interactable.updateIngredientsOnBoard(ingredients)
           }
@@ -399,39 +423,39 @@ export class GameEngine {
     // Listen for interactable object changes (e.g., oven state)
     $(this.room.state).interactableObjects.onAdd((objState, key) => {
       // Find the corresponding client-side interactable object
-      const interactable = this.interactables.find((obj) => obj.id === Number(key));
-      if (!interactable) return;
+      const interactable = this.interactables.find((obj) => obj.id === Number(key))
+      if (!interactable) return
 
       // --- Oven Sound ---
       if (interactable.interactType === InteractType.Oven) {
-        $(objState).listen("isActive", (currentValue, previousValue) => {
+        $(objState).listen('isActive', (currentValue, previousValue) => {
           if (currentValue === true && previousValue === false) {
-            this.audioManager.playSound('ovenLoop', 0.6, true, interactable.mesh);
+            this.audioManager.playSound('ovenLoop', 0.6, true, interactable.mesh)
           } else if (currentValue === false && previousValue === true) {
-            this.audioManager.stopSound('ovenLoop');
+            this.audioManager.stopSound('ovenLoop')
           }
-        });
+        })
         // Initial state check for oven
         if (objState.isActive) {
-          this.audioManager.playSound('ovenLoop', 0.6, true, interactable.mesh);
+          this.audioManager.playSound('ovenLoop', 0.6, true, interactable.mesh)
         }
       }
 
       // --- Chopping Board Sounds ---
       if (interactable.interactType === InteractType.ChoppingBoard) {
-        let previousIngredients = [...objState.ingredientsOnBoard.values()];
+        let previousIngredients = [...objState.ingredientsOnBoard.values()]
 
         $(objState).onChange(() => {
-          const currentIngredients = objState.ingredientsOnBoard;
+          const currentIngredients = objState.ingredientsOnBoard
 
-          const currentArray = [...currentIngredients.values()];
+          const currentArray = [...currentIngredients.values()]
 
           if (currentArray.length !== previousIngredients.length) {
-            this.playSfx('pickupPlace');
+            this.playSfx('pickupPlace')
           }
 
-          previousIngredients = currentArray;
-        });
+          previousIngredients = currentArray
+        })
       }
 
       $(objState).onChange(() => {
@@ -461,89 +485,233 @@ export class GameEngine {
           initialInteractable.activate()
         }
       }
-    });
+    })
 
     const handleTimeLeftChange = (newTimeLeft: number) => {
-      const isUrgent = newTimeLeft <= 10000 && newTimeLeft > 0; // Check if time is 10s or less, but not zero
+      const isUrgent = newTimeLeft <= 10000 && newTimeLeft > 0 // Check if time is 10s or less, but not zero
 
       if (isUrgent && !this.isTimerTickingSoundPlaying) {
         // Start Ticking Sound (repeatedly)
-        this.isTimerTickingSoundPlaying = true;
+        this.isTimerTickingSoundPlaying = true
         // Clear any previous interval just in case
         if (this.timerTickIntervalId !== null) {
-          clearInterval(this.timerTickIntervalId);
+          clearInterval(this.timerTickIntervalId)
         }
         // Play immediately once
-        this.playSfx('timerTick');
+        this.playSfx('timerTick')
         // Then play every second
         this.timerTickIntervalId = window.setInterval(() => {
           // Check again inside interval in case state changed rapidly
           if (this.room.state.timeLeft <= 10000 && this.room.state.timeLeft > 0) {
-            this.playSfx('timerTick');
+            this.playSfx('timerTick')
           } else {
             // Stop if time went up or reached zero during the interval
-            this.stopTimerTickingSound();
+            this.stopTimerTickingSound()
           }
-        }, 1000);
-
+        }, 1000)
       } else if (!isUrgent && this.isTimerTickingSoundPlaying) {
-        this.stopTimerTickingSound();
+        this.stopTimerTickingSound()
       }
-    };
+    }
+
+    $(this.room.state).orders.onAdd((order: Order) => {
+      if (order.chairId !== -1) {
+        this.spawnPhantomForOrder(order)
+      }
+      // Listen for changes to chairId *after* adding (less likely with current server logic, but good practice)
+      $(order).listen('chairId', (currentChairId, previousChairId) => {
+        if (previousChairId !== -1 && this.phantomParticleSystems.has(previousChairId)) {
+          this.removePhantom(previousChairId)
+        }
+        if (currentChairId !== -1) {
+          // Need the full order object here if spawnPhantomForOrder needs more than just ID
+          this.spawnPhantomForOrder(order) // Might need to fetch the order state again if it changed significantly
+        }
+      })
+    })
+
+    $(this.room.state).orders.onRemove((order: Order) => {
+      if (order.chairId !== -1) {
+        this.removePhantom(order.chairId)
+      }
+    })
+
+    // Initial spawn for existing orders when client joins
+    this.room.state.orders.forEach((order) => {
+      if (order.chairId !== -1) {
+        this.spawnPhantomForOrder(order)
+      }
+    })
 
     // Listen for changes
-    $(this.room.state).listen('timeLeft', handleTimeLeftChange);
-
+    $(this.room.state).listen('timeLeft', handleTimeLeftChange)
 
     // --- Listen for Server Messages (Errors, etc.) ---
-    this.room.onMessage('alreadyCarrying', () => this.playSfx('error'));
-    this.room.onMessage('noIngredient', () => this.playSfx('error'));
-    this.room.onMessage('invalidIngredient', () => this.playSfx('error'));
-    this.room.onMessage('noMatchingOrder', () => this.playSfx('error'));
-    this.room.onMessage('needPlate', () => this.playSfx('error'));
-    this.room.onMessage('wrongIngredient', () => this.playSfx('error'));
-    this.room.onMessage('orderCompleted', () => this.playSfx('orderComplete'));
+    this.room.onMessage('alreadyCarrying', () => this.playSfx('error'))
+    this.room.onMessage('noIngredient', () => this.playSfx('error'))
+    this.room.onMessage('invalidIngredient', () => this.playSfx('error'))
+    this.room.onMessage('noMatchingOrder', () => this.playSfx('error'))
+    this.room.onMessage('needPlate', () => this.playSfx('error'))
+    this.room.onMessage('wrongIngredient', () => this.playSfx('error'))
+    this.room.onMessage('orderCompleted', () => this.playSfx('orderComplete'))
 
-    this.room.onMessage('invalidServe', () => this.playSfx('error'));
-    this.room.onMessage('stationBusy', () => this.playSfx('error'));
-    this.room.onMessage('cannotPickup', () => this.playSfx('error'));
-    this.room.onMessage('invalidPickup', () => this.playSfx('error'));
-    this.room.onMessage('invalidCombination', () => this.playSfx('error'));
-    this.room.onMessage('boardNotEmpty', () => this.playSfx('error'));
-    this.room.onMessage('boardEmpty', () => this.playSfx('error'));
-    this.room.onMessage('error', (payload) => { // Generic error handler
-      console.warn("Received error from server:", payload?.message || 'Unknown error');
-      this.playSfx('error');
-    });
+    this.room.onMessage('invalidServe', () => this.playSfx('error'))
+    this.room.onMessage('stationBusy', () => this.playSfx('error'))
+    this.room.onMessage('cannotPickup', () => this.playSfx('error'))
+    this.room.onMessage('invalidPickup', () => this.playSfx('error'))
+    this.room.onMessage('invalidCombination', () => this.playSfx('error'))
+    this.room.onMessage('boardNotEmpty', () => this.playSfx('error'))
+    this.room.onMessage('boardEmpty', () => this.playSfx('error'))
+    this.room.onMessage('error', (payload) => {
+      // Generic error handler
+      console.warn('Received error from server:', payload?.message || 'Unknown error')
+      this.playSfx('error')
+    })
 
-    this.room.onMessage('orderCompleted', () => this.playSfx('orderComplete'));
+    this.room.onMessage('orderCompleted', () => this.playSfx('orderComplete'))
 
-    this.room.onMessage("gameOver", (payload: { finalScore: number }) => {
-      console.log("Game Over! Final Score:", payload.finalScore);
+    this.room.onMessage('gameOver', (payload: { finalScore: number }) => {
+      console.log('Game Over! Final Score:', payload.finalScore)
 
       // Call the callback provided by the React component
-      this.onGameOverCallback(payload.finalScore);
+      this.onGameOverCallback(payload.finalScore)
 
       // Stop game actions
-      this.localController?.inputMap.clear(); // Disable local player input
-      this.audioManager.stopSound('ovenLoop'); // Stop oven sound if playing
-      this.stopTimerTickingSound(); // Stop timer tick sound if playing
+      this.localController?.inputMap.clear() // Disable local player input
+      this.audioManager.stopSound('ovenLoop') // Stop oven sound if playing
+      this.stopTimerTickingSound() // Stop timer tick sound if playing
 
       // Unlock pointer if locked
       if (this.scene.getEngine().isPointerLock) {
-        document.exitPointerLock();
+        document.exitPointerLock()
       }
 
       this.dispose()
-    });
+    })
+  }
+
+  /**
+   * Creates a phantom particle system at the specified position.
+   * @param position The world position to spawn the phantom.
+   * @returns The created ParticleSystem instance.
+   */
+  private createPhantomSystem(position: Vector3): ParticleSystem {
+    const capacity = 200 // Adjust particle count as needed
+    const ps = new ParticleSystem(`phantom_${position.x}_${position.z}`, capacity, this.scene)
+
+    // Texture
+    if (this.phantomTexture) {
+      ps.particleTexture = this.phantomTexture
+    } else {
+      // Fallback: use a default color or omit texture
+      console.warn('Phantom texture not loaded, using default particles.')
+    }
+
+    // Emitter: Spawn around the chair position
+    ps.emitter = position
+    ps.minEmitBox = new Vector3(-0.2, 0, -0.2) // Small area around the chair center
+    ps.maxEmitBox = new Vector3(0.2, 0.3, 0.2) // Slightly above the seat
+
+    // Colors: Ethereal blues/purples/whites
+    ps.color1 = new Color4(0.6, 0.7, 1.0, 0.1) // Light blue, low start alpha
+    ps.color2 = new Color4(0.8, 0.6, 1.0, 0.2) // Light purple, slightly more opaque
+    ps.colorDead = new Color4(0.9, 0.9, 1.0, 0.0) // Fade to transparent white
+
+    // Use gradients for smoother transition
+    ps.addColorGradient(0, new Color4(0.7, 0.8, 1.0, 0.05)) // Start very transparent
+    ps.addColorGradient(0.5, new Color4(0.6, 0.7, 1.0, 0.3)) // Peak opacity mid-life
+    ps.addColorGradient(1.0, new Color4(0.8, 0.8, 1.0, 0.0)) // Fade out
+
+    // Size
+    ps.minSize = 0.1
+    ps.maxSize = 0.4
+    ps.addSizeGradient(0, 0.1)
+    ps.addSizeGradient(0.7, 0.4)
+    ps.addSizeGradient(1.0, 0.1) // Shrink slightly at end
+
+    // Lifetime
+    ps.minLifeTime = 1.5
+    ps.maxLifeTime = 3.0
+
+    // Emission Rate
+    ps.emitRate = 60 // Adjust for desired density
+
+    // Blending Mode
+    ps.blendMode = ParticleSystem.BLENDMODE_STANDARD // Or BLENDMODE_ADD for brighter effect
+
+    // Shape & Movement: Slow upward drift
+    ps.gravity = new Vector3(0, 0.05, 0) // Slight lift
+
+    // Direction (Mostly upwards, slight spread)
+    ps.direction1 = new Vector3(-0.1, 0.2, -0.1)
+    ps.direction2 = new Vector3(0.1, 0.5, 0.1)
+
+    // Speed
+    ps.minEmitPower = 0.05
+    ps.maxEmitPower = 0.2
+
+    // Rotation (slow spin)
+    ps.minAngularSpeed = -0.2
+    ps.maxAngularSpeed = 0.2
+    ps.minInitialRotation = 0
+    ps.maxInitialRotation = Math.PI
+
+    ps.updateSpeed = 0.015 // Control simulation speed
+    ps.disposeOnStop = false // We will manage disposal
+
+    return ps
+  }
+
+  /**
+   * Spawns a phantom particle system for a given order at its assigned chair.
+   * @param order The order data containing the chair ID.
+   */
+  private spawnPhantomForOrder(order: Order): void {
+    const chairId = order.chairId
+    if (this.phantomParticleSystems.has(chairId)) {
+      console.warn(`Phantom already exists for chair ${chairId}. Skipping spawn.`)
+      return // Already exists
+    }
+
+    // Find the InteractableObject representing the chair
+    const chairObject = this.interactables.find((obj) => obj.id === chairId && obj.interactType === InteractType.ServingOrder)
+
+    if (chairObject) {
+      // Get position, adjust height slightly above the seat
+      const position = chairObject.mesh.getAbsolutePosition().clone()
+      position.y += 0.6 // Adjust this value based on your chair model's pivot/height
+
+      const ps = this.createPhantomSystem(position)
+      this.phantomParticleSystems.set(chairId, ps)
+      ps.start()
+      // console.log(`Spawned phantom at chair ${chairId}`);
+    } else {
+      console.warn(`Could not find chair object with ID ${chairId} to spawn phantom.`)
+    }
+  }
+
+  /**
+   * Removes and disposes of the phantom particle system associated with a chair ID.
+   * @param chairId The ID of the chair whose phantom should be removed.
+   */
+  private removePhantom(chairId: number): void {
+    const ps = this.phantomParticleSystems.get(chairId)
+    if (ps) {
+      ps.stop()
+
+      this.phantomParticleSystems.delete(chairId)
+      // console.log(`Stopped phantom for chair ${chairId}. Disposal scheduled.`);
+    } else {
+      // console.warn(`Attempted to remove phantom for chair ${chairId}, but none found.`);
+    }
   }
 
   private stopTimerTickingSound(): void {
     if (this.timerTickIntervalId !== null) {
-      clearInterval(this.timerTickIntervalId);
-      this.timerTickIntervalId = null;
+      clearInterval(this.timerTickIntervalId)
+      this.timerTickIntervalId = null
     }
-    this.isTimerTickingSoundPlaying = false;
+    this.isTimerTickingSoundPlaying = false
   }
 
   /**
@@ -707,7 +875,14 @@ export class GameEngine {
     const mesh = localInstance.rootNodes[0] as Mesh
     mesh.scaling = new Vector3(1.3, 1.3, 1.3)
     mesh.rotation = new Vector3(0, 0, 0)
-    this.localController = new LocalCharacterController(this, mesh, this.ingredientLoader, localInstance.animationGroups, this.scene, this.audioManager)
+    this.localController = new LocalCharacterController(
+      this,
+      mesh,
+      this.ingredientLoader,
+      localInstance.animationGroups,
+      this.scene,
+      this.audioManager,
+    )
     this.localController.model.receiveShadows = true
     this.shadowGenerator.addShadowCaster(this.localController.model)
 
@@ -745,7 +920,13 @@ export class GameEngine {
 
       remoteMesh.scaling = new Vector3(1.3, 1.3, 1.3)
       remoteMesh.rotation = new Vector3(0, 0, 0)
-      const remoteController = new RemoteCharacterController(remoteMesh, this.scene, this.ingredientLoader, remoteInstance.animationGroups, this.audioManager)
+      const remoteController = new RemoteCharacterController(
+        remoteMesh,
+        this.scene,
+        this.ingredientLoader,
+        remoteInstance.animationGroups,
+        this.audioManager,
+      )
       remoteController.setPosition(new Vector3(player.x, player.y, player.z))
       remoteController.setRotationY(player.rot)
 

@@ -7,7 +7,7 @@ export enum InteractType {
   Stock,
   Ingredient,
   Trash,
-  ServingOrder
+  ServingOrder,
 }
 
 export enum Ingredient {
@@ -16,5 +16,12 @@ export enum Ingredient {
   Rice,
   Onigiri,
   Plate,
-  CookedRice
+  CookedRice,
+  Ebi,
+  Salmon,
+  SalmonNigiri,
+  EbiNigiri,
+  SeaUrchin,
+  SeaUrchinOpen,
+  SeaUrchinRoll,
 }

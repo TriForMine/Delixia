@@ -20,4 +20,7 @@ export class Order extends Schema {
     // For example, if you set this to Date.now() + 60000, the order has a 60-second deadline.
     @type("number")
     deadline: number = 0;
+
+    @type("number")
+    chairId: number = -1;
 }

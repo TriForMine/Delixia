@@ -97,49 +97,6 @@ const rawMapConfigs: MapModelConfig[] = [
       restitution: 0.1,
     },
     instances: [
-      // Chaise Coin Gauche Devant
-      {
-        position: { x: 8, y: 0.4, z: -7 },
-        interaction: {
-          interactType: InteractType.ServingOrder,
-        },
-      },
-      {
-        position: { x: 7, y: 0.4, z: -8 },
-        rotation: { y: Math.PI },
-        interaction: {
-          interactType: InteractType.ServingOrder,
-        },
-      },
-
-      // Chaise Coin Droite Devant
-      {
-        position: { x: -7, y: 0.4, z: -8 },
-        interaction: {
-          interactType: InteractType.ServingOrder,
-        },
-      },
-      {
-        position: { x: -8, y: 0.4, z: -7 },
-        rotation: { y: Math.PI },
-        interaction: {
-          interactType: InteractType.ServingOrder,
-        },
-      },
-
-      // Chaise Gauche Volant
-      {
-        position: { x: 5, y: 3.75, z: -3.5 },
-      },
-      {
-        position: { x: 5, y: 3.75, z: -6.5 },
-      },
-      {
-        position: { x: 3.5, y: 3.75, z: -5 },
-      },
-      {
-        position: { x: 6.5, y: 3.75, z: -5 },
-      },
       // Sous Pied
       {
         position: { x: 5.95, y: 3.5, z: -4.2 },
@@ -158,19 +115,24 @@ const rawMapConfigs: MapModelConfig[] = [
         scaling: { x: 0.1, y: 0.1, z: 0.1 },
       },
 
-      // Chaise Droite Volant
+      // Sous Pied
       {
-        position: { x: -5, y: 3.75, z: -3.5 },
+        position: { x: -2.2, y: 2, z: -1.3 },
+        scaling: { x: 0.2, y: 0.1, z: 0.1 },
       },
       {
-        position: { x: -5, y: 3.75, z: -6.5 },
+        position: { x: 2.1, y: 2, z: -1.3 },
+        scaling: { x: 0.2, y: 0.1, z: 0.1 },
       },
       {
-        position: { x: -3.5, y: 3.75, z: -5 },
+        position: { x: -2.2, y: 2, z: -2.7 },
+        scaling: { x: 0.2, y: 0.1, z: 0.1 },
       },
       {
-        position: { x: -6.5, y: 3.75, z: -5 },
+        position: { x: 2.1, y: 2, z: -2.7 },
+        scaling: { x: 0.2, y: 0.1, z: 0.1 },
       },
+
       // Sous Pied
       {
         position: { x: -5.95, y: 3.5, z: -4.2 },
@@ -187,6 +149,67 @@ const rawMapConfigs: MapModelConfig[] = [
       {
         position: { x: -4.07, y: 3.5, z: -5.85 },
         scaling: { x: 0.1, y: 0.1, z: 0.1 },
+      },
+    ],
+  },
+  {
+    map: 'japan',
+    fileName: 'cloud1.glb',
+    defaultScaling: { x: 0.2, y: 0.2, z: 0.2 },
+    defaultPhysics: {
+      shapeType: PhysicsShapeType.BOX,
+      mass: 0,
+      friction: 0.8,
+      restitution: 0.1,
+    },
+    interaction: {
+      interactType: InteractType.ServingOrder,
+    },
+    instances: [
+      // Chaise Coin Gauche Devant
+      {
+        position: { x: 8, y: 0.4, z: -7 },
+      },
+      {
+        position: { x: 7, y: 0.4, z: -8 },
+        rotation: { y: Math.PI },
+      },
+
+      // Chaise Coin Droite Devant
+      {
+        position: { x: -7, y: 0.4, z: -8 },
+      },
+      {
+        position: { x: -8, y: 0.4, z: -7 },
+        rotation: { y: Math.PI },
+      },
+
+      // Chaise Gauche Volant
+      {
+        position: { x: 5, y: 3.75, z: -3.5 },
+      },
+      {
+        position: { x: 5, y: 3.75, z: -6.5 },
+      },
+      {
+        position: { x: 3.5, y: 3.75, z: -5 },
+      },
+      {
+        position: { x: 6.5, y: 3.75, z: -5 },
+      },
+
+      // Chaise Droite Volant
+      {
+        position: { x: -5, y: 3.75, z: -3.5 },
+      },
+      {
+        position: { x: -5, y: 3.75, z: -6.5 },
+      },
+      {
+        position: { x: -3.5, y: 3.75, z: -5 },
+      },
+      {
+        position: { x: -6.5, y: 3.75, z: -5 },
       },
 
       // Chaise Volant
@@ -207,23 +230,6 @@ const rawMapConfigs: MapModelConfig[] = [
       },
       {
         position: { x: 1.5, y: 2.25, z: -3.2 },
-      },
-      // Sous Pied
-      {
-        position: { x: -2.2, y: 2, z: -1.3 },
-        scaling: { x: 0.2, y: 0.1, z: 0.1 },
-      },
-      {
-        position: { x: 2.1, y: 2, z: -1.3 },
-        scaling: { x: 0.2, y: 0.1, z: 0.1 },
-      },
-      {
-        position: { x: -2.2, y: 2, z: -2.7 },
-        scaling: { x: 0.2, y: 0.1, z: 0.1 },
-      },
-      {
-        position: { x: 2.1, y: 2, z: -2.7 },
-        scaling: { x: 0.2, y: 0.1, z: 0.1 },
       },
 
       // Chaise Coin Gauche
@@ -271,22 +277,13 @@ const rawMapConfigs: MapModelConfig[] = [
       // Chaise Devant
       {
         position: { x: 1.35, y: 0.4, z: -7.8 },
-        interaction: {
-          interactType: InteractType.ServingOrder,
-        },
       },
       {
         position: { x: 0, y: 0.4, z: -6.5 },
         rotation: { y: Math.PI },
-        interaction: {
-          interactType: InteractType.ServingOrder,
-        },
       },
       {
         position: { x: -1.35, y: 0.4, z: -7.8 },
-        interaction: {
-          interactType: InteractType.ServingOrder,
-        },
       },
     ],
   },
@@ -427,11 +424,6 @@ const rawMapConfigs: MapModelConfig[] = [
       friction: 0.8,
       restitution: 0.1,
     },
-    billboardOffset: {
-      x: 0,
-      y: 1.5,
-      z: 0,
-    },
     instances: [
       {
         interaction: {
@@ -464,11 +456,19 @@ const rawMapConfigs: MapModelConfig[] = [
     },
     instances: [
       {
+        position: { x: -1.05, y: 1.1, z: 4.65 },
+        rotation: { x: 0, y: 0, z: 0 },
+      },
+      {
         interaction: {
           interactType: InteractType.Stock,
           ingredient: Ingredient.Nori,
         },
-        position: { x: 4, y: 1.15, z: 6 },
+        position: { x: -1.05, y: 1.2, z: 4.75 },
+        rotation: { x: 0, y: 0, z: 0 },
+      },
+      {
+        position: { x: -1.05, y: 1.1, z: 4.85 },
         rotation: { x: 0, y: 0, z: 0 },
       },
     ],
@@ -494,7 +494,7 @@ const rawMapConfigs: MapModelConfig[] = [
           interactType: InteractType.Stock,
           ingredient: Ingredient.Rice,
         },
-        position: { x: 4, y: 1.15, z: 3 },
+        position: { x: 1.05, y: 1.15, z: 4.75 },
         rotation: { x: 0, y: 0, z: 0 },
       },
     ],
@@ -644,6 +644,218 @@ const rawMapConfigs: MapModelConfig[] = [
         interaction: {
           interactType: InteractType.Trash,
         },
+      },
+    ],
+  },
+  {
+    map: 'fastfood',
+    fileName: 'Crate.glb',
+    defaultScaling: { x: 0.35, y: 0.3, z: 0.35 },
+    defaultPhysics: {
+      shapeType: PhysicsShapeType.MESH,
+      mass: 0,
+      friction: 0.8,
+      restitution: 0.1,
+    },
+    instances: [
+      {
+        position: { x: 1.05, y: 1.05, z: 4.75 },
+        rotation: { y: Math.PI },
+      },
+      {
+        position: { x: -1.05, y: 1.05, z: 4.75 },
+        rotation: { y: Math.PI },
+      },
+      {
+        position: { x: -1.05, y: 1.05, z: 5.75 },
+        rotation: { y: Math.PI },
+      },
+      {
+        position: { x: 0, y: 1.05, z: 5.75 },
+        rotation: { y: Math.PI },
+      },
+      {
+        position: { x: 1.05, y: 1.05, z: 5.75 },
+        rotation: { y: Math.PI },
+      },
+    ],
+  },
+  {
+    map: 'fastfood',
+    fileName: 'Pot A.glb',
+    defaultScaling: { x: 0.55, y: 0.75, z: 0.55 },
+    defaultPhysics: {
+      shapeType: PhysicsShapeType.MESH,
+      mass: 0,
+      friction: 0.8,
+      restitution: 0.1,
+    },
+    instances: [
+      {
+        position: { x: 1.75, y: 1.2, z: 8.3 },
+        rotation: { y: Math.PI },
+      },
+      {
+        position: { x: -1.75, y: 1.2, z: 8.3 },
+        rotation: { y: Math.PI },
+      },
+    ],
+  },
+  {
+    map: 'japan',
+    fileName: 'Salmon.glb',
+    defaultScaling: { x: 0.65, y: 0.5, z: 0.6 },
+    defaultPhysics: {
+      shapeType: PhysicsShapeType.MESH,
+      mass: 0,
+      friction: 0.8,
+      restitution: 0.1,
+    },
+    billboardOffset: {
+      x: 0,
+      y: 0.5,
+      z: 0,
+    },
+    instances: [
+      {
+        position: { x: 0.05, y: 1.05, z: 5.77 },
+        rotation: { y: Math.PI },
+        interaction: {
+          interactType: InteractType.Stock,
+          ingredient: Ingredient.Salmon,
+        },
+      },
+    ],
+  },
+  {
+    map: 'japan',
+    fileName: 'Sea Urchin.glb',
+    defaultScaling: { x: 0.35, y: 0.35, z: 0.35 },
+    defaultPhysics: {
+      shapeType: PhysicsShapeType.MESH,
+      mass: 0,
+      friction: 0.8,
+      restitution: 0.1,
+    },
+    billboardOffset: {
+      x: 0,
+      y: 0.5,
+      z: 0,
+    },
+    instances: [
+      {
+        position: { x: 1.17, y: 1.2, z: 5.85 },
+        rotation: { y: Math.PI },
+      },
+      {
+        position: { x: 0.93, y: 1.2, z: 5.85 },
+        rotation: { y: Math.PI },
+      },
+      {
+        position: { x: 1.05, y: 1.2, z: 5.66 },
+        rotation: { y: Math.PI },
+        interaction: {
+          interactType: InteractType.Stock,
+          ingredient: Ingredient.SeaUrchin,
+        },
+      },
+    ],
+  },
+  {
+    map: 'japan',
+    fileName: 'Ebi.glb',
+    defaultScaling: { x: 0.75, y: 0.75, z: 0.75 },
+    defaultPhysics: {
+      shapeType: PhysicsShapeType.MESH,
+      mass: 0,
+      friction: 0.8,
+      restitution: 0.1,
+    },
+    billboardOffset: {
+      x: 0,
+      y: 0.5,
+      z: 0,
+    },
+    instances: [
+      {
+        position: { x: -1.17, y: 1.05, z: 5.85 },
+        rotation: { y: Math.PI },
+      },
+      {
+        position: { x: -0.93, y: 1.05, z: 5.85 },
+        rotation: { y: Math.PI },
+      },
+      {
+        position: { x: -1.05, y: 1.05, z: 5.66 },
+        rotation: { y: Math.PI },
+        interaction: {
+          interactType: InteractType.Stock,
+          ingredient: Ingredient.Ebi,
+        },
+      },
+    ],
+  },
+  {
+    map: 'japan',
+    fileName: 'Board.glb',
+    defaultScaling: { x: 0.15, y: 0.05, z: 0.25 },
+    defaultPhysics: {
+      shapeType: PhysicsShapeType.MESH,
+      mass: 0,
+      friction: 0.8,
+      restitution: 0.1,
+    },
+    billboardOffset: {
+      x: 0,
+      y: 0.5,
+      z: 0,
+    },
+    instances: [
+      {
+        position: { x: -4, y: 1.07, z: 5.85 },
+        rotation: { y: Math.PI },
+      },
+      {
+        position: { x: 4, y: 1.07, z: 5.85 },
+        rotation: { x: Math.PI },
+      },
+      {
+        position: { x: -4, y: 1.07, z: 7.15 },
+        rotation: { y: -Math.PI },
+      },
+
+      {
+        position: { x: 4, y: 1.07, z: 7.15 },
+        rotation: { x: -Math.PI },
+      },
+
+      {
+        position: { x: -0.65, y: 1.07, z: 2 },
+        scaling: { x: 0.25, y: 0.05, z: 0.15 },
+        rotation: { y: Math.PI / 2 },
+      },
+
+      {
+        position: { x: 0.65, y: 1.07, z: 2 },
+        scaling: { x: 0.25, y: 0.05, z: 0.15 },
+        rotation: { y: Math.PI / 2 },
+      },
+    ],
+  },
+  {
+    map: 'japan',
+    fileName: 'Chick.glb',
+    defaultScaling: { x: 0.1, y: 0.1, z: 0.1 },
+    defaultPhysics: {
+      shapeType: PhysicsShapeType.MESH,
+      mass: 0,
+      friction: 0.8,
+      restitution: 0.1,
+    },
+    instances: [
+      {
+        position: { x: 0, y: 1, z: 0 },
+        rotation: { y: Math.PI },
       },
     ],
   },

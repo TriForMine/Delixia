@@ -119,8 +119,8 @@ export class MapLoader {
             root.scaling.set(modelConfig.defaultScaling.x ?? 1, modelConfig.defaultScaling.y ?? 1, modelConfig.defaultScaling.z ?? 1)
           }
 
-          if (modelConfig.interaction ?? placement.interaction) {
-            const interaction = modelConfig.interaction ?? placement.interaction
+          if (placement.interaction) {
+            const interaction = placement.interaction
             if (!interaction || !interaction.id) {
               console.warn(`Missing interaction for model "${modelConfig.fileName}"`)
               return

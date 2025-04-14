@@ -81,7 +81,15 @@ export function processMapConfigurations(mapConfigs: MapModelConfig[]): MapModel
   for (const config of mapConfigs) {
     // Process instances with interactions
     for (const instance of config.instances) {
-      if (instance.interaction) {
+      if (instance.interaction ?? config.interaction) {
+        if (config.interaction && !instance.interaction) {
+          instance.interaction = {
+            ...config.interaction,
+          }
+        }
+
+        if (!instance.interaction) continue
+
         const interactType = instance.interaction.interactType
         const ingredient = instance.interaction.ingredient ?? Ingredient.None
 

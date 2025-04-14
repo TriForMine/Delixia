@@ -86,7 +86,7 @@ export class PerformanceManager {
     this.shadowGenerator.blurKernel = 16 // Reduced blur kernel
     this.shadowGenerator.useKernelBlur = true
     this.shadowGenerator.usePercentageCloserFiltering = true
-    this.shadowGenerator.shadowMaxZ = 20 // Reduced shadow distance
+    this.shadowGenerator.shadowMaxZ = 30 // Reduced shadow distance
     this.shadowGenerator.stabilizeCascades = true // Reduce shadow flickering
     this.shadowGenerator.lambda = 0.8 // Stabilization factor
     this.shadowGenerator.cascadeBlendPercentage = 0.1 // Smoother transitions

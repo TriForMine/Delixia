@@ -11,11 +11,11 @@ import { Ingredient } from '@shared/types/enums.ts'
 import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
 import type { Mesh } from '@babylonjs/core/Meshes'
 import { CharacterState } from './CharacterState'
-import {AudioManager} from "@client/game/managers/AudioManager.ts";
-import {getItemDefinition} from "@shared/definitions.ts";
+import type { AudioManager } from '@client/game/managers/AudioManager.ts'
+import { getItemDefinition } from '@shared/definitions.ts'
 
 export class CharacterController {
-  protected readonly audioManager: AudioManager;
+  protected readonly audioManager: AudioManager
   protected readonly ingredientLoader: IngredientLoader
   private currentIngredientMesh?: Mesh | null = undefined
   private plateMesh?: Mesh | null = undefined
@@ -41,11 +41,11 @@ export class CharacterController {
   protected holdingPlate: boolean = false
 
   protected constructor(
-      characterMesh: AbstractMesh,
-      scene: Scene,
-      ingredientLoader: IngredientLoader,
-      animationGroups: AnimationGroup[],
-      audioManager: AudioManager,
+    characterMesh: AbstractMesh,
+    scene: Scene,
+    ingredientLoader: IngredientLoader,
+    animationGroups: AnimationGroup[],
+    audioManager: AudioManager,
   ) {
     this.scene = scene
     this.ingredientLoader = ingredientLoader
@@ -56,7 +56,7 @@ export class CharacterController {
     this.impostorMesh.rotationQuaternion = Quaternion.Identity()
     this.impostorMesh.position.y = 1
     this.impostorMesh.position.x = 0
-    this.impostorMesh.position.z = 5
+    this.impostorMesh.position.z = 3.5
     this.impostorMesh.isPickable = false
 
     this.model = characterMesh
@@ -138,91 +138,91 @@ export class CharacterController {
   }
 
   forceSetIngredient(ingredient: Ingredient) {
-    if (this.ingredient === ingredient) return; // No change
+    if (this.ingredient === ingredient) return // No change
 
-    this.ingredient = ingredient;
-    this.updateHeldItemVisuals();
+    this.ingredient = ingredient
+    this.updateHeldItemVisuals()
   }
 
   private updateHeldItemVisuals(): void {
     // Clear existing visuals first
     if (this.currentIngredientMesh) {
-      this.currentIngredientMesh.dispose();
-      this.currentIngredientMesh = undefined;
+      this.currentIngredientMesh.dispose()
+      this.currentIngredientMesh = undefined
     }
     if (this.plateMesh) {
-      this.plateMesh.dispose();
-      this.plateMesh = undefined;
+      this.plateMesh.dispose()
+      this.plateMesh = undefined
     }
 
-    const heldIngredientDef = getItemDefinition(this.ingredient);
+    const heldIngredientDef = getItemDefinition(this.ingredient)
 
     // 1. Show plate if holding one
     if (this.holdingPlate) {
-      this.plateMesh = this.ingredientLoader.getIngredientMesh(Ingredient.Plate);
+      this.plateMesh = this.ingredientLoader.getIngredientMesh(Ingredient.Plate)
 
       if (this.plateMesh) {
-        this.plateMesh.parent = this.model;
-        this.plateMesh.position = new Vector3(0, 0.5, 0.4); // Position plate in hand
-        this.plateMesh.rotationQuaternion = Quaternion.Identity();
-        this.plateMesh.scaling = new Vector3(0.5, 0.5, 0.5);
-        this.plateMesh.isPickable = false;
-        this.plateMesh.getChildMeshes().forEach(m => m.isPickable = false);
+        this.plateMesh.parent = this.model
+        this.plateMesh.position = new Vector3(0, 0.5, 0.4) // Position plate in hand
+        this.plateMesh.rotationQuaternion = Quaternion.Identity()
+        this.plateMesh.scaling = new Vector3(0.5, 0.5, 0.5)
+        this.plateMesh.isPickable = false
+        this.plateMesh.getChildMeshes().forEach((m) => (m.isPickable = false))
       }
     }
 
     // 2. Show ingredient if holding one (and it's not 'None')
     if (this.ingredient !== Ingredient.None && heldIngredientDef) {
-      this.currentIngredientMesh = this.ingredientLoader.getIngredientMesh(this.ingredient);
+      this.currentIngredientMesh = this.ingredientLoader.getIngredientMesh(this.ingredient)
       if (this.currentIngredientMesh) {
-        this.currentIngredientMesh.parent = this.model;
+        this.currentIngredientMesh.parent = this.model
         // Position ingredient: on plate or in hand
         if (this.holdingPlate && this.plateMesh) {
           // Position relative to the plate (adjust Y slightly higher)
-          this.currentIngredientMesh.position = new Vector3(0, 0.05, 0); // Relative to plate center
-          this.currentIngredientMesh.setParent(this.plateMesh); // Parent to plate for easier transform
-          this.currentIngredientMesh.position = new Vector3(0, 0.05, 0); // Position slightly above plate center
-
+          this.currentIngredientMesh.position = new Vector3(0, 0.05, 0) // Relative to plate center
+          this.currentIngredientMesh.setParent(this.plateMesh) // Parent to plate for easier transform
+          this.currentIngredientMesh.position = new Vector3(0, 0.05, 0) // Position slightly above plate center
         } else {
           // Position directly in hand (if no plate)
-          this.currentIngredientMesh.position = new Vector3(0, 0.5, 0.4);
+          this.currentIngredientMesh.position = new Vector3(0, 0.5, 0.4)
         }
-        this.currentIngredientMesh.rotationQuaternion = Quaternion.Identity();
-        this.currentIngredientMesh.scaling = new Vector3(0.5, 0.5, 0.5); // Adjust scale as needed
-        this.currentIngredientMesh.isPickable = false;
-        this.currentIngredientMesh.getChildMeshes().forEach(m => m.isPickable = false);
+        this.currentIngredientMesh.rotationQuaternion = Quaternion.Identity()
+        this.currentIngredientMesh.scaling = new Vector3(0.5, 0.5, 0.5) // Adjust scale as needed
+        this.currentIngredientMesh.isPickable = false
+        this.currentIngredientMesh.getChildMeshes().forEach((m) => (m.isPickable = false))
       }
     }
   }
 
   pickupPlate() {
-    const currentIngredient = this.ingredient;
-    const currentIngredientIsFinal = currentIngredient !== Ingredient.None && !!getItemDefinition(currentIngredient)?.isFinal;
+    const currentIngredient = this.ingredient
+    const currentIngredientIsFinal = currentIngredient !== Ingredient.None && !!getItemDefinition(currentIngredient)?.isFinal
     if (currentIngredient !== Ingredient.None && !currentIngredientIsFinal) {
-      console.warn("Client: Cannot pick up plate while holding non-final.");
-      return;
+      console.warn('Client: Cannot pick up plate while holding non-final.')
+      return
     }
 
     this.forcePickupPlate()
   }
 
   forcePickupPlate() {
-    if (this.holdingPlate) return;
-    this.holdingPlate = true;
-    this.updateHeldItemVisuals();
+    if (this.holdingPlate) return
+    this.holdingPlate = true
+    this.updateHeldItemVisuals()
   }
 
   dropPlate() {
-    if (!this.holdingPlate) return; // Not holding
-    this.holdingPlate = false;
+    if (!this.holdingPlate) return // Not holding
+    this.holdingPlate = false
     // If dropping plate also drops ingredient on it
     if (this.ingredient !== Ingredient.None) {
-      const itemDef = getItemDefinition(this.ingredient);
-      if (itemDef?.isFinal) { // Only results sit on plates
-        this.ingredient = Ingredient.None;
+      const itemDef = getItemDefinition(this.ingredient)
+      if (itemDef?.isFinal) {
+        // Only results sit on plates
+        this.ingredient = Ingredient.None
       }
     }
-    this.updateHeldItemVisuals();
+    this.updateHeldItemVisuals()
   }
 
   get holdedIngredient() {
