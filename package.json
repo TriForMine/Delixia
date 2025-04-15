@@ -21,6 +21,7 @@
     "@babylonjs/loaders": "8.2.2",
     "@babylonjs/materials": "8.2.2",
     "@colyseus/bun-websockets": "0.16.3",
+    "@colyseus/core": "0.16.16",
     "@colyseus/monitor": "0.16.7",
     "@colyseus/playground": "0.16.3",
     "@colyseus/schema": "3.0.33",
