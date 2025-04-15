@@ -5,17 +5,25 @@ import { Mesh, MeshBuilder } from '@babylonjs/core/Meshes'
 import { ParticleSystem } from '@babylonjs/core/Particles/particleSystem'
 import { Texture } from '@babylonjs/core/Materials/Textures/texture'
 import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture'
+import { TransformNode } from '@babylonjs/core/Meshes/transformNode'
 import type { Scene } from '@babylonjs/core/scene'
+import type { Observer } from '@babylonjs/core/Misc/observable'
 import { Ingredient, InteractType } from '@shared/types/enums.ts'
 import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
 import { getItemDefinition } from '@shared/definitions.ts'
 
+// Interface to store ingredient mesh along with its desired local offset
+interface DisplayedIngredientInfo {
+  mesh: Mesh
+  localOffset: Vector3
+  localRotation: Quaternion // Store local rotation if needed
+  localScale: Vector3 // Store intended scale
+}
+
 export class InteractableObject {
   isActive: boolean = false
 
-  // Static texture cache for sharing textures between instances
   private static promptTextures: Map<string, DynamicTexture> = new Map<string, DynamicTexture>()
-  // Static particle texture cache
   private static particleTextures: Map<string, Texture> = new Map<string, Texture>()
 
   public mesh: Mesh
@@ -28,13 +36,20 @@ export class InteractableObject {
   public id: number
   private sparkleSystem?: ParticleSystem
   private readonly ingredientLoader?: IngredientLoader
-  private displayedIngredients: Mesh[] = []
-  // Store the last known ingredients to detect changes
-  private lastIngredientsOnBoard: Ingredient[] = []
-  private cookingVisualMesh: Mesh | null = null
 
-  // Pre-allocated vector for position updates
+  // --- Ingredient Display Management ---
+  private ingredientAnchor: TransformNode // Anchor node parented to the board
+  private displayedIngredientInfos: DisplayedIngredientInfo[] = [] // Store mesh + local offset info
+  private cookingVisualInfo: DisplayedIngredientInfo | null = null // Separate info for cooking visual
+  private lastIngredientsOnBoard: Ingredient[] = []
+
+  // --- Performance Optimizations ---
   private _positionUpdateTemp: Vector3 = new Vector3()
+  private _renderObserver: Observer<Scene> | null = null
+
+  // --- State ---
+  private activeParticleSystems: ParticleSystem[] = []
+  private disabled: boolean = false
 
   constructor(
     mesh: Mesh,
@@ -49,91 +64,113 @@ export class InteractableObject {
     this.scene = scene
     this.billboardOffset = billboardOffset?.clone() ?? new Vector3(0, 2, 0)
     this.ingredientLoader = ingredientLoader
-
-    // 1) Create a disc with reduced tessellation for better performance
-    this.promptDisc = MeshBuilder.CreateDisc(`${mesh.name}_prompt_disc`, { radius: 0.25, tessellation: 16 }, scene)
-    this.promptDisc.billboardMode = Mesh.BILLBOARDMODE_ALL
-
-    // 2) Use a shared texture manager for prompt textures
-    // This allows reusing textures for the same key prompt
-
-    // Only create a new texture if one doesn't already exist for this key
-    let dynamicTexture: DynamicTexture
-    if (InteractableObject.promptTextures.has(keyPrompt)) {
-      dynamicTexture = InteractableObject.promptTextures.get(keyPrompt)!
-    } else {
-      // Create a new texture with smaller dimensions
-      dynamicTexture = new DynamicTexture(`prompt_texture_${keyPrompt}`, { width: 64, height: 64 }, scene)
-      const ctx = dynamicTexture.getContext() as CanvasRenderingContext2D
-      ctx.clearRect(0, 0, 64, 64) // Clear background
-      ctx.fillStyle = '#FF9999' // Pastel pink
-      ctx.font = 'bold 32px "Patrick Hand"' // Readable font
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText(keyPrompt.toUpperCase(), 32, 32) // Centered text
-      dynamicTexture.update()
-
-      // Store for reuse
-      InteractableObject.promptTextures.set(keyPrompt, dynamicTexture)
-    }
-
-    // Matériau doux et rêveur
-    const mat = new StandardMaterial('promptMat', scene)
-    mat.diffuseTexture = dynamicTexture
-    mat.emissiveColor = new Color3(1, 0.9, 0.95) // Rose pastel lumineux
-    mat.diffuseColor = new Color3(1, 0.98, 1) // Fond presque blanc
-    mat.useAlphaFromDiffuseTexture = true
-    mat.alpha = 0.8 // Légère transparence
-    mat.disableLighting = true
-    this.promptDisc.material = mat
-
-    // Cacher par défaut
-    this.promptDisc.setEnabled(false)
-    this.promptDisc.isPickable = false
-
-    // make it always in front
-    this.promptDisc.renderingGroupId = 1
-
-    // 3) Animation flottante douce - optimized to use pre-allocated vector
-    this.scene.onBeforeRenderObservable.add(() => {
-      // Only update position when prompt is visible for performance
-      if (this.promptDisc.isEnabled()) {
-        // Use pre-allocated vector to avoid creating new objects every frame
-        this._positionUpdateTemp.copyFrom(this.mesh.getAbsolutePosition())
-        this._positionUpdateTemp.addInPlace(this.billboardOffset)
-        this._positionUpdateTemp.y += Math.sin(Date.now() * 0.0015) * 0.15 // Gentle floating effect
-        this.promptDisc.setAbsolutePosition(this._positionUpdateTemp)
-      }
-    })
-
-    // 4) Effet "dream world" pastel
-    this.createSparkleEffect()
-
     this.interactType = interactType
     this.id = interactId
+
+    // --- Ingredient Anchor Setup ---
+    // This invisible node follows the parent mesh but doesn't render.
+    // Ingredient positions will be calculated relative to this anchor's world position.
+    this.ingredientAnchor = new TransformNode(`${mesh.name}_ingredientAnchor`, scene)
+    this.ingredientAnchor.setParent(this.mesh)
+    // Set a default position relative to the parent mesh origin (e.g., slightly above surface)
+    // Adjust this Y value based on your station mesh pivot points
+    this.ingredientAnchor.position = new Vector3(0, 0.1, 0)
+    this.ingredientAnchor.rotationQuaternion = Quaternion.Identity()
+    this.ingredientAnchor.scaling = Vector3.One() // Anchor itself has unit scale
+
+    // 1) Create prompt disc
+    this.promptDisc = MeshBuilder.CreateDisc(`${mesh.name}_prompt_disc`, { radius: 0.25, tessellation: 16 }, scene)
+    this.promptDisc.billboardMode = Mesh.BILLBOARDMODE_ALL
+    this.promptDisc.isPickable = false
+    this.promptDisc.renderingGroupId = 1 // Render in front
+    this.promptDisc.setEnabled(false) // Hidden by default
+
+    // 2) Setup prompt material (using shared texture)
+    this._setupPromptMaterial(keyPrompt)
+
+    // 3) Setup sparkle effect
+    this.createSparkleEffect() // Renamed for clarity
+
+    // 4) Setup render loop for updates
+    this._setupRenderObserver()
   }
 
-  /**
-   * Resets all static properties of the InteractableObject class.
-   * This should be called when reloading the map to prevent issues with cached resources.
-   */
-  public static reset(): void {
-    // Clear prompt textures
-    this.promptTextures.forEach((texture) => {
-      texture.dispose()
-    })
-    this.promptTextures.clear()
+  private _setupPromptMaterial(keyPrompt: string): void {
+    let dynamicTexture: DynamicTexture
+    const textureKey = `prompt_${keyPrompt}`
+    if (InteractableObject.promptTextures.has(textureKey)) {
+      dynamicTexture = InteractableObject.promptTextures.get(textureKey)!
+    } else {
+      dynamicTexture = new DynamicTexture(textureKey, { width: 64, height: 64 }, this.scene, false) // Generate MipMaps = false for sharp text
+      const ctx = dynamicTexture.getContext() as CanvasRenderingContext2D
+      ctx.fillRect(0, 0, 64, 64)
+      ctx.fillStyle = '#FF9999' // Dark text
+      ctx.font = 'bold 32px "Patrick Hand"' // Simple, clear font
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(keyPrompt.toUpperCase(), 32, 34) // Adjust baseline slightly
+      dynamicTexture.update(true) // Update texture
+      InteractableObject.promptTextures.set(textureKey, dynamicTexture)
+    }
 
-    // Clear particle textures
-    this.particleTextures.forEach((texture) => {
-      texture.dispose()
+    const mat = new StandardMaterial('promptMat', this.scene)
+    mat.diffuseTexture = dynamicTexture
+    mat.opacityTexture = dynamicTexture // Use texture for alpha
+    mat.useAlphaFromDiffuseTexture = false // We use opacityTexture
+    mat.emissiveColor = Color3.White() // Make it glow slightly ignoring light
+    mat.disableLighting = true
+    this.promptDisc.material = mat
+  }
+
+  private _setupRenderObserver(): void {
+    // Remove existing observer if any (e.g., during hot-reloading)
+    if (this._renderObserver) {
+      this.scene.onBeforeRenderObservable.remove(this._renderObserver)
+    }
+
+    this._renderObserver = this.scene.onBeforeRenderObservable.add(() => {
+      // Update prompt position
+      if (this.promptDisc.isEnabled()) {
+        this.mesh.getAbsolutePosition().addToRef(this.billboardOffset, this._positionUpdateTemp)
+        this._positionUpdateTemp.y += Math.sin(Date.now() * 0.0015) * 0.15
+        this.promptDisc.setAbsolutePosition(this._positionUpdateTemp)
+      }
+
+      // Update ingredient positions based on the anchor
+      if (this.displayedIngredientInfos.length > 0 || this.cookingVisualInfo) {
+        const anchorWorldMatrix = this.ingredientAnchor.getWorldMatrix()
+
+        // Update regular ingredients
+        for (const info of this.displayedIngredientInfos) {
+          Vector3.TransformCoordinatesToRef(info.localOffset, anchorWorldMatrix, this._positionUpdateTemp)
+          info.mesh.setAbsolutePosition(this._positionUpdateTemp)
+          // Combine anchor's world rotation with the ingredient's local rotation
+          this.ingredientAnchor.absoluteRotationQuaternion.multiplyToRef(info.localRotation, info.mesh.rotationQuaternion!)
+          // Apply the *intended* local scale, ignoring parent scale
+          info.mesh.scaling.copyFrom(info.localScale)
+        }
+
+        // Update cooking visual (if any)
+        if (this.cookingVisualInfo) {
+          Vector3.TransformCoordinatesToRef(this.cookingVisualInfo.localOffset, anchorWorldMatrix, this._positionUpdateTemp)
+          this.cookingVisualInfo.mesh.setAbsolutePosition(this._positionUpdateTemp)
+          this.ingredientAnchor.absoluteRotationQuaternion.multiplyToRef(
+            this.cookingVisualInfo.localRotation,
+            this.cookingVisualInfo.mesh.rotationQuaternion!,
+          )
+          this.cookingVisualInfo.mesh.scaling.copyFrom(this.cookingVisualInfo.localScale)
+        }
+      }
     })
+  }
+
+  public static reset(): void {
+    this.promptTextures.forEach((texture) => texture.dispose())
+    this.promptTextures.clear()
+    this.particleTextures.forEach((texture) => texture.dispose())
     this.particleTextures.clear()
   }
 
-  /**
-   * Create optimized sparkle effect with reduced particle count
-   */
   private createSparkleEffect() {
     this.sparkleSystem = new ParticleSystem(
       `${this.mesh.name}_sparkles`,
@@ -184,8 +221,6 @@ export class InteractableObject {
     this.sparkleSystem.stop() // Start stopped
   }
 
-  private disabled: boolean = false
-
   public setDisabled(disabled: boolean): void {
     this.disabled = disabled
     if (disabled) {
@@ -198,12 +233,9 @@ export class InteractableObject {
   }
 
   public showPrompt(show: boolean): void {
-    // Don't show prompt if object is disabled
     if (this.disabled || this.isActive) {
       show = false
     }
-
-    // Only change state if needed
     if (this.promptDisc.isEnabled() !== show) {
       this.promptDisc.setEnabled(show)
       if (this.sparkleSystem) {
@@ -214,258 +246,302 @@ export class InteractableObject {
   }
 
   public activate(): void {
-    if (this.isActive) return // Already active
+    if (this.isActive) return
     this.isActive = true
-    this.showPrompt(false) // Hide prompt when active
+    this.showPrompt(false)
 
     switch (this.interactType) {
       case InteractType.Oven:
-        {
-          // --- Oven Particle Effect Logic ---
-          let fireTexture: Texture
-          const texturePath = 'assets/particles/Star-Texture.png' // Consider using a softer texture like flare.png if available
-          if (InteractableObject.particleTextures.has(texturePath)) {
-            fireTexture = InteractableObject.particleTextures.get(texturePath)!
-          } else {
-            fireTexture = new Texture(texturePath, this.scene)
-            fireTexture.hasAlpha = true
-            InteractableObject.particleTextures.set(texturePath, fireTexture)
-          }
-
-          const fire = new ParticleSystem('fire', 600, this.scene) // Name could be more specific like 'ovenFlame'
-          fire.particleTexture = fireTexture.clone()
-          const firePosition = new Vector3()
-          firePosition.copyFrom(this.mesh.getAbsolutePosition())
-          firePosition.y += 1
-          firePosition.z -= 0.2
-
-          fire.emitter = firePosition // Emitter is a single point
-
-          // Emitter area (slightly wider than before, still flat)
-          const minEmitBox = new Vector3(-0.3, 0, -0.3)
-          const maxEmitBox = new Vector3(0.3, 0.1, 0.3) // Small vertical spread
-          fire.minEmitBox = minEmitBox
-          fire.maxEmitBox = maxEmitBox
-
-          // --- COLOR CHANGES START ---
-          // Define base colors (Orange/Yellow to Red range)
-          fire.color1 = new Color4(1.0, 0.7, 0.0, 1.0) // Bright Orange/Yellow
-          fire.color2 = new Color4(1.0, 0.3, 0.0, 1.0) // Orange-Red
-          fire.colorDead = new Color4(0.2, 0, 0, 0.0) // Fade to dark red transparent
-
-          // Define color gradient over particle lifetime
-          fire.addColorGradient(0.0, new Color4(1.0, 0.8, 0.1, 1.0)) // Start Bright Yellow/Orange
-          fire.addColorGradient(0.4, new Color4(1.0, 0.5, 0.0, 0.9)) // Mid-life Orange
-          fire.addColorGradient(0.8, new Color4(0.9, 0.1, 0.0, 0.5)) // Towards end: Red, slightly faded alpha
-          fire.addColorGradient(1.0, fire.colorDead.clone()) // End: Fully faded
-          // --- COLOR CHANGES END ---
-
-          fire.minSize = 0.03 // Slightly larger minimum
-          fire.maxSize = 0.15 // Slightly larger maximum
-
-          fire.minLifeTime = 0.15 // Shorter lifetime for faster flicker
-          fire.maxLifeTime = 0.4 // Shorter lifetime for faster flicker
-
-          // Optional: Size gradient (can make flames appear to thin out)
-          fire.addSizeGradient(0, 0.03)
-          fire.addSizeGradient(0.5, 0.15) // Grow
-          fire.addSizeGradient(1.0, 0.01) // Shrink rapidly at end
-
-          fire.emitRate = 250 // Increase emit rate for denser flames
-          fire.blendMode = ParticleSystem.BLENDMODE_ADD // Additive blending is good for fire
-
-          fire.minInitialRotation = 0
-          fire.maxInitialRotation = Math.PI * 2
-          fire.minAngularSpeed = -Math.PI * 2 // Faster rotation
-          fire.maxAngularSpeed = Math.PI * 2 // Faster rotation
-
-          // --- MOVEMENT CHANGES START ---
-          // Make flames rise - Zero gravity, rely on direction/emit power
-          fire.gravity = new Vector3(0, 0, 0) // No gravity pull
-
-          // Direction: Primarily upwards, with slight horizontal spread
-          const direction1 = new Vector3(-0.2, 1.5, -0.2) // Less horizontal, more vertical focus
-          const direction2 = new Vector3(0.2, 3.0, 0.2) // Stronger upward push
-          fire.direction1 = direction1
-          fire.direction2 = direction2
-
-          // Emit Power: Controls initial speed
-          fire.minEmitPower = 0.5 // Stronger initial burst
-          fire.maxEmitPower = 1.0 // Stronger initial burst
-          // --- MOVEMENT CHANGES END ---
-
-          fire.updateSpeed = 0.008 // Slightly faster update for flickering effect
-
-          fire.disposeOnStop = true // Dispose when stopped (standard practice)
-
-          // --- SMOKE (Unchanged, but kept for context) ---
-          let smokeTexture: Texture
-          const smokeTexturePath = 'assets/particles/ExplosionTexture-Smoke-1.png'
-          if (InteractableObject.particleTextures.has(smokeTexturePath)) {
-            smokeTexture = InteractableObject.particleTextures.get(smokeTexturePath)!
-          } else {
-            smokeTexture = new Texture(smokeTexturePath, this.scene)
-            smokeTexture.hasAlpha = true
-            InteractableObject.particleTextures.set(smokeTexturePath, smokeTexture)
-          }
-          const smoke = new ParticleSystem('smoke', 200, this.scene)
-          smoke.particleTexture = smokeTexture.clone()
-          smoke.emitter = firePosition // Smoke comes from the same spot
-          smoke.minEmitBox = new Vector3(-0.4, 0.1, -0.4) // Slightly above the fire base
-          smoke.maxEmitBox = new Vector3(0.4, 0.3, 0.4)
-          // Smoke Colors (grey tones, slightly less dense alpha)
-          smoke.color1 = new Color4(0.3, 0.3, 0.3, 0.15)
-          smoke.color2 = new Color4(0.1, 0.1, 0.1, 0.1)
-          smoke.colorDead = new Color4(0, 0, 0, 0)
-          smoke.addColorGradient(0, new Color4(0.4, 0.4, 0.4, 0.0)) // Start invisible
-          smoke.addColorGradient(0.2, new Color4(0.3, 0.3, 0.3, 0.15)) // Fade in
-          smoke.addColorGradient(0.8, new Color4(0.1, 0.1, 0.1, 0.05)) // Fade out
-          smoke.addColorGradient(1.0, new Color4(0, 0, 0, 0))
-          smoke.minSize = 0.4 // Larger smoke particles
-          smoke.maxSize = 0.9
-          smoke.minLifeTime = 0.8 // Smoke lingers longer
-          smoke.maxLifeTime = 1.8
-          // Smoke size gradient (starts small, grows, lingers)
-          smoke.addSizeGradient(0, 0.3)
-          smoke.addSizeGradient(0.5, 0.9)
-          smoke.addSizeGradient(1.0, 1.2) // Continues growing slightly as it fades
-          smoke.emitRate = 25 // Less dense smoke
-          smoke.blendMode = ParticleSystem.BLENDMODE_STANDARD // Standard blending for smoke
-          smoke.minInitialRotation = 0
-          smoke.maxInitialRotation = Math.PI * 2
-          smoke.minAngularSpeed = -0.3
-          smoke.maxAngularSpeed = 0.3
-          smoke.gravity = new Vector3(0, 0.5, 0) // Smoke rises slowly
-          smoke.direction1 = new Vector3(-0.1, 0.5, -0.1) // Gentle upward drift
-          smoke.direction2 = new Vector3(0.1, 1.0, 0.1)
-          smoke.minEmitPower = 0.05
-          smoke.maxEmitPower = 0.2
-          smoke.updateSpeed = 0.01
-          smoke.disposeOnStop = true
-
-          // --- Start Systems ---
-          fire.start()
-          smoke.start()
-
-          // Store these systems to stop them later in deactivate()
-          this.activeParticleSystems.push(fire, smoke)
-        }
+        this._startOvenEffects()
         break
     }
   }
 
-  // Store active particle systems to stop them correctly
-  private activeParticleSystems: ParticleSystem[] = []
-
   public deactivate(): void {
-    if (!this.isActive) return // Already inactive
+    if (!this.isActive) return
     this.isActive = false
 
-    // Stop any active particle systems
     this.activeParticleSystems.forEach((system) => {
       system.stop()
     })
     this.activeParticleSystems = []
   }
 
+  private _startOvenEffects(): void {
+    // --- Oven Particle Effect Logic ---
+    let fireTexture: Texture
+    const texturePath = 'assets/particles/Star-Texture.png' // Consider using a softer texture like flare.png if available
+    if (InteractableObject.particleTextures.has(texturePath)) {
+      fireTexture = InteractableObject.particleTextures.get(texturePath)!
+    } else {
+      fireTexture = new Texture(texturePath, this.scene)
+      fireTexture.hasAlpha = true
+      InteractableObject.particleTextures.set(texturePath, fireTexture)
+    }
+
+    const fire = new ParticleSystem('fire', 600, this.scene) // Name could be more specific like 'ovenFlame'
+    fire.particleTexture = fireTexture.clone()
+    const firePosition = new Vector3()
+    firePosition.copyFrom(this.mesh.getAbsolutePosition())
+    firePosition.y += 1
+    firePosition.z -= 0.2
+
+    fire.emitter = firePosition // Emitter is a single point
+
+    // Emitter area (slightly wider than before, still flat)
+    const minEmitBox = new Vector3(-0.3, 0, -0.3)
+    const maxEmitBox = new Vector3(0.3, 0.1, 0.3) // Small vertical spread
+    fire.minEmitBox = minEmitBox
+    fire.maxEmitBox = maxEmitBox
+
+    // --- COLOR CHANGES START ---
+    // Define base colors (Orange/Yellow to Red range)
+    fire.color1 = new Color4(1.0, 0.7, 0.0, 1.0) // Bright Orange/Yellow
+    fire.color2 = new Color4(1.0, 0.3, 0.0, 1.0) // Orange-Red
+    fire.colorDead = new Color4(0.2, 0, 0, 0.0) // Fade to dark red transparent
+
+    // Define color gradient over particle lifetime
+    fire.addColorGradient(0.0, new Color4(1.0, 0.8, 0.1, 1.0)) // Start Bright Yellow/Orange
+    fire.addColorGradient(0.4, new Color4(1.0, 0.5, 0.0, 0.9)) // Mid-life Orange
+    fire.addColorGradient(0.8, new Color4(0.9, 0.1, 0.0, 0.5)) // Towards end: Red, slightly faded alpha
+    fire.addColorGradient(1.0, fire.colorDead.clone()) // End: Fully faded
+    // --- COLOR CHANGES END ---
+
+    fire.minSize = 0.03 // Slightly larger minimum
+    fire.maxSize = 0.15 // Slightly larger maximum
+
+    fire.minLifeTime = 0.15 // Shorter lifetime for faster flicker
+    fire.maxLifeTime = 0.4 // Shorter lifetime for faster flicker
+
+    // Optional: Size gradient (can make flames appear to thin out)
+    fire.addSizeGradient(0, 0.03)
+    fire.addSizeGradient(0.5, 0.15) // Grow
+    fire.addSizeGradient(1.0, 0.01) // Shrink rapidly at end
+
+    fire.emitRate = 250 // Increase emit rate for denser flames
+    fire.blendMode = ParticleSystem.BLENDMODE_ADD // Additive blending is good for fire
+
+    fire.minInitialRotation = 0
+    fire.maxInitialRotation = Math.PI * 2
+    fire.minAngularSpeed = -Math.PI * 2 // Faster rotation
+    fire.maxAngularSpeed = Math.PI * 2 // Faster rotation
+
+    // --- MOVEMENT CHANGES START ---
+    // Make flames rise - Zero gravity, rely on direction/emit power
+    fire.gravity = new Vector3(0, 0, 0) // No gravity pull
+
+    // Direction: Primarily upwards, with slight horizontal spread
+    const direction1 = new Vector3(-0.2, 1.5, -0.2) // Less horizontal, more vertical focus
+    const direction2 = new Vector3(0.2, 3.0, 0.2) // Stronger upward push
+    fire.direction1 = direction1
+    fire.direction2 = direction2
+
+    // Emit Power: Controls initial speed
+    fire.minEmitPower = 0.5 // Stronger initial burst
+    fire.maxEmitPower = 1.0 // Stronger initial burst
+    // --- MOVEMENT CHANGES END ---
+
+    fire.updateSpeed = 0.008 // Slightly faster update for flickering effect
+
+    fire.disposeOnStop = true // Dispose when stopped (standard practice)
+
+    // --- SMOKE (Unchanged, but kept for context) ---
+    let smokeTexture: Texture
+    const smokeTexturePath = 'assets/particles/ExplosionTexture-Smoke-1.png'
+    if (InteractableObject.particleTextures.has(smokeTexturePath)) {
+      smokeTexture = InteractableObject.particleTextures.get(smokeTexturePath)!
+    } else {
+      smokeTexture = new Texture(smokeTexturePath, this.scene)
+      smokeTexture.hasAlpha = true
+      InteractableObject.particleTextures.set(smokeTexturePath, smokeTexture)
+    }
+    const smoke = new ParticleSystem('smoke', 200, this.scene)
+    smoke.particleTexture = smokeTexture.clone()
+    smoke.emitter = firePosition // Smoke comes from the same spot
+    smoke.minEmitBox = new Vector3(-0.4, 0.1, -0.4) // Slightly above the fire base
+    smoke.maxEmitBox = new Vector3(0.4, 0.3, 0.4)
+    // Smoke Colors (grey tones, slightly less dense alpha)
+    smoke.color1 = new Color4(0.3, 0.3, 0.3, 0.15)
+    smoke.color2 = new Color4(0.1, 0.1, 0.1, 0.1)
+    smoke.colorDead = new Color4(0, 0, 0, 0)
+    smoke.addColorGradient(0, new Color4(0.4, 0.4, 0.4, 0.0)) // Start invisible
+    smoke.addColorGradient(0.2, new Color4(0.3, 0.3, 0.3, 0.15)) // Fade in
+    smoke.addColorGradient(0.8, new Color4(0.1, 0.1, 0.1, 0.05)) // Fade out
+    smoke.addColorGradient(1.0, new Color4(0, 0, 0, 0))
+    smoke.minSize = 0.4 // Larger smoke particles
+    smoke.maxSize = 0.9
+    smoke.minLifeTime = 0.8 // Smoke lingers longer
+    smoke.maxLifeTime = 1.8
+    // Smoke size gradient (starts small, grows, lingers)
+    smoke.addSizeGradient(0, 0.3)
+    smoke.addSizeGradient(0.5, 0.9)
+    smoke.addSizeGradient(1.0, 1.2) // Continues growing slightly as it fades
+    smoke.emitRate = 25 // Less dense smoke
+    smoke.blendMode = ParticleSystem.BLENDMODE_STANDARD // Standard blending for smoke
+    smoke.minInitialRotation = 0
+    smoke.maxInitialRotation = Math.PI * 2
+    smoke.minAngularSpeed = -0.3
+    smoke.maxAngularSpeed = 0.3
+    smoke.gravity = new Vector3(0, 0.5, 0) // Smoke rises slowly
+    smoke.direction1 = new Vector3(-0.1, 0.5, -0.1) // Gentle upward drift
+    smoke.direction2 = new Vector3(0.1, 1.0, 0.1)
+    smoke.minEmitPower = 0.05
+    smoke.maxEmitPower = 0.2
+    smoke.updateSpeed = 0.01
+    smoke.disposeOnStop = true
+
+    // --- Start Systems ---
+    fire.start()
+    smoke.start()
+
+    // Store these systems to stop them later in deactivate()
+    this.activeParticleSystems.push(fire, smoke)
+  }
+
   public interact(): void {
-    // Don't allow interaction if object is disabled
     if (this.disabled && !this.isActive) {
       return
     }
   }
 
+  /**
+   * Creates or gets an ingredient mesh and prepares its info for placement.
+   * Does NOT place it yet, placement happens in the render loop.
+   */
+  private _prepareIngredientVisual(
+    ingredientId: Ingredient,
+    localOffset: Vector3,
+    localScale: Vector3,
+    localRotation: Quaternion = Quaternion.Identity(), // Default rotation
+  ): DisplayedIngredientInfo | null {
+    if (!this.ingredientLoader) return null
+
+    const mesh = this.ingredientLoader.getIngredientMesh(ingredientId)
+    if (!mesh) return null
+
+    mesh.isPickable = false
+    mesh.getChildMeshes(false, (node) => node instanceof Mesh).forEach((m) => (m.isPickable = false))
+    mesh.setEnabled(true) // Make sure it's visible
+
+    // We don't set parent. Position/rotation/scale are handled in render loop.
+    // We store the *intended* local state relative to the anchor.
+    return {
+      mesh,
+      localOffset: localOffset.clone(), // Clone to avoid mutation
+      localRotation: localRotation.clone(),
+      localScale: localScale.clone(),
+    }
+  }
+
   public updateIngredientsOnBoard(ingredients: Ingredient[]): void {
-    // Detect if a *result* ingredient just appeared
-    const justGotResult =
-      ingredients.length > 0 &&
-      getItemDefinition(ingredients[0])?.isFinal && // Check if the first/only item is a result
-      !this.lastIngredientsOnBoard.some((ing) => getItemDefinition(ing)?.isFinal) // And we didn't have a result before
+    // Simple change detection (can be improved for exact diffing if needed)
+    const ingredientsChanged =
+      ingredients.length !== this.lastIngredientsOnBoard.length || !ingredients.every((ing, i) => ing === this.lastIngredientsOnBoard[i])
+
+    if (!ingredientsChanged && this.displayedIngredientInfos.length > 0) {
+      // console.log('Ingredients unchanged, skipping update.');
+      return // No visual change needed
+    }
+
+    // --- Result Detection ---
+    const currentResult = ingredients.find((ing) => getItemDefinition(ing)?.isFinal)
+    const previousResult = this.lastIngredientsOnBoard.find((ing) => getItemDefinition(ing)?.isFinal)
+    const justGotResult = !!currentResult && !previousResult
 
     console.log('Updating ingredients on board:', ingredients, 'Just got result:', justGotResult)
 
     this.clearIngredientsOnBoard() // Clear previous visuals
 
     if (!this.ingredientLoader) {
-      console.warn('IngredientLoader not available in InteractableObject.')
-      this.lastIngredientsOnBoard = [...ingredients] // Update memory even if loader fails
+      console.warn('IngredientLoader not available for updating board visuals.')
+      this.lastIngredientsOnBoard = [...ingredients]
       return
     }
 
-    ingredients.forEach((ingredientId, index) => {
-      const itemDef = getItemDefinition(ingredientId)
-      if (!itemDef) return // Skip if definition not found
+    let plateInfo: DisplayedIngredientInfo | null = null
+    let dishInfo: DisplayedIngredientInfo | null = null
+    const otherIngredientInfos: DisplayedIngredientInfo[] = []
 
-      const ingredientMesh = this.ingredientLoader?.getIngredientMesh(ingredientId)
-      if (ingredientMesh) {
-        ingredientMesh.setParent(this.mesh) // Parent to the station mesh
+    const baseScale = new Vector3(0.5, 0.5, 0.5) // Default scale for items
+    const plateScale = new Vector3(0.5, 0.5, 0.5) // Scale for the plate
+    const dishScale = new Vector3(0.5, 0.5, 0.5) // Scale for the final dish on the plate
 
-        // Position ingredients on top, slightly offset based on index
-        // Adjust offsets as needed for your station models
-        const offset = this.interactType === InteractType.ChoppingBoard ? 0.02 : this.interactType === InteractType.Oven ? 2.5 : 0
+    // --- Placement Logic ---
+    // This needs customization based on the InteractType
 
-        const yOffset = offset + index * 0.05 // Base height + stacking offset
-        const xOffset = ingredients.length > 1 ? (index - (ingredients.length - 1) / 2) * 0.15 : 0
+    if (this.interactType === InteractType.ServingBoard) {
+      const hasPlate = ingredients.includes(Ingredient.Plate)
+      const dishIngredientId = ingredients.find((ing) => ing !== Ingredient.Plate && getItemDefinition(ing)?.isFinal)
 
-        ingredientMesh.position = new Vector3(xOffset, yOffset, this.interactType === InteractType.Oven ? 0.4 : 0) // Example positioning
-        ingredientMesh.scaling = new Vector3(0.9, 0.9, 0.9)
-        ingredientMesh.rotationQuaternion = Quaternion.Identity()
-        ingredientMesh.isPickable = false // Usually items on board aren't directly pickable by raycast
-
-        this.displayedIngredients.push(ingredientMesh)
+      if (hasPlate) {
+        // Place plate centered on the anchor
+        plateInfo = this._prepareIngredientVisual(Ingredient.Plate, Vector3.Zero(), plateScale)
+        if (plateInfo) this.displayedIngredientInfos.push(plateInfo)
       }
-    })
 
-    // Trigger craft complete effect if a result just appeared
+      if (dishIngredientId) {
+        // Place dish slightly above the plate's position, or directly on anchor if no plate
+        const dishYOffset = hasPlate ? 0.12 : 0.05 // Adjust Y based on plate height / anchor pos
+        const dishOffset = new Vector3(0, dishYOffset, 0)
+        dishInfo = this._prepareIngredientVisual(dishIngredientId, dishOffset, dishScale)
+        if (dishInfo) this.displayedIngredientInfos.push(dishInfo)
+      }
+    } else if (this.interactType === InteractType.ChoppingBoard || this.interactType === InteractType.Oven) {
+      // Stack or arrange non-final ingredients
+      const isOven = this.interactType === InteractType.Oven
+      const yBaseOffset = isOven ? 2.4 : 0.1 // Oven items might sit higher
+      const yStackOffset = 0.05 // How much each item adds vertically
+      const xSpread = 0.15 // How much items spread horizontally
+      const zOffset = isOven ? 0.4 : 0 // Push items back for oven
+
+      const itemsToDisplay = ingredients.filter((ing) => ing !== Ingredient.Plate) // Filter out results/plates
+      const numItems = itemsToDisplay.length
+
+      itemsToDisplay.forEach((ingredientId, index) => {
+        const yPos = yBaseOffset + index * yStackOffset
+        const xPos = numItems > 1 ? (index - (numItems - 1) / 2) * xSpread : 0
+        const localOffset = new Vector3(xPos, yPos, zOffset)
+        const ingredientInfo = this._prepareIngredientVisual(ingredientId, localOffset, baseScale)
+        if (ingredientInfo) {
+          otherIngredientInfos.push(ingredientInfo)
+        }
+      })
+      this.displayedIngredientInfos.push(...otherIngredientInfos)
+    }
+
+    // --- Finalize ---
     if (justGotResult) {
       this.playCraftCompleteEffect()
     }
 
-    // Update the memory of ingredients
-    this.lastIngredientsOnBoard = [...ingredients]
+    this.lastIngredientsOnBoard = [...ingredients] // Update memory
   }
 
-  /**
-   * Affiche un visuel à l'intérieur de l'objet interactif (ex: riz dans la marmite).
-   * @param ingredient L'ingrédient à afficher (seul Ingredient.Rice est géré pour l'instant).
-   */
   public showCookingVisual(ingredient: Ingredient): void {
-    // Ne rien faire si un visuel est déjà affiché ou si le loader n'est pas dispo
-    if (this.cookingVisualMesh || !this.ingredientLoader) {
+    if (this.cookingVisualInfo || !this.ingredientLoader) {
       return
     }
 
-    // Pour l'instant, on gère seulement le riz
-    if (ingredient === Ingredient.Rice) {
-      const riceMesh = this.ingredientLoader.getIngredientMesh(Ingredient.Rice)
-      if (riceMesh) {
-        this.cookingVisualMesh = riceMesh
-        this.cookingVisualMesh.setParent(this.mesh)
+    if (ingredient === Ingredient.Rice && this.interactType === InteractType.Oven) {
+      const localOffset = new Vector3(0, 2.4, 0.4) // Adjust based on oven model & anchor
+      const localScale = new Vector3(0.5, 0.5, 0.5)
+      const visualInfo = this._prepareIngredientVisual(ingredient, localOffset, localScale)
 
-        this.cookingVisualMesh.position = new Vector3(0, 2.5, 0.4)
-        this.cookingVisualMesh.rotationQuaternion = Quaternion.Identity()
-        this.cookingVisualMesh.scaling = new Vector3(0.9, 0.9, 0.9)
-        this.cookingVisualMesh.isPickable = false
-        this.cookingVisualMesh.getChildMeshes().forEach((m) => {
-          m.isPickable = false
-        })
-        this.cookingVisualMesh.setEnabled(true)
+      if (visualInfo) {
+        this.cookingVisualInfo = visualInfo
       }
     }
   }
 
-  /**
-   * Cache et supprime le visuel de cuisson actuellement affiché.
-   */
   public hideCookingVisual(): void {
-    if (this.cookingVisualMesh) {
-      this.cookingVisualMesh.dispose()
-      this.cookingVisualMesh = null
+    if (this.cookingVisualInfo) {
+      this.cookingVisualInfo.mesh.dispose()
+      this.cookingVisualInfo = null
     }
   }
 
   private playCraftCompleteEffect(): void {
-    const capacity = 50 // Number of particles for the effect
+    const capacity = 50
     const effectSystem = new ParticleSystem(`${this.mesh.name}_craft_complete`, capacity, this.scene)
 
     // --- Configure the effect ---
@@ -528,18 +604,31 @@ export class InteractableObject {
   }
 
   public clearIngredientsOnBoard(): void {
-    // Dispose all displayed ingredients
-    this.displayedIngredients.forEach((mesh) => {
-      mesh.dispose()
+    this.displayedIngredientInfos.forEach((info) => {
+      info.mesh.dispose()
     })
-    this.displayedIngredients = []
+    this.displayedIngredientInfos = []
+    // Don't clear lastIngredientsOnBoard here, needed for change detection
   }
 
   public dispose(): void {
-    this.deactivate() // Ensure active effects are stopped/returned
-    this.clearIngredientsOnBoard() // Ensure displayed items are removed
-    this.promptDisc.dispose()
+    console.log(`Disposing InteractableObject ${this.id} (${this.mesh.name})`)
+    this.deactivate() // Stop active effects
+    this.clearIngredientsOnBoard()
+    this.hideCookingVisual() // Dispose cooking visual too
 
-    console.log(`InteractableObject ${this.id} disposed`)
+    if (this.sparkleSystem) {
+      this.sparkleSystem.stop()
+      this.sparkleSystem.dispose() // Dispose sparkle system
+    }
+
+    this.promptDisc.dispose()
+    this.ingredientAnchor.dispose() // Dispose the anchor node
+
+    // Remove the render observer
+    if (this._renderObserver) {
+      this.scene.onBeforeRenderObservable.remove(this._renderObserver)
+      this._renderObserver = null
+    }
   }
 }

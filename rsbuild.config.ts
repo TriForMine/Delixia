@@ -1,5 +1,6 @@
 import { defineConfig } from '@rsbuild/core'
 import { pluginReact } from '@rsbuild/plugin-react'
+import { pluginBabel } from '@rsbuild/plugin-babel'
 
 export default defineConfig({
   server: {
@@ -16,5 +17,13 @@ export default defineConfig({
       index: './src/client/main.tsx',
     },
   },
-  plugins: [pluginReact()],
+  plugins: [
+    pluginReact(),
+    pluginBabel({
+      include: /\.(?:jsx|tsx)$/,
+      babelLoaderOptions(opts) {
+        opts.plugins?.unshift('babel-plugin-react-compiler')
+      },
+    }),
+  ],
 })

@@ -327,6 +327,85 @@ export class GameRoom extends Room<GameRoomState> {
             }
           }
           break
+        case InteractType.ServingBoard:
+          {
+            const boardIngredients = obj.ingredientsOnBoard
+            const boardHasPlate = boardIngredients.includes(Ingredient.Plate)
+            const boardDishIngredient = boardIngredients.find((ing) => ing !== Ingredient.Plate && getItemDefinition(ing)?.isFinal) // Find the dish
+
+            // --- Placing items ---
+            if (playerIngredient !== Ingredient.None || isHoldingPlate) {
+              const heldItemDef = getItemDefinition(playerIngredient)
+              const isHoldingFinalDish = heldItemDef?.isFinal ?? false
+
+              // Scenario P1: Placing Plate + Final Dish onto empty board
+              if (isHoldingPlate && isHoldingFinalDish && boardIngredients.length === 0) {
+                boardIngredients.push(Ingredient.Plate)
+                boardIngredients.push(playerIngredient)
+                this.state.dropPlate(client.sessionId)
+                this.state.dropIngredient(client.sessionId)
+                logger.info(`Player ${client.sessionId} placed Plate and ${heldItemDef?.name} onto ServingBoard ${objectId}`)
+                obj.activeSince = Date.now() // Update timestamp for visual sync
+              }
+              // Scenario P2: Placing only Plate onto empty board
+              else if (isHoldingPlate && playerIngredient === Ingredient.None && boardIngredients.length === 0) {
+                boardIngredients.push(Ingredient.Plate)
+                this.state.dropPlate(client.sessionId)
+                logger.info(`Player ${client.sessionId} placed Plate onto ServingBoard ${objectId}`)
+                obj.activeSince = Date.now()
+              }
+              // Scenario P3: Placing Final Dish onto board with only a Plate
+              else if (!isHoldingPlate && isHoldingFinalDish && boardHasPlate && !boardDishIngredient) {
+                boardIngredients.push(playerIngredient)
+                this.state.dropIngredient(client.sessionId)
+                logger.info(`Player ${client.sessionId} placed ${heldItemDef?.name} onto Plate on ServingBoard ${objectId}`)
+                obj.activeSince = Date.now()
+              }
+              // --- Invalid placing attempts ---
+              else if (isHoldingPlate && boardHasPlate) {
+                client.send('invalidPlacement', { message: 'Cannot place a plate on another plate!' })
+              } else if (boardIngredients.length >= 2) {
+                client.send('boardFull', { message: 'This board is full!' })
+              } else if (isHoldingFinalDish && !boardHasPlate) {
+                client.send('needPlateOnBoard', { message: 'Place a plate down first!' })
+              } else if (playerIngredient !== Ingredient.None && !isHoldingFinalDish) {
+                client.send('cannotPlaceRaw', { message: 'Only finished dishes can be placed here.' })
+              } else {
+                client.send('cannotInteract', { message: 'Cannot do that action here.' })
+                logger.warn(
+                  `Player ${client.sessionId} invalid interaction with ServingBoard ${objectId}. Player holding: Plate=${isHoldingPlate}, Dish=${playerIngredient}. Board has: Plate=${boardHasPlate}, Dish=${!!boardDishIngredient}`,
+                )
+              }
+            }
+            // --- Taking items ---
+            else if (playerIngredient === Ingredient.None && !isHoldingPlate) {
+              // Scenario T1: Taking Plate + Dish
+              if (boardHasPlate && boardDishIngredient) {
+                this.state.pickupPlate(client.sessionId)
+                this.state.pickupIngredient(client.sessionId, boardDishIngredient) // Assume pickupIngredient handles incompatibility checks
+                // Remove both from board state (careful with indices if order matters)
+                boardIngredients.clear() // Easiest way to remove both
+                logger.info(`Player ${client.sessionId} picked up Plate and Dish from ServingBoard ${objectId}`)
+                obj.activeSince = Date.now()
+              }
+              // Scenario T2: Taking only Plate
+              else if (boardHasPlate && !boardDishIngredient) {
+                this.state.pickupPlate(client.sessionId)
+                const plateIndex = boardIngredients.findIndex((ing) => ing === Ingredient.Plate)
+                if (plateIndex > -1) boardIngredients.splice(plateIndex, 1)
+                logger.info(`Player ${client.sessionId} picked up Plate from ServingBoard ${objectId}`)
+                obj.activeSince = Date.now()
+              }
+              // Scenario T3: Board is empty
+              else if (boardIngredients.length === 0) {
+                client.send('boardEmpty', { message: 'Nothing to pick up!' })
+              }
+            } else {
+              // Player is holding something but trying to take? Invalid.
+              client.send('alreadyCarrying', { message: 'Drop your item first!' })
+            }
+          }
+          break
         default:
           logger.warn(`Interaction logic not implemented for type: ${InteractType[obj.type]}`)
           client.send('cannotInteract', { message: 'Cannot interact with this.' })

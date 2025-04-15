@@ -8,6 +8,7 @@ export enum InteractType {
   Ingredient,
   Trash,
   ServingOrder,
+  ServingBoard,
 }
 
 export enum Ingredient {

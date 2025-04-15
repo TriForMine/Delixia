@@ -426,11 +426,9 @@ export class GameEngine {
               interactable.deactivate() // e.g. stop the effect
             }
 
-            // Update ingredients on chopping board if it's a chopping board
-            if (interactable.interactType === InteractType.ChoppingBoard || interactable.interactType === InteractType.Oven) {
-              const ingredients = objState.ingredientsOnBoard.map((i) => i as Ingredient)
-              interactable.updateIngredientsOnBoard(ingredients)
-            }
+            // Update ingredients
+            const ingredients = objState.ingredientsOnBoard.map((i) => i as Ingredient)
+            interactable.updateIngredientsOnBoard(ingredients)
           })
 
           const interactable = this.interactables.find((obj) => obj.id === Number(objState.id))
@@ -448,11 +446,8 @@ export class GameEngine {
             interactable.deactivate() // e.g. stop the effect
           }
 
-          // Update ingredients on chopping board if it's a chopping board
-          if (interactable.interactType === InteractType.ChoppingBoard || interactable.interactType === InteractType.Oven) {
-            const ingredients = objState.ingredientsOnBoard.map((i) => i as Ingredient)
-            interactable.updateIngredientsOnBoard(ingredients)
-          }
+          const ingredients = objState.ingredientsOnBoard.map((i) => i as Ingredient)
+          interactable.updateIngredientsOnBoard(ingredients)
         })
 
         this.setupGameEventListeners()
@@ -556,19 +551,16 @@ export class GameEngine {
           interactable.deactivate()
         }
 
-        if (interactable.interactType === InteractType.ChoppingBoard || interactable.interactType === InteractType.Oven) {
-          const ingredients = objState.ingredientsOnBoard.map((i) => i as Ingredient)
-          interactable.updateIngredientsOnBoard(ingredients)
-        }
+        const ingredients = objState.ingredientsOnBoard.map((i) => i as Ingredient)
+        interactable.updateIngredientsOnBoard(ingredients)
       })
       // Initial state check (existing logic)
       const initialInteractable = this.interactables.find((obj) => obj.id === Number(objState.id))
       if (initialInteractable) {
         initialInteractable.setDisabled(objState.disabled)
-        if (initialInteractable.interactType === InteractType.ChoppingBoard || initialInteractable.interactType === InteractType.Oven) {
-          const ingredients = objState.ingredientsOnBoard.map((i) => i as Ingredient)
-          initialInteractable.updateIngredientsOnBoard(ingredients)
-        }
+        const ingredients = objState.ingredientsOnBoard.map((i) => i as Ingredient)
+        initialInteractable.updateIngredientsOnBoard(ingredients)
+
         // Activate non-oven items initially if needed
         if (objState.isActive && initialInteractable.interactType !== InteractType.Oven) {
           initialInteractable.activate()
@@ -647,9 +639,11 @@ export class GameEngine {
     this.room.onMessage('stationBusy', () => this.playSfx('error'))
     this.room.onMessage('cannotPickup', () => this.playSfx('error'))
     this.room.onMessage('invalidPickup', () => this.playSfx('error'))
+    this.room.onMessage('boardFull', () => this.playSfx('error'))
     this.room.onMessage('invalidCombination', () => this.playSfx('error'))
     this.room.onMessage('boardNotEmpty', () => this.playSfx('error'))
     this.room.onMessage('boardEmpty', () => this.playSfx('error'))
+    this.room.onMessage('cannotPlaceRaw', () => this.playSfx('error'))
     this.room.onMessage('error', (payload) => {
       // Generic error handler
       console.warn('Received error from server:', payload?.message || 'Unknown error')
@@ -945,7 +939,7 @@ export class GameEngine {
     // Instantiate the local player from the loaded container
     const localInstance = this.loadedCharacterContainer.instantiateModelsToScene((name: string) => name)
     const mesh = localInstance.rootNodes[0] as Mesh
-    mesh.scaling = new Vector3(1.3, 1.3, 1.3)
+    mesh.scaling = new Vector3(0.9, 0.9, 0.9)
     mesh.rotation = new Vector3(0, 0, 0)
     this.localController = new LocalCharacterController(
       this,
@@ -990,7 +984,7 @@ export class GameEngine {
       const remoteInstance = this.loadedCharacterContainer.instantiateModelsToScene((name: string) => name)
       const remoteMesh = remoteInstance.rootNodes[0] as Mesh
 
-      remoteMesh.scaling = new Vector3(1.3, 1.3, 1.3)
+      remoteMesh.scaling = new Vector3(0.9, 0.9, 0.9)
       remoteMesh.rotation = new Vector3(0, 0, 0)
       const remoteController = new RemoteCharacterController(
         remoteMesh,

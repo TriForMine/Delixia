@@ -389,18 +389,6 @@ const rawMapConfigs: MapModelConfig[] = [
   },
   {
     map: 'japan',
-    fileName: 'Plate.glb',
-    defaultScaling: { x: 0.5, y: 1.5, z: 0.5 },
-    defaultPhysics: {
-      shapeType: PhysicsShapeType.BOX,
-      mass: 0,
-      friction: 0.8,
-      restitution: 0.1,
-    },
-    instances: [{ position: { x: 2.9, y: 1.15, z: 8.6 } }],
-  },
-  {
-    map: 'japan',
     fileName: 'Fridge.glb',
     defaultScaling: { x: 0.5, y: 0.5, z: 0.5 },
     defaultPhysics: {
@@ -432,7 +420,7 @@ const rawMapConfigs: MapModelConfig[] = [
   {
     map: 'japan',
     fileName: 'Oven.glb',
-    defaultScaling: { x: 0.5, y: 0.5, z: 0.5 },
+    defaultScaling: { x: 0.5, y: 0.4, z: 0.5 },
     defaultPhysics: {
       shapeType: PhysicsShapeType.BOX,
       mass: 0,
@@ -627,11 +615,35 @@ const rawMapConfigs: MapModelConfig[] = [
         rotation: { y: Math.PI / 2 },
       },
       {
-        position: { x: 6.1, y: 3.8, z: -2.6 },
+        position: { x: 6.4, y: 3.8, z: -2.6 },
         rotation: { y: Math.PI / 2 },
       },
       {
-        position: { x: -6.1, y: 3.8, z: -2.6 },
+        position: { x: -6.4, y: 3.8, z: -2.6 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: 3.7, y: 3.8, z: -2.6 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: -3.7, y: 3.8, z: -2.6 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: 2.1, y: 3.8, z: -5.8 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: -2.1, y: 3.8, z: -5.8 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: 2.1, y: 1, z: -5.5 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: -2.1, y: 1, z: -5.5 },
         rotation: { y: Math.PI / 2 },
       },
     ],
@@ -680,7 +692,43 @@ const rawMapConfigs: MapModelConfig[] = [
         rotation: { y: Math.PI / 2 },
       },
       {
-        position: { x: 6.9, y: 3.5, z: -4.8 },
+        position: { x: 7.7, y: 3.5, z: -4 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: -7.7, y: 3.5, z: -4 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: 2.3, y: 3.5, z: -4 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: -2.3, y: 3.5, z: -4 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: 0.85, y: 1.6, z: -4 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: -0.85, y: 1.6, z: -4 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: 3.3, y: 3.5, z: -7.3 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: -3.3, y: 3.5, z: -7.3 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: 0, y: 2.5, z: -7.3 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: 0, y: 2.5, z: -5.5 },
         rotation: { y: Math.PI / 2 },
       },
     ],
@@ -854,19 +902,19 @@ const rawMapConfigs: MapModelConfig[] = [
     },
     instances: [
       {
-        position: { x: 0, y: 1.05, z: 4.75 },
+        position: { x: 0, y: 0.87, z: 4.75 },
         rotation: { x: 0, y: 0, z: 0 },
       },
       {
-        position: { x: 0, y: 1.09, z: 4.75 },
+        position: { x: 0, y: 0.91, z: 4.75 },
         rotation: { x: 0, y: 0, z: 0 },
       },
       {
-        position: { x: 0, y: 1.13, z: 4.75 },
+        position: { x: 0, y: 0.95, z: 4.75 },
         rotation: { x: 0, y: 0, z: 0 },
       },
       {
-        position: { x: 0, y: 1.17, z: 4.75 },
+        position: { x: 0, y: 0.99, z: 4.75 },
         rotation: { x: 0, y: 0, z: 0 },
       },
 
@@ -875,7 +923,7 @@ const rawMapConfigs: MapModelConfig[] = [
           interactType: InteractType.Stock,
           ingredient: Ingredient.Plate,
         },
-        position: { x: 0, y: 1.21, z: 4.75 },
+        position: { x: 0, y: 1.03, z: 4.75 },
         rotation: { x: 0, y: 0, z: 0 },
       },
     ],
@@ -915,7 +963,7 @@ const rawMapConfigs: MapModelConfig[] = [
   {
     map: 'japan',
     fileName: 'Counter Straight.glb',
-    defaultScaling: { x: 0.5, y: 0.5, z: 0.5 },
+    defaultScaling: { x: 0.5, y: 0.4, z: 0.5 },
     defaultPhysics: {
       shapeType: PhysicsShapeType.BOX,
       mass: 0,
@@ -933,15 +981,15 @@ const rawMapConfigs: MapModelConfig[] = [
       { position: { x: -4, y: 0.1, z: 8 }, rotation: { y: -Math.PI / 2 } },
       { position: { x: -4, y: 0.1, z: 3 }, rotation: { y: -Math.PI / 2 } },
 
-      { position: { x: 0, y: 0.1, z: 8.6 }, rotation: { y: Math.PI }, scaling: { x: 0.75, y: 0.5, z: 0.6 } },
+      { position: { x: 0, y: 0.1, z: 8.6 }, rotation: { y: Math.PI }, scaling: { x: 0.75, y: 0.4, z: 0.6 } },
 
-      { position: { x: 0, y: 0.1, z: 5.25 }, scaling: { x: 0.9, y: 0.5, z: 1.25 } },
+      { position: { x: 0, y: 0.1, z: 5.25 }, scaling: { x: 0.9, y: 0.4, z: 1.25 } },
     ],
   },
   {
     map: 'japan',
     fileName: 'Counter Corner.glb',
-    defaultScaling: { x: 0.5, y: 0.5, z: 0.5 },
+    defaultScaling: { x: 0.5, y: 0.4, z: 0.5 },
     defaultPhysics: {
       shapeType: PhysicsShapeType.MESH,
       mass: 0,
@@ -956,7 +1004,7 @@ const rawMapConfigs: MapModelConfig[] = [
   {
     map: 'japan',
     fileName: 'Counter Sink.glb',
-    defaultScaling: { x: 0.5, y: 0.5, z: 0.5 },
+    defaultScaling: { x: 0.5, y: 0.4, z: 0.5 },
     defaultPhysics: {
       shapeType: PhysicsShapeType.MESH,
       mass: 0,
@@ -1030,11 +1078,11 @@ const rawMapConfigs: MapModelConfig[] = [
     },
     instances: [
       {
-        position: { x: 1.75, y: 1.2, z: 8.3 },
+        position: { x: 1.75, y: 0.99, z: 8.3 },
         rotation: { y: Math.PI },
       },
       {
-        position: { x: -1.75, y: 1.2, z: 8.3 },
+        position: { x: -1.75, y: 0.99, z: 8.3 },
         rotation: { y: Math.PI },
       },
     ],
@@ -1148,33 +1196,36 @@ const rawMapConfigs: MapModelConfig[] = [
       y: 0.5,
       z: 0,
     },
+    interaction: {
+      interactType: InteractType.ServingBoard,
+    },
     instances: [
       {
-        position: { x: -4, y: 1.07, z: 5.85 },
+        position: { x: -4, y: 0.87, z: 5.85 },
         rotation: { y: Math.PI },
       },
       {
-        position: { x: 4, y: 1.07, z: 5.85 },
+        position: { x: 4, y: 0.87, z: 5.85 },
         rotation: { x: Math.PI },
       },
       {
-        position: { x: -4, y: 1.07, z: 7.15 },
+        position: { x: -4, y: 0.87, z: 7.15 },
         rotation: { y: -Math.PI },
       },
 
       {
-        position: { x: 4, y: 1.07, z: 7.15 },
+        position: { x: 4, y: 0.87, z: 7.15 },
         rotation: { x: -Math.PI },
       },
 
       {
-        position: { x: -0.65, y: 1.07, z: 2 },
+        position: { x: -0.65, y: 0.87, z: 2 },
         scaling: { x: 0.25, y: 0.05, z: 0.15 },
         rotation: { y: Math.PI / 2 },
       },
 
       {
-        position: { x: 0.65, y: 1.07, z: 2 },
+        position: { x: 0.65, y: 0.87, z: 2 },
         scaling: { x: 0.25, y: 0.05, z: 0.15 },
         rotation: { y: Math.PI / 2 },
       },
