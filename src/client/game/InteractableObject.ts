@@ -1,4 +1,3 @@
-// src/client/game/InteractableObject.ts
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial'
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color'
 import { Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector'
@@ -7,7 +6,7 @@ import { ParticleSystem } from '@babylonjs/core/Particles/particleSystem'
 import { Texture } from '@babylonjs/core/Materials/Textures/texture'
 import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture'
 import type { Scene } from '@babylonjs/core/scene'
-import { type Ingredient, InteractType } from '@shared/types/enums.ts'
+import { Ingredient, InteractType } from '@shared/types/enums.ts'
 import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
 import { getItemDefinition } from '@shared/definitions.ts' // Ensure this import exists
 
@@ -32,6 +31,7 @@ export class InteractableObject {
   private displayedIngredients: Mesh[] = []
   // Store the last known ingredients to detect changes
   private lastIngredientsOnBoard: Ingredient[] = []
+  private cookingVisualMesh: Mesh | null = null
 
   // Pre-allocated vector for position updates
   private _positionUpdateTemp: Vector3 = new Vector3()
@@ -357,7 +357,13 @@ export class InteractableObject {
       getItemDefinition(ingredients[0])?.isFinal && // Check if the first/only item is a result
       !this.lastIngredientsOnBoard.some((ing) => getItemDefinition(ing)?.isFinal) // And we didn't have a result before
 
+    console.log('Updating ingredients on board:', ingredients, 'Just got result:', justGotResult)
+
     this.clearIngredientsOnBoard() // Clear previous visuals
+
+    if (this.interactType !== InteractType.Oven || !ingredients.includes(Ingredient.Rice)) {
+      this.hideCookingVisual()
+    }
 
     if (!this.ingredientLoader) {
       console.warn('IngredientLoader not available in InteractableObject.')
@@ -375,11 +381,13 @@ export class InteractableObject {
 
         // Position ingredients on top, slightly offset based on index
         // Adjust offsets as needed for your station models
-        const yOffset = 0.1 + index * 0.05 // Base height + stacking offset
-        const xOffset = ingredients.length > 1 ? (index - (ingredients.length - 1) / 2) * 0.15 : 0 // Spread out if multiple
+        const offset = this.interactType === InteractType.ChoppingBoard ? 0.1 : this.interactType === InteractType.Oven ? 2.5 : 0
 
-        ingredientMesh.position = new Vector3(xOffset, yOffset, 0) // Example positioning
-        ingredientMesh.scaling = new Vector3(0.5, 0.5, 0.5)
+        const yOffset = offset + index * 0.05 // Base height + stacking offset
+        const xOffset = ingredients.length > 1 ? (index - (ingredients.length - 1) / 2) * 0.15 : 0
+
+        ingredientMesh.position = new Vector3(xOffset, yOffset, this.interactType === InteractType.Oven ? 0.4 : 0) // Example positioning
+        ingredientMesh.scaling = new Vector3(0.9, 0.9, 0.9)
         ingredientMesh.rotationQuaternion = Quaternion.Identity()
         ingredientMesh.isPickable = false // Usually items on board aren't directly pickable by raycast
 
@@ -394,6 +402,45 @@ export class InteractableObject {
 
     // Update the memory of ingredients
     this.lastIngredientsOnBoard = [...ingredients]
+  }
+
+  /**
+   * Affiche un visuel à l'intérieur de l'objet interactif (ex: riz dans la marmite).
+   * @param ingredient L'ingrédient à afficher (seul Ingredient.Rice est géré pour l'instant).
+   */
+  public showCookingVisual(ingredient: Ingredient): void {
+    // Ne rien faire si un visuel est déjà affiché ou si le loader n'est pas dispo
+    if (this.cookingVisualMesh || !this.ingredientLoader) {
+      return
+    }
+
+    // Pour l'instant, on gère seulement le riz
+    if (ingredient === Ingredient.Rice) {
+      const riceMesh = this.ingredientLoader.getIngredientMesh(Ingredient.Rice)
+      if (riceMesh) {
+        this.cookingVisualMesh = riceMesh
+        this.cookingVisualMesh.setParent(this.mesh)
+
+        this.cookingVisualMesh.position = new Vector3(0, 2.5, 0.4)
+        this.cookingVisualMesh.rotationQuaternion = Quaternion.Identity()
+        this.cookingVisualMesh.scaling = new Vector3(0.9, 0.9, 0.9)
+        this.cookingVisualMesh.isPickable = false
+        this.cookingVisualMesh.getChildMeshes().forEach((m) => {
+          m.isPickable = false
+        })
+        this.cookingVisualMesh.setEnabled(true)
+      }
+    }
+  }
+
+  /**
+   * Cache et supprime le visuel de cuisson actuellement affiché.
+   */
+  public hideCookingVisual(): void {
+    if (this.cookingVisualMesh) {
+      this.cookingVisualMesh.dispose()
+      this.cookingVisualMesh = null
+    }
   }
 
   private playCraftCompleteEffect(): void {

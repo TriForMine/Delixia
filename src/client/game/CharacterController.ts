@@ -178,8 +178,6 @@ export class CharacterController {
         this.currentIngredientMesh.parent = this.model
         // Position ingredient: on plate or in hand
         if (this.holdingPlate && this.plateMesh) {
-          // Position relative to the plate (adjust Y slightly higher)
-          this.currentIngredientMesh.position = new Vector3(0, 0.05, 0) // Relative to plate center
           this.currentIngredientMesh.setParent(this.plateMesh) // Parent to plate for easier transform
           this.currentIngredientMesh.position = new Vector3(0, 0.05, 0) // Position slightly above plate center
         } else {

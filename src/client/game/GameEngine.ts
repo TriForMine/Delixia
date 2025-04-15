@@ -5,7 +5,7 @@ import { CubeTexture } from '@babylonjs/core/Materials/Textures/cubeTexture'
 import { Texture } from '@babylonjs/core/Materials/Textures/texture'
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial'
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color'
-import { Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector'
+import { Vector3 } from '@babylonjs/core/Maths/math.vector'
 import type { Mesh } from '@babylonjs/core/Meshes/mesh'
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder'
 import { AssetsManager } from '@babylonjs/core/Misc/assetsManager'
@@ -29,11 +29,12 @@ import { IngredientLoader } from '@client/game/IngredientLoader.ts'
 import { SpatialGrid } from './SpatialGrid'
 import { InputManager } from './managers/InputManager'
 import { PerformanceManager } from './managers/PerformanceManager'
-import { type Ingredient, InteractType } from '@shared/types/enums.ts'
+import { Ingredient, InteractType } from '@shared/types/enums.ts'
 import { AudioManager, type SoundConfig } from '@client/game/managers/AudioManager.ts'
-import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh'
+import { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh'
 import type { Order } from '@shared/schemas/Order.ts'
 import { ParticleSystem } from '@babylonjs/core/Particles/particleSystem'
+import type { AssetContainer } from '@babylonjs/core/assetContainer'
 
 export class GameEngine {
   public interactables: InteractableObject[] = []
@@ -51,6 +52,10 @@ export class GameEngine {
   private poufParticleTexture: Texture | null = null
   private onGameOverCallback: (score: number) => void = () => {}
 
+  private chickTemplateMesh: AbstractMesh | null = null
+  private chickAssetContainer: AssetContainer | null = null
+  private chickenTemplateMesh: AbstractMesh | null = null
+  private chickenAssetContainer: AssetContainer | null = null
   private spawnedChicks = new Map<number, AbstractMesh>()
 
   // Pre-allocated vector for position calculations
@@ -121,6 +126,10 @@ export class GameEngine {
    * Disposes of all resources used by the game engine.
    */
   dispose(): void {
+    this.chickAssetContainer?.dispose()
+    this.chickAssetContainer = null
+    this.chickTemplateMesh = null
+
     if (this.poufParticleTexture) {
       this.poufParticleTexture.dispose()
       this.poufParticleTexture = null
@@ -256,6 +265,56 @@ export class GameEngine {
       }
     }
 
+    const chickTask = this.assetsManager.addContainerTask('chickTask', '', 'assets/map/japan/', 'Chick.glb') // Adjust path if needed
+    chickTask.onSuccess = (task) => {
+      this.chickAssetContainer = task.loadedContainer
+      // Find the main mesh within the container (usually the first root node)
+      const rootNode = task.loadedContainer.rootNodes[0]
+      if (rootNode instanceof AbstractMesh) {
+        this.chickTemplateMesh = rootNode
+        // Hide and disable the template itself
+        this.chickTemplateMesh.setEnabled(false)
+        this.chickTemplateMesh.isVisible = false
+        this.chickTemplateMesh.isPickable = false
+        this.chickTemplateMesh.getChildMeshes().forEach((child) => {
+          child.setEnabled(false)
+          child.isVisible = false
+          child.isPickable = false
+        })
+        console.log('Chick template mesh loaded and stored.')
+      } else {
+        console.error('Chick GLB loaded, but root node is not a mesh.')
+      }
+    }
+    chickTask.onError = (_task, message, exception) => {
+      console.error('Error loading Chick.glb:', message, exception)
+    }
+
+    const chickenTask = this.assetsManager.addContainerTask('chickenTask', '', 'assets/map/japan/', 'Chicken.glb')
+    chickenTask.onSuccess = (task) => {
+      this.chickenAssetContainer = task.loadedContainer
+      // Find the main mesh within the container (usually the first root node)
+      const rootNode = task.loadedContainer.rootNodes[0]
+      if (rootNode instanceof AbstractMesh) {
+        this.chickenTemplateMesh = rootNode
+        // Hide and disable the template itself
+        this.chickenTemplateMesh.setEnabled(false)
+        this.chickenTemplateMesh.isVisible = false
+        this.chickenTemplateMesh.isPickable = false
+        this.chickenTemplateMesh.getChildMeshes().forEach((child) => {
+          child.setEnabled(false)
+          child.isVisible = false
+          child.isPickable = false
+        })
+        console.log('Chick template mesh loaded and stored.')
+      } else {
+        console.error('Chick GLB loaded, but root node is not a mesh.')
+      }
+    }
+    chickenTask.onError = (_task, message, exception) => {
+      console.error('Error loading Chick.glb:', message, exception)
+    }
+
     const poufTexturePath = 'assets/particles/Star-Texture.png'
     try {
       this.poufParticleTexture = new Texture(poufTexturePath, this.scene)
@@ -368,7 +427,7 @@ export class GameEngine {
             }
 
             // Update ingredients on chopping board if it's a chopping board
-            if (interactable.interactType === InteractType.ChoppingBoard) {
+            if (interactable.interactType === InteractType.ChoppingBoard || interactable.interactType === InteractType.Oven) {
               const ingredients = objState.ingredientsOnBoard.map((i) => i as Ingredient)
               interactable.updateIngredientsOnBoard(ingredients)
             }
@@ -430,6 +489,32 @@ export class GameEngine {
 
       // --- Oven Sound ---
       if (interactable.interactType === InteractType.Oven) {
+        const isCookingRiceInitially = objState.isActive && objState.processingRecipeId === 'cooked_rice_recipe'
+        if (isCookingRiceInitially) {
+          interactable.showCookingVisual(Ingredient.Rice)
+        } else {
+          interactable.hideCookingVisual()
+        }
+
+        $(objState).onChange(() => {
+          const isCookingRiceNow = objState.isActive && objState.processingRecipeId === 'cooked_rice_recipe'
+          if (isCookingRiceNow) {
+            console.log('hi')
+            interactable.showCookingVisual(Ingredient.Rice)
+          } else {
+            interactable.hideCookingVisual()
+          }
+
+          // Mettre à jour les ingrédients sur le dessus APRES la fin de cuisson
+          if (!objState.isActive && objState.ingredientsOnBoard.length > 0) {
+            const ingredients = objState.ingredientsOnBoard.map((i) => i as Ingredient)
+            interactable.updateIngredientsOnBoard(ingredients)
+          } else if (!objState.isActive) {
+            // Vider si la cuisson est finie et il n'y a rien
+            interactable.clearIngredientsOnBoard()
+          }
+        })
+
         $(objState).listen('isActive', (currentValue, previousValue) => {
           if (currentValue && !previousValue) {
             this.audioManager.playSound('ovenLoop', 0.6, true, interactable.mesh)
@@ -437,6 +522,7 @@ export class GameEngine {
             this.audioManager.stopSound('ovenLoop')
           }
         })
+
         // Initial state check for oven
         if (objState.isActive) {
           this.audioManager.playSound('ovenLoop', 0.6, true, interactable.mesh)
@@ -469,7 +555,8 @@ export class GameEngine {
         } else if (!objState.isActive && interactable.interactType !== InteractType.Oven) {
           interactable.deactivate()
         }
-        if (interactable.interactType === InteractType.ChoppingBoard) {
+
+        if (interactable.interactType === InteractType.ChoppingBoard || interactable.interactType === InteractType.Oven) {
           const ingredients = objState.ingredientsOnBoard.map((i) => i as Ingredient)
           interactable.updateIngredientsOnBoard(ingredients)
         }
@@ -478,7 +565,7 @@ export class GameEngine {
       const initialInteractable = this.interactables.find((obj) => obj.id === Number(objState.id))
       if (initialInteractable) {
         initialInteractable.setDisabled(objState.disabled)
-        if (initialInteractable.interactType === InteractType.ChoppingBoard) {
+        if (initialInteractable.interactType === InteractType.ChoppingBoard || initialInteractable.interactType === InteractType.Oven) {
           const ingredients = objState.ingredientsOnBoard.map((i) => i as Ingredient)
           initialInteractable.updateIngredientsOnBoard(ingredients)
         }
@@ -592,8 +679,10 @@ export class GameEngine {
   }
 
   private handleSpawnChick(chairId: number): void {
-    if (this.spawnedChicks.has(chairId)) {
-      // console.warn(`Chick already spawned for chair ${chairId}. Ignoring.`);
+    if (this.spawnedChicks.has(chairId)) return
+
+    if (!this.chickTemplateMesh) {
+      console.error('Chick template mesh is not loaded or available. Cannot spawn chick.')
       return
     }
 
@@ -603,35 +692,33 @@ export class GameEngine {
       return
     }
 
-    const chickTemplate = this.scene.getMeshByName('Chick')
-    if (!chickTemplate) {
-      console.error("Could not find the 'Chick' template mesh.")
-      return
-    }
-
-    const newChick = chickTemplate.clone(`chick_${chairId}`, chairObject?.mesh)
+    const newChick = this.chickTemplateMesh.clone(`chick_${chairId}`, null)
     if (!newChick) {
-      console.error(`Failed to clone chick mesh for chair ${chairId}.`)
+      console.error(`Failed to clone chick template mesh for chair ${chairId}.`)
       return
     }
 
-    newChick.isVisible = true
     newChick.setEnabled(true)
+    newChick.isVisible = true
     newChick.getChildMeshes().forEach((child) => {
-      child.isVisible = true
       child.setEnabled(true)
+      child.isVisible = true
       child.isPickable = false
     })
     newChick.isPickable = false
+    newChick.scaling = new Vector3(0.075, 0.075, 0.075)
 
-    const chairPosition = chairObject.mesh.getAbsolutePosition()
-    const chickPosition = chairPosition.add(new Vector3(0, 0.25, 0)) // Adjust Y offset
+    // Position the chick
+    const chairMesh = chairObject.mesh
+    const chairPosition = chairMesh.getAbsolutePosition()
+    const chickPosition = chairPosition.add(new Vector3(0, 0.05, 0))
     newChick.position = chickPosition
-    newChick.rotationQuaternion = Quaternion.RotationAxis(Vector3.Up(), Math.PI) // Face forward
+    newChick.rotation = chairMesh.rotation ? chairMesh.rotation : Vector3.Zero()
 
     this.spawnedChicks.set(chairId, newChick)
-    this.createChickPoufEffect(chickPosition) // Create pouf effect
-    // Optional: this.playSfx('pouf', 0.6);
+    this.createChickPoufEffect(chickPosition)
+
+    console.log('Spawned chick at chair ID:', chairId)
   }
 
   private handleRemoveChick(chairId: number): void {

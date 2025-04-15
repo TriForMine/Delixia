@@ -16,7 +16,8 @@ import type { HavokPlugin } from '@babylonjs/core/Physics/v2/Plugins/havokPlugin
 import { PhysicsRaycastResult } from '@babylonjs/core/Physics/physicsRaycastResult'
 import type { Contact } from './physics/Contact'
 import { CharacterSupportedState } from './physics/CharacterSupportedState'
-import {AudioManager} from "@client/game/managers/AudioManager.ts";
+import type { AudioManager } from '@client/game/managers/AudioManager.ts'
+import { Scalar } from '@babylonjs/core'
 
 export class LocalCharacterController extends CharacterController {
   readonly inputMap: Map<string, boolean>
@@ -57,24 +58,25 @@ export class LocalCharacterController extends CharacterController {
   public maxSlopeCosine: number = Math.cos(Math.PI * (60 / 180))
 
   // --- Footstep Sound Properties ---
-  private isPlayingFootsteps: boolean = false;
-  private timeSinceLastStep: number = 0;
-  private readonly stepInterval: number = 0.45;
-  private readonly footstepSoundNames: string[] = [
-    'footstep_wood_01',
-    'footstep_wood_02',
-    'footstep_wood_03',
-    'footstep_wood_04',
-  ];
-  private lastFootstepIndex: number = -1;
+  private isPlayingFootsteps: boolean = false
+  private timeSinceLastStep: number = 0
+  private readonly stepInterval: number = 0.45
+  private readonly footstepSoundNames: string[] = ['footstep_wood_01', 'footstep_wood_02', 'footstep_wood_03', 'footstep_wood_04']
+  private lastFootstepIndex: number = -1
+
+  private readonly visibilityThresholdPadding = 1.5 // Padding for smooth start/end of fade
+  private currentVisibility: number = 1.0 // Current visibility level (0.0 to 1.0)
+  private targetVisibility: number = 1.0 // Target visibility level (1 = visible, 0 = invisible)
+  private readonly fadeSpeed: number = 20.0 // Speed of the fade effect
+  private readonly invisibleVisibilityValue: number = 0.0 // Visibility value when fully faded out (usually 0)
 
   constructor(
-      gameEngine: GameEngine,
-      characterMesh: AbstractMesh,
-      ingredientLoader: IngredientLoader,
-      animationGroups: AnimationGroup[],
-      scene: Scene,
-      audioManager: AudioManager,
+    gameEngine: GameEngine,
+    characterMesh: AbstractMesh,
+    ingredientLoader: IngredientLoader,
+    animationGroups: AnimationGroup[],
+    scene: Scene,
+    audioManager: AudioManager,
   ) {
     super(characterMesh, scene, ingredientLoader, animationGroups, audioManager)
 
@@ -84,16 +86,16 @@ export class LocalCharacterController extends CharacterController {
     // Setup keyboard events
     scene.actionManager = new ActionManager(scene)
     scene.actionManager.registerAction(
-        new ExecuteCodeAction(ActionManager.OnKeyDownTrigger, (e) => {
-          const key = (e.sourceEvent as KeyboardEvent).code
-          this.inputMap.set(key, true)
-        }),
+      new ExecuteCodeAction(ActionManager.OnKeyDownTrigger, (e) => {
+        const key = (e.sourceEvent as KeyboardEvent).code
+        this.inputMap.set(key, true)
+      }),
     )
     scene.actionManager.registerAction(
-        new ExecuteCodeAction(ActionManager.OnKeyUpTrigger, (e) => {
-          const key = (e.sourceEvent as KeyboardEvent).code
-          this.inputMap.set(key, false)
-        }),
+      new ExecuteCodeAction(ActionManager.OnKeyUpTrigger, (e) => {
+        const key = (e.sourceEvent as KeyboardEvent).code
+        this.inputMap.set(key, false)
+      }),
     )
 
     // Create a transform for the camera to follow
@@ -106,7 +108,7 @@ export class LocalCharacterController extends CharacterController {
     camera.attachControl(scene.getEngine().getRenderingCanvas(), true)
 
     // Configure camera angles/zoom
-    camera.lowerRadiusLimit = 1.5
+    camera.lowerRadiusLimit = 0.1
     camera.upperRadiusLimit = 10
     camera.lowerBetaLimit = 0.1
     camera.upperBetaLimit = Math.PI / 2 + 0.2
@@ -150,37 +152,38 @@ export class LocalCharacterController extends CharacterController {
     this.updateMovement()
     this.updateAnimations(deltaSeconds)
     this.updateCameraCollision()
-    this.updateFootstepSounds(deltaSeconds);
+    this.updateFootstepSounds(deltaSeconds)
+    this.updateCharacterVisibilityFade(deltaSeconds)
   }
 
   private updateFootstepSounds(deltaSeconds: number): void {
     if (this.currentState === CharacterState.WALKING && this.isGrounded) {
-      this.timeSinceLastStep += deltaSeconds;
+      this.timeSinceLastStep += deltaSeconds
 
       if (this.timeSinceLastStep >= this.stepInterval) {
         // Play a footstep sound
-        let randomIndex;
+        let randomIndex
         // Simple way to avoid direct repetition
         do {
-          randomIndex = Math.floor(Math.random() * this.footstepSoundNames.length);
-        } while (this.footstepSoundNames.length > 1 && randomIndex === this.lastFootstepIndex);
+          randomIndex = Math.floor(Math.random() * this.footstepSoundNames.length)
+        } while (this.footstepSoundNames.length > 1 && randomIndex === this.lastFootstepIndex)
 
-        const soundName = this.footstepSoundNames[randomIndex];
-        this.lastFootstepIndex = randomIndex;
+        const soundName = this.footstepSoundNames[randomIndex]
+        this.lastFootstepIndex = randomIndex
 
         // Play the sound spatially attached to the character's transform node
-        this.audioManager.playSound(soundName, 0.55, false); // Play attached to player position implicitly by AudioManager
+        this.audioManager.playSound(soundName, 0.55, false) // Play attached to player position implicitly by AudioManager
 
         // Reset timer (subtract interval to account for potential frame drops)
-        this.timeSinceLastStep -= this.stepInterval;
+        this.timeSinceLastStep -= this.stepInterval
       }
-      this.isPlayingFootsteps = true;
+      this.isPlayingFootsteps = true
     } else {
       // If not walking or not grounded, reset state
       if (this.isPlayingFootsteps) {
-        this.isPlayingFootsteps = false;
-        this.timeSinceLastStep = 0; // Reset timer
-        this.lastFootstepIndex = -1; // Reset last played index
+        this.isPlayingFootsteps = false
+        this.timeSinceLastStep = 0 // Reset timer
+        this.lastFootstepIndex = -1 // Reset last played index
         // No need to explicitly stop one-shot sounds
       }
     }
@@ -219,10 +222,14 @@ export class LocalCharacterController extends CharacterController {
     if (this.inputMap.get(this.keyDance)) {
       newState = CharacterState.DANCING
     } else if (supportState === CharacterSupportedState.SUPPORTED) {
-      if (this.previousState === CharacterState.FALLING || this.previousState === CharacterState.JUMPING || this.previousState === CharacterState.LANDING) {
-        newState = CharacterState.LANDING;
+      if (
+        this.previousState === CharacterState.FALLING ||
+        this.previousState === CharacterState.JUMPING ||
+        this.previousState === CharacterState.LANDING
+      ) {
+        newState = CharacterState.LANDING
       } else {
-        newState = this.isAnyMovementKeyDown() ? CharacterState.WALKING : CharacterState.IDLE;
+        newState = this.isAnyMovementKeyDown() ? CharacterState.WALKING : CharacterState.IDLE
       }
     } else if (supportState === CharacterSupportedState.SLIDING) {
       newState = CharacterState.FALLING
@@ -238,23 +245,19 @@ export class LocalCharacterController extends CharacterController {
 
     // --- Play Landing Sound on State Transition ---
     // Play sound when entering the LANDING state from a non-landing aerial state
-    if (
-        newState === CharacterState.LANDING &&
-        (this.previousState === CharacterState.FALLING || this.previousState === CharacterState.JUMPING)
-    ) {
-      this.gameEngine.playSfx('jumpLand', 0.65, false);
+    if (newState === CharacterState.LANDING && (this.previousState === CharacterState.FALLING || this.previousState === CharacterState.JUMPING)) {
+      this.gameEngine.playSfx('jumpLand', 0.65, false)
     }
     // If the state remains LANDING but the animation finished, transition out
     else if (newState === CharacterState.LANDING && this.landingAnim.weight < 0.1) {
-      newState = this.isAnyMovementKeyDown() ? CharacterState.WALKING : CharacterState.IDLE;
+      newState = this.isAnyMovementKeyDown() ? CharacterState.WALKING : CharacterState.IDLE
     }
 
-
     // Update the character's current state *after* checking for transitions
-    this.currentState = newState;
+    this.currentState = newState
 
     // Update the previous state for the next frame's check
-    this.previousState = this.currentState;
+    this.previousState = this.currentState
   }
 
   // Pre-allocated vectors for movement calculations
@@ -530,20 +533,60 @@ export class LocalCharacterController extends CharacterController {
 
   private isAnyMovementKeyDown(): boolean {
     return (
-        (this.inputMap.get(this.keyForward) ||
-            this.inputMap.get(this.keyBackward) ||
-            this.inputMap.get(this.keyLeft) ||
-            this.inputMap.get(this.keyRight)) === true
+      (this.inputMap.get(this.keyForward) ||
+        this.inputMap.get(this.keyBackward) ||
+        this.inputMap.get(this.keyLeft) ||
+        this.inputMap.get(this.keyRight)) === true
     )
   }
 
   dropIngredient() {
-    super.dropIngredient();
+    super.dropIngredient()
     this.gameEngine.playSfx('trash')
   }
 
   dropPlate() {
-    super.dropPlate();
+    super.dropPlate()
     this.gameEngine.playSfx('trash')
+  }
+
+  /**
+   * Updates the character mesh's visibility based on the camera's proximity,
+   * applying a smooth fade effect using the `visibility` property.
+   */
+  private updateCharacterVisibilityFade(deltaSeconds: number): void {
+    const camera = this.thirdPersonCamera
+
+    // Ensure the lower radius limit is a valid number
+    if (typeof camera.lowerRadiusLimit !== 'number') {
+      this.targetVisibility = 1.0 // Default to fully visible if no limit
+    } else {
+      // Determine target visibility based on camera distance
+      const isTooClose = camera.radius <= camera.lowerRadiusLimit + this.visibilityThresholdPadding
+      this.targetVisibility = isTooClose ? this.invisibleVisibilityValue : 1.0
+    }
+
+    // Check if visibility is already at the target (within a small tolerance)
+    if (Math.abs(this.currentVisibility - this.targetVisibility) < 0.01) {
+      // Snap to target if very close
+      if (this.currentVisibility !== this.targetVisibility) {
+        this.currentVisibility = this.targetVisibility
+        this.model.visibility = this.currentVisibility
+        this.model.getChildMeshes().forEach((child) => (child.visibility = this.currentVisibility))
+      }
+      return // No need to lerp further
+    }
+
+    // Interpolate the current visibility towards the target visibility
+    this.currentVisibility = Scalar.Lerp(
+      this.currentVisibility,
+      this.targetVisibility,
+      1.0 - Math.exp(-this.fadeSpeed * deltaSeconds), // Smoother lerp
+    )
+
+    // Apply the interpolated visibility to the main character mesh
+    // Setting visibility on the parent mesh automatically affects its children.
+    this.model.visibility = this.currentVisibility
+    this.model.getChildMeshes().forEach((child) => (child.visibility = this.currentVisibility))
   }
 }

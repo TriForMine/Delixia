@@ -65,15 +65,6 @@ export class PerformanceManager {
       }
 
       this.lastPerformanceUpdate = currentTime
-
-      // Auto-adjust quality if FPS drops too low
-      if (Number(fps) < 30) {
-        engine.setHardwareScalingLevel(engine.getHardwareScalingLevel() * 1.1)
-      } else if (Number(fps) > 60 && engine.getHardwareScalingLevel() > 1.0) {
-        engine.setHardwareScalingLevel(Math.max(1.0, engine.getHardwareScalingLevel() * 0.9))
-      }
-
-      // No longer dynamically adjusting shadow quality based on FPS
     }
   }
 

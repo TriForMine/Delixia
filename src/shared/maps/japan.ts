@@ -169,15 +169,17 @@ const rawMapConfigs: MapModelConfig[] = [
       // Chaise Coin Gauche Devant
       {
         position: { x: 8, y: 0.4, z: -7 },
+        rotation: { y: Math.PI },
       },
       {
         position: { x: 7, y: 0.4, z: -8 },
-        rotation: { y: Math.PI },
+        rotation: { y: Math.PI / 2 },
       },
 
       // Chaise Coin Droite Devant
       {
         position: { x: -7, y: 0.4, z: -8 },
+        rotation: { y: -Math.PI / 2 },
       },
       {
         position: { x: -8, y: 0.4, z: -7 },
@@ -186,50 +188,59 @@ const rawMapConfigs: MapModelConfig[] = [
 
       // Chaise Gauche Volant
       {
-        position: { x: 5, y: 3.75, z: -3.5 },
+        position: { x: 5, y: 3.9, z: -3.5 },
+        rotation: { y: Math.PI },
       },
       {
-        position: { x: 5, y: 3.75, z: -6.5 },
+        position: { x: 5, y: 3.9, z: -6.5 },
       },
       {
-        position: { x: 3.5, y: 3.75, z: -5 },
+        position: { x: 3.5, y: 3.9, z: -5 },
+        rotation: { y: Math.PI / 2 },
       },
       {
-        position: { x: 6.5, y: 3.75, z: -5 },
+        position: { x: 6.5, y: 3.9, z: -5 },
+        rotation: { y: -Math.PI / 2 },
       },
 
       // Chaise Droite Volant
       {
-        position: { x: -5, y: 3.75, z: -3.5 },
+        position: { x: -5, y: 3.9, z: -3.5 },
+        rotation: { y: Math.PI },
       },
       {
-        position: { x: -5, y: 3.75, z: -6.5 },
+        position: { x: -5, y: 3.9, z: -6.5 },
       },
       {
-        position: { x: -3.5, y: 3.75, z: -5 },
+        position: { x: -3.5, y: 3.9, z: -5 },
+        rotation: { y: -Math.PI / 2 },
       },
       {
-        position: { x: -6.5, y: 3.75, z: -5 },
+        position: { x: -6.5, y: 3.9, z: -5 },
+        rotation: { y: Math.PI / 2 },
       },
 
       // Chaise Volant
       {
-        position: { x: 0, y: 2.25, z: -0.75 },
+        position: { x: 0, y: 2.4, z: -0.75 },
+        rotation: { y: Math.PI },
       },
       {
-        position: { x: 0, y: 2.25, z: -3.2 },
+        position: { x: 0, y: 2.4, z: -3.2 },
       },
       {
-        position: { x: -1.5, y: 2.25, z: -0.75 },
+        position: { x: -1.5, y: 2.4, z: -0.75 },
+        rotation: { y: Math.PI },
       },
       {
-        position: { x: -1.5, y: 2.25, z: -3.2 },
+        position: { x: -1.5, y: 2.4, z: -3.2 },
       },
       {
-        position: { x: 1.5, y: 2.25, z: -0.75 },
+        position: { x: 1.5, y: 2.4, z: -0.75 },
+        rotation: { y: Math.PI },
       },
       {
-        position: { x: 1.5, y: 2.25, z: -3.2 },
+        position: { x: 1.5, y: 2.4, z: -3.2 },
       },
 
       // Chaise Coin Gauche
@@ -238,25 +249,26 @@ const rawMapConfigs: MapModelConfig[] = [
       },
       {
         position: { x: 7, y: 0.4, z: 8 },
-        rotation: { y: Math.PI },
+        rotation: { y: Math.PI / 2 },
       },
 
       // Chaise Coin Droite
       {
         position: { x: -7, y: 0.4, z: 8 },
+        rotation: { y: -Math.PI / 2 },
       },
       {
         position: { x: -8, y: 0.4, z: 7 },
-        rotation: { y: Math.PI },
       },
 
       // Chaise Sortie Droite
       {
         position: { x: -7.8, y: 0.4, z: 1.35 },
+        rotation: { y: -Math.PI },
       },
       {
         position: { x: -6.5, y: 0.4, z: 0 },
-        rotation: { y: Math.PI },
+        rotation: { y: -Math.PI / 2 },
       },
       {
         position: { x: -7.8, y: 0.4, z: -1.35 },
@@ -265,10 +277,11 @@ const rawMapConfigs: MapModelConfig[] = [
       // Chaise Sortie Gauche
       {
         position: { x: 7.8, y: 0.4, z: 1.35 },
+        rotation: { y: Math.PI },
       },
       {
         position: { x: 6.5, y: 0.4, z: 0 },
-        rotation: { y: Math.PI },
+        rotation: { y: Math.PI / 2 },
       },
       {
         position: { x: 7.8, y: 0.4, z: -1.35 },
@@ -277,6 +290,7 @@ const rawMapConfigs: MapModelConfig[] = [
       // Chaise Devant
       {
         position: { x: 1.35, y: 0.4, z: -7.8 },
+        rotation: { y: -Math.PI / 2 },
       },
       {
         position: { x: 0, y: 0.4, z: -6.5 },
@@ -284,6 +298,7 @@ const rawMapConfigs: MapModelConfig[] = [
       },
       {
         position: { x: -1.35, y: 0.4, z: -7.8 },
+        rotation: { y: Math.PI / 2 },
       },
     ],
   },
@@ -465,19 +480,218 @@ const rawMapConfigs: MapModelConfig[] = [
     instances: [
       {
         position: { x: 0, y: 2.7, z: 9 },
-        rotation: { x: -Math.PI/2 },
+        rotation: { x: -Math.PI / 2 },
       },
       {
         position: { x: 0, y: 2.7, z: -9 },
-        rotation: { x: -Math.PI/2 },
+        rotation: { x: -Math.PI / 2 },
       },
       {
         position: { x: 9, y: 2.7, z: 0 },
-        rotation: { x: -Math.PI/2 },
+        rotation: { x: -Math.PI / 2 },
       },
       {
         position: { x: -9, y: 2.7, z: 0 },
-        rotation: { x: -Math.PI/2 },
+        rotation: { x: -Math.PI / 2 },
+      },
+    ],
+  },
+  {
+    map: 'japan',
+    fileName: 'Dango.glb',
+    defaultScaling: { x: 1.75, y: 1.75, z: 1.75 },
+    instances: [
+      {
+        position: { x: 1.875, y: 3.25, z: 9 },
+        rotation: { z: Math.PI / 2 },
+      },
+      {
+        position: { x: -1.875, y: 3.25, z: 9 },
+        rotation: { z: Math.PI / 2 },
+      },
+      {
+        position: { x: 1.875, y: 3.25, z: -9 },
+        rotation: { z: Math.PI / 2 },
+      },
+      {
+        position: { x: -1.875, y: 3.25, z: -9 },
+        rotation: { z: Math.PI / 2 },
+      },
+      {
+        position: { x: 9, y: 3.25, z: 1.875 },
+        rotation: { z: Math.PI / 2 },
+      },
+      {
+        position: { x: 9, y: 3.25, z: -1.875 },
+        rotation: { z: Math.PI / 2 },
+      },
+      {
+        position: { x: -9, y: 3.25, z: 1.875 },
+        rotation: { z: Math.PI / 2 },
+      },
+      {
+        position: { x: -9, y: 3.25, z: -1.875 },
+        rotation: { z: Math.PI / 2 },
+      },
+      {
+        position: { x: 5.625, y: 3.25, z: 9 },
+        rotation: { z: Math.PI / 2 },
+      },
+      {
+        position: { x: -5.625, y: 3.25, z: 9 },
+        rotation: { z: Math.PI / 2 },
+      },
+      {
+        position: { x: 5.625, y: 3.25, z: -9 },
+        rotation: { z: Math.PI / 2 },
+      },
+      {
+        position: { x: -5.625, y: 3.25, z: -9 },
+        rotation: { z: Math.PI / 2 },
+      },
+      {
+        position: { x: 9, y: 3.25, z: 5.625 },
+        rotation: { z: Math.PI / 2 },
+      },
+      {
+        position: { x: 9, y: 3.25, z: -5.625 },
+        rotation: { z: Math.PI / 2 },
+      },
+      {
+        position: { x: -9, y: 3.25, z: 5.625 },
+        rotation: { z: Math.PI / 2 },
+      },
+      {
+        position: { x: -9, y: 3.25, z: -5.625 },
+        rotation: { z: Math.PI / 2 },
+      },
+      {
+        position: { x: 9, y: 3.25, z: 9 },
+        rotation: { z: Math.PI / 2 },
+      },
+      {
+        position: { x: 9, y: 3.25, z: -9 },
+        rotation: { z: Math.PI / 2 },
+      },
+      {
+        position: { x: -9, y: 3.25, z: -9 },
+        rotation: { z: Math.PI / 2 },
+      },
+      {
+        position: { x: -9, y: 3.25, z: 9 },
+        rotation: { z: Math.PI / 2 },
+      },
+    ],
+  },
+  {
+    map: 'japan',
+    fileName: 'Platform.glb',
+    defaultScaling: { x: 0.5, y: 0.5, z: 0.5 },
+    defaultPhysics: {
+      shapeType: PhysicsShapeType.BOX,
+      mass: 0,
+      friction: 0.8,
+      restitution: 0.1,
+    },
+    instances: [
+      {
+        position: { x: 6, y: 1.9, z: 2.75 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: -6, y: 1.9, z: 2.75 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: 4.3, y: 1.9, z: 0.75 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: -4.3, y: 1.9, z: 0.75 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: 5, y: 3.8, z: 0 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: -5, y: 3.8, z: 0 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: 5, y: 3.8, z: -1.5 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: -5, y: 3.8, z: -1.5 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: 6.1, y: 3.8, z: -2.6 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: -6.1, y: 3.8, z: -2.6 },
+        rotation: { y: Math.PI / 2 },
+      },
+    ],
+  },
+  {
+    map: 'japan',
+    fileName: 'Grass Platform.glb',
+    defaultScaling: { x: 2, y: 2, z: 2 },
+    defaultPhysics: {
+      shapeType: PhysicsShapeType.BOX,
+      mass: 0,
+      friction: 0.8,
+      restitution: 0.1,
+    },
+    instances: [
+      {
+        position: { x: 7, y: 0.75, z: 4 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: -7, y: 0.75, z: 4 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: 5.8, y: 2.5, z: 1.25 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: -5.8, y: 2.5, z: 1.25 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: 2.65, y: 1.6, z: 0.25 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: -2.65, y: 1.6, z: 0.25 },
+        rotation: { y: Math.PI },
+      },
+      {
+        position: { x: -0.9, y: 1.6, z: 0.25 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: 0.9, y: 1.6, z: 0.25 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: 6.9, y: 3.5, z: -4.8 },
+        rotation: { y: Math.PI / 2 },
+      },
+    ],
+  },
+  {
+    map: 'japan',
+    fileName: 'Donut.glb',
+    defaultScaling: { x: 1, y: 1, z: 1 },
+    instances: [
+      {
+        position: { x: 0.5, y: 0.5, z: 0.5 },
       },
     ],
   },
@@ -488,43 +702,43 @@ const rawMapConfigs: MapModelConfig[] = [
     instances: [
       {
         position: { x: 7.5, y: 2.7, z: 9 },
-        rotation: { y: Math.PI/2 },
+        rotation: { y: Math.PI / 2 },
         scaling: { x: 0.2, y: 0.2, z: 0.2 },
       },
       {
         position: { x: 3.75, y: 2.7, z: 9 },
-        rotation: { y: Math.PI/2 },
+        rotation: { y: Math.PI / 2 },
       },
       {
         position: { x: -7.5, y: 2.7, z: 9 },
-        rotation: { y: Math.PI/2 },
+        rotation: { y: Math.PI / 2 },
       },
       {
         position: { x: -3.75, y: 2.7, z: 9 },
-        rotation: { y: Math.PI/2 },
+        rotation: { y: Math.PI / 2 },
         scaling: { x: 0.2, y: 0.2, z: 0.2 },
       },
       {
         position: { x: 3.75, y: 2.7, z: -9 },
-        rotation: { y: Math.PI/2 },
+        rotation: { y: Math.PI / 2 },
         scaling: { x: 0.2, y: 0.2, z: 0.2 },
       },
       {
         position: { x: 7.5, y: 2.7, z: -9 },
-        rotation: { y: Math.PI/2 },
+        rotation: { y: Math.PI / 2 },
       },
       {
         position: { x: -3.75, y: 2.7, z: -9 },
-        rotation: { y: Math.PI/2 },
+        rotation: { y: Math.PI / 2 },
       },
 
       {
         position: { x: -7.5, y: 2.7, z: -9 },
-        rotation: { y: Math.PI/2 },
+        rotation: { y: Math.PI / 2 },
         scaling: { x: 0.2, y: 0.2, z: 0.2 },
       },
       {
-        position: { x: 9,y: 2.7, z: 3.75 },
+        position: { x: 9, y: 2.7, z: 3.75 },
         rotation: { y: Math.PI },
         scaling: { x: 0.2, y: 0.2, z: 0.2 },
       },
@@ -963,23 +1177,6 @@ const rawMapConfigs: MapModelConfig[] = [
         position: { x: 0.65, y: 1.07, z: 2 },
         scaling: { x: 0.25, y: 0.05, z: 0.15 },
         rotation: { y: Math.PI / 2 },
-      },
-    ],
-  },
-  {
-    map: 'japan',
-    fileName: 'Chick.glb',
-    defaultScaling: { x: 0.1, y: 0.1, z: 0.1 },
-    defaultPhysics: {
-      shapeType: PhysicsShapeType.MESH,
-      mass: 0,
-      friction: 0.8,
-      restitution: 0.1,
-    },
-    instances: [
-      {
-        position: { x: 0, y: 1, z: 0 },
-        rotation: { y: Math.PI },
       },
     ],
   },
