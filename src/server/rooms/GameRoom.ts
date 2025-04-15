@@ -331,7 +331,7 @@ export class GameRoom extends Room<GameRoomState> {
           {
             const boardIngredients = obj.ingredientsOnBoard
             const boardHasPlate = boardIngredients.includes(Ingredient.Plate)
-            const boardDishIngredient = boardIngredients.find((ing) => ing !== Ingredient.Plate && getItemDefinition(ing)?.isFinal) // Find the dish
+            const boardDishIngredient = boardIngredients.find((ing) => ing !== Ingredient.Plate && (getItemDefinition(ing)?.isFinal ?? false)) // Find the dish
 
             // --- Placing items ---
             if (playerIngredient !== Ingredient.None || isHoldingPlate) {
