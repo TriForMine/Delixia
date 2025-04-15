@@ -25,7 +25,7 @@ const GameEndScreen: React.FC<GameEndScreenProps> = ({ finalScore, onBackToMenu 
           Game Over!
         </h2>
         <p className="text-xl text-base-content opacity-90 mb-6">Your final score is:</p>
-        <p className="text-6xl font-extrabold text-primary mb-8">{finalScore}</p>
+        <p className="text-6xl font-extrabold mb-6">{finalScore}</p>
         <button onClick={onBackToMenu} className="btn-dream w-full">
           Back to Main Menu
         </button>

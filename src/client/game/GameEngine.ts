@@ -5,7 +5,7 @@ import { CubeTexture } from '@babylonjs/core/Materials/Textures/cubeTexture'
 import { Texture } from '@babylonjs/core/Materials/Textures/texture'
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial'
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color'
-import { Vector3 } from '@babylonjs/core/Maths/math.vector'
+import { Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector'
 import type { Mesh } from '@babylonjs/core/Meshes/mesh'
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder'
 import { AssetsManager } from '@babylonjs/core/Misc/assetsManager'
@@ -48,9 +48,10 @@ export class GameEngine {
   private inputManager: InputManager
   private performanceManager?: PerformanceManager
   private loadedCharacterContainer: any
-  private phantomParticleSystems = new Map<number, ParticleSystem>() // Map chairId to ParticleSystem
-  private phantomTexture: Texture | null = null // Cache the texture
+  private poufParticleTexture: Texture | null = null
   private onGameOverCallback: (score: number) => void = () => {}
+
+  private spawnedChicks = new Map<number, AbstractMesh>()
 
   // Pre-allocated vector for position calculations
   private _playerPosTemp: Vector3 = new Vector3()
@@ -120,15 +121,16 @@ export class GameEngine {
    * Disposes of all resources used by the game engine.
    */
   dispose(): void {
-    this.phantomParticleSystems.forEach((ps) => {
-      ps.stop()
-      ps.dispose()
-    })
-    this.phantomParticleSystems.clear()
-    if (this.phantomTexture) {
-      this.phantomTexture.dispose()
-      this.phantomTexture = null
+    if (this.poufParticleTexture) {
+      this.poufParticleTexture.dispose()
+      this.poufParticleTexture = null
     }
+
+    this.spawnedChicks.forEach((chickMesh) => {
+      chickMesh.dispose()
+    })
+    this.spawnedChicks.clear()
+
     this.localController?.dispose()
     this.remoteControllers.forEach((controller) => controller.dispose())
     this.remoteControllers.clear()
@@ -254,12 +256,12 @@ export class GameEngine {
       }
     }
 
-    const phantomTexturePath = 'assets/particles/DarkMagicSmoke.png' // Use a suitable texture
+    const poufTexturePath = 'assets/particles/Star-Texture.png'
     try {
-      this.phantomTexture = new Texture(phantomTexturePath, this.scene)
-      this.phantomTexture.hasAlpha = true
+      this.poufParticleTexture = new Texture(poufTexturePath, this.scene)
+      this.poufParticleTexture.hasAlpha = true
     } catch (error) {
-      console.error('Failed to load phantom particle texture:', error)
+      console.error('Failed to load pouf particle texture:', error)
     }
 
     // When all assets are loaded
@@ -429,9 +431,9 @@ export class GameEngine {
       // --- Oven Sound ---
       if (interactable.interactType === InteractType.Oven) {
         $(objState).listen('isActive', (currentValue, previousValue) => {
-          if (currentValue === true && previousValue === false) {
+          if (currentValue && !previousValue) {
             this.audioManager.playSound('ovenLoop', 0.6, true, interactable.mesh)
-          } else if (currentValue === false && previousValue === true) {
+          } else if (!currentValue && previousValue) {
             this.audioManager.stopSound('ovenLoop')
           }
         })
@@ -516,30 +518,29 @@ export class GameEngine {
 
     $(this.room.state).orders.onAdd((order: Order) => {
       if (order.chairId !== -1) {
-        this.spawnPhantomForOrder(order)
+        this.handleSpawnChick(order.chairId)
       }
       // Listen for changes to chairId *after* adding (less likely with current server logic, but good practice)
       $(order).listen('chairId', (currentChairId, previousChairId) => {
-        if (previousChairId !== -1 && this.phantomParticleSystems.has(previousChairId)) {
-          this.removePhantom(previousChairId)
+        if (previousChairId !== -1) {
+          this.handleRemoveChick(previousChairId)
         }
         if (currentChairId !== -1) {
-          // Need the full order object here if spawnPhantomForOrder needs more than just ID
-          this.spawnPhantomForOrder(order) // Might need to fetch the order state again if it changed significantly
+          this.handleSpawnChick(currentChairId)
         }
       })
     })
 
     $(this.room.state).orders.onRemove((order: Order) => {
       if (order.chairId !== -1) {
-        this.removePhantom(order.chairId)
+        this.handleRemoveChick(order.chairId)
       }
     })
 
     // Initial spawn for existing orders when client joins
     this.room.state.orders.forEach((order) => {
       if (order.chairId !== -1) {
-        this.spawnPhantomForOrder(order)
+        this.handleSpawnChick(order.chairId)
       }
     })
 
@@ -590,120 +591,104 @@ export class GameEngine {
     })
   }
 
-  /**
-   * Creates a phantom particle system at the specified position.
-   * @param position The world position to spawn the phantom.
-   * @returns The created ParticleSystem instance.
-   */
-  private createPhantomSystem(position: Vector3): ParticleSystem {
-    const capacity = 200 // Adjust particle count as needed
-    const ps = new ParticleSystem(`phantom_${position.x}_${position.z}`, capacity, this.scene)
-
-    // Texture
-    if (this.phantomTexture) {
-      ps.particleTexture = this.phantomTexture
-    } else {
-      // Fallback: use a default color or omit texture
-      console.warn('Phantom texture not loaded, using default particles.')
+  private handleSpawnChick(chairId: number): void {
+    if (this.spawnedChicks.has(chairId)) {
+      // console.warn(`Chick already spawned for chair ${chairId}. Ignoring.`);
+      return
     }
 
-    // Emitter: Spawn around the chair position
-    ps.emitter = position
-    ps.minEmitBox = new Vector3(-0.2, 0, -0.2) // Small area around the chair center
-    ps.maxEmitBox = new Vector3(0.2, 0.3, 0.2) // Slightly above the seat
+    const chairObject = this.interactables.find((obj) => obj.id === chairId && obj.interactType === InteractType.ServingOrder)
+    if (!chairObject) {
+      console.error(`Could not find chair object with ID ${chairId} to spawn chick.`)
+      return
+    }
 
-    // Colors: Ethereal blues/purples/whites
-    ps.color1 = new Color4(0.6, 0.7, 1.0, 0.1) // Light blue, low start alpha
-    ps.color2 = new Color4(0.8, 0.6, 1.0, 0.2) // Light purple, slightly more opaque
-    ps.colorDead = new Color4(0.9, 0.9, 1.0, 0.0) // Fade to transparent white
+    const chickTemplate = this.scene.getMeshByName('Chick')
+    if (!chickTemplate) {
+      console.error("Could not find the 'Chick' template mesh.")
+      return
+    }
 
-    // Use gradients for smoother transition
-    ps.addColorGradient(0, new Color4(0.7, 0.8, 1.0, 0.05)) // Start very transparent
-    ps.addColorGradient(0.5, new Color4(0.6, 0.7, 1.0, 0.3)) // Peak opacity mid-life
-    ps.addColorGradient(1.0, new Color4(0.8, 0.8, 1.0, 0.0)) // Fade out
+    const newChick = chickTemplate.clone(`chick_${chairId}`, chairObject?.mesh)
+    if (!newChick) {
+      console.error(`Failed to clone chick mesh for chair ${chairId}.`)
+      return
+    }
+
+    newChick.isVisible = true
+    newChick.setEnabled(true)
+    newChick.getChildMeshes().forEach((child) => {
+      child.isVisible = true
+      child.setEnabled(true)
+      child.isPickable = false
+    })
+    newChick.isPickable = false
+
+    const chairPosition = chairObject.mesh.getAbsolutePosition()
+    const chickPosition = chairPosition.add(new Vector3(0, 0.25, 0)) // Adjust Y offset
+    newChick.position = chickPosition
+    newChick.rotationQuaternion = Quaternion.RotationAxis(Vector3.Up(), Math.PI) // Face forward
+
+    this.spawnedChicks.set(chairId, newChick)
+    this.createChickPoufEffect(chickPosition) // Create pouf effect
+    // Optional: this.playSfx('pouf', 0.6);
+  }
+
+  private handleRemoveChick(chairId: number): void {
+    const chickMesh = this.spawnedChicks.get(chairId)
+    if (chickMesh) {
+      chickMesh.dispose()
+      this.spawnedChicks.delete(chairId)
+    }
+  }
+
+  private createChickPoufEffect(position: Vector3): void {
+    const capacity = 60
+    const ps = new ParticleSystem(`pouf_${position.x}_${position.z}`, capacity, this.scene)
+    ps.emitter = position.clone()
+    ps.particleEmitterType = ps.createSphereEmitter(0.1)
+
+    if (this.poufParticleTexture) {
+      ps.particleTexture = this.poufParticleTexture
+    }
+
+    // Colors: Pastel Pink to Pastel Yellow gradient
+    ps.color1 = new Color4(1.0, 0.75, 0.8, 0.9) // Pink
+    ps.color2 = new Color4(1.0, 0.9, 0.7, 0.8) // Yellow
+    ps.colorDead = new Color4(1.0, 0.9, 0.8, 0.0) // Fade
+
+    ps.addColorGradient(0, new Color4(1.0, 0.75, 0.8, 0.8))
+    ps.addColorGradient(0.6, new Color4(1.0, 0.85, 0.75, 0.7))
+    ps.addColorGradient(1.0, new Color4(1.0, 0.9, 0.7, 0.0))
 
     // Size
-    ps.minSize = 0.1
-    ps.maxSize = 0.4
-    ps.addSizeGradient(0, 0.1)
-    ps.addSizeGradient(0.7, 0.4)
-    ps.addSizeGradient(1.0, 0.1) // Shrink slightly at end
+    ps.minSize = 0.08
+    ps.maxSize = 0.25
+    ps.addSizeGradient(0, 0.05)
+    ps.addSizeGradient(0.4, 0.25)
+    ps.addSizeGradient(1.0, 0.02)
 
     // Lifetime
-    ps.minLifeTime = 1.5
-    ps.maxLifeTime = 3.0
+    ps.minLifeTime = 0.3
+    ps.maxLifeTime = 0.7
 
-    // Emission Rate
-    ps.emitRate = 60 // Adjust for desired density
+    // Emission
+    ps.emitRate = capacity / ps.minLifeTime
+    ps.manualEmitCount = capacity
+    ps.minEmitPower = 0.5
+    ps.maxEmitPower = 1.5
+    ps.updateSpeed = 0.01
+    ps.gravity = new Vector3(0, -0.5, 0)
 
-    // Blending Mode
-    ps.blendMode = ParticleSystem.BLENDMODE_STANDARD // Or BLENDMODE_ADD for brighter effect
+    // Direction
+    ps.direction1 = new Vector3(-1, 1, -1)
+    ps.direction2 = new Vector3(1, 1.5, 1)
 
-    // Shape & Movement: Slow upward drift
-    ps.gravity = new Vector3(0, 0.05, 0) // Slight lift
+    ps.blendMode = ParticleSystem.BLENDMODE_STANDARD
+    ps.disposeOnStop = true
 
-    // Direction (Mostly upwards, slight spread)
-    ps.direction1 = new Vector3(-0.1, 0.2, -0.1)
-    ps.direction2 = new Vector3(0.1, 0.5, 0.1)
-
-    // Speed
-    ps.minEmitPower = 0.05
-    ps.maxEmitPower = 0.2
-
-    // Rotation (slow spin)
-    ps.minAngularSpeed = -0.2
-    ps.maxAngularSpeed = 0.2
-    ps.minInitialRotation = 0
-    ps.maxInitialRotation = Math.PI
-
-    ps.updateSpeed = 0.015 // Control simulation speed
-    ps.disposeOnStop = false // We will manage disposal
-
-    return ps
-  }
-
-  /**
-   * Spawns a phantom particle system for a given order at its assigned chair.
-   * @param order The order data containing the chair ID.
-   */
-  private spawnPhantomForOrder(order: Order): void {
-    const chairId = order.chairId
-    if (this.phantomParticleSystems.has(chairId)) {
-      console.warn(`Phantom already exists for chair ${chairId}. Skipping spawn.`)
-      return // Already exists
-    }
-
-    // Find the InteractableObject representing the chair
-    const chairObject = this.interactables.find((obj) => obj.id === chairId && obj.interactType === InteractType.ServingOrder)
-
-    if (chairObject) {
-      // Get position, adjust height slightly above the seat
-      const position = chairObject.mesh.getAbsolutePosition().clone()
-      position.y += 0.6 // Adjust this value based on your chair model's pivot/height
-
-      const ps = this.createPhantomSystem(position)
-      this.phantomParticleSystems.set(chairId, ps)
-      ps.start()
-      // console.log(`Spawned phantom at chair ${chairId}`);
-    } else {
-      console.warn(`Could not find chair object with ID ${chairId} to spawn phantom.`)
-    }
-  }
-
-  /**
-   * Removes and disposes of the phantom particle system associated with a chair ID.
-   * @param chairId The ID of the chair whose phantom should be removed.
-   */
-  private removePhantom(chairId: number): void {
-    const ps = this.phantomParticleSystems.get(chairId)
-    if (ps) {
-      ps.stop()
-
-      this.phantomParticleSystems.delete(chairId)
-      // console.log(`Stopped phantom for chair ${chairId}. Disposal scheduled.`);
-    } else {
-      // console.warn(`Attempted to remove phantom for chair ${chairId}, but none found.`);
-    }
+    ps.start()
+    setTimeout(() => ps.stop(), ps.maxLifeTime * 1000 + 100)
   }
 
   private stopTimerTickingSound(): void {

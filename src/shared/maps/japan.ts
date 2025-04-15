@@ -439,6 +439,18 @@ const rawMapConfigs: MapModelConfig[] = [
       },
     ],
   },
+
+  {
+    map: 'japan',
+    fileName: 'Love candies.glb',
+    defaultScaling: { x: 1, y: 0.25, z: 1 },
+    instances: [
+      {
+        position: { x: 0, y: 0.15, z: 0 },
+        rotation: { y: Math.PI },
+      },
+    ],
+  },
   {
     map: 'japan',
     fileName: 'Nori.glb',

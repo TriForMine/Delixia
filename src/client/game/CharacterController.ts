@@ -163,7 +163,7 @@ export class CharacterController {
 
       if (this.plateMesh) {
         this.plateMesh.parent = this.model
-        this.plateMesh.position = new Vector3(0, 0.5, 0.4) // Position plate in hand
+        this.plateMesh.position = new Vector3(0, 0.7, 0.4) // Position plate in hand
         this.plateMesh.rotationQuaternion = Quaternion.Identity()
         this.plateMesh.scaling = new Vector3(0.5, 0.5, 0.5)
         this.plateMesh.isPickable = false
