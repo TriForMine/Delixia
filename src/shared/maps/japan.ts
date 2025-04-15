@@ -439,15 +439,127 @@ const rawMapConfigs: MapModelConfig[] = [
       },
     ],
   },
-
   {
     map: 'japan',
-    fileName: 'Love candies.glb',
-    defaultScaling: { x: 1, y: 0.25, z: 1 },
+    fileName: 'Cupcake 2.glb',
+    defaultScaling: { x: 1, y: 1, z: 1 },
     instances: [
       {
-        position: { x: 0, y: 0.15, z: 0 },
+        position: { x: 0, y: 1.05, z: 2 },
         rotation: { y: Math.PI },
+      },
+      {
+        position: { x: 4, y: 1.05, z: 6.5 },
+        rotation: { y: Math.PI },
+      },
+      {
+        position: { x: -4, y: 1.05, z: 6.5 },
+        rotation: { y: Math.PI },
+      },
+    ],
+  },
+  {
+    map: 'japan',
+    fileName: 'Lollipop 2.glb',
+    defaultScaling: { x: 0.024, y: 0.024, z: 0.024 },
+    instances: [
+      {
+        position: { x: 0, y: 2.7, z: 9 },
+        rotation: { x: -Math.PI/2 },
+      },
+      {
+        position: { x: 0, y: 2.7, z: -9 },
+        rotation: { x: -Math.PI/2 },
+      },
+      {
+        position: { x: 9, y: 2.7, z: 0 },
+        rotation: { x: -Math.PI/2 },
+      },
+      {
+        position: { x: -9, y: 2.7, z: 0 },
+        rotation: { x: -Math.PI/2 },
+      },
+    ],
+  },
+  {
+    map: 'japan',
+    fileName: 'Lollipop.glb',
+    defaultScaling: { x: 0.25, y: 0.25, z: 0.25 },
+    instances: [
+      {
+        position: { x: 7.5, y: 2.7, z: 9 },
+        rotation: { y: Math.PI/2 },
+        scaling: { x: 0.2, y: 0.2, z: 0.2 },
+      },
+      {
+        position: { x: 3.75, y: 2.7, z: 9 },
+        rotation: { y: Math.PI/2 },
+      },
+      {
+        position: { x: -7.5, y: 2.7, z: 9 },
+        rotation: { y: Math.PI/2 },
+      },
+      {
+        position: { x: -3.75, y: 2.7, z: 9 },
+        rotation: { y: Math.PI/2 },
+        scaling: { x: 0.2, y: 0.2, z: 0.2 },
+      },
+      {
+        position: { x: 3.75, y: 2.7, z: -9 },
+        rotation: { y: Math.PI/2 },
+        scaling: { x: 0.2, y: 0.2, z: 0.2 },
+      },
+      {
+        position: { x: 7.5, y: 2.7, z: -9 },
+        rotation: { y: Math.PI/2 },
+      },
+      {
+        position: { x: -3.75, y: 2.7, z: -9 },
+        rotation: { y: Math.PI/2 },
+      },
+
+      {
+        position: { x: -7.5, y: 2.7, z: -9 },
+        rotation: { y: Math.PI/2 },
+        scaling: { x: 0.2, y: 0.2, z: 0.2 },
+      },
+      {
+        position: { x: 9,y: 2.7, z: 3.75 },
+        rotation: { y: Math.PI },
+        scaling: { x: 0.2, y: 0.2, z: 0.2 },
+      },
+      {
+        position: { x: 9, y: 2.7, z: 7.5 },
+        rotation: { y: Math.PI },
+      },
+      {
+        position: { x: 9, y: 2.7, z: -3.75 },
+        rotation: { y: Math.PI },
+      },
+
+      {
+        position: { x: 9, y: 2.7, z: -7.75 },
+        rotation: { y: Math.PI },
+        scaling: { x: 0.2, y: 0.2, z: 0.2 },
+      },
+
+      {
+        position: { x: -9, y: 2.7, z: 7.5 },
+        rotation: { y: Math.PI },
+        scaling: { x: 0.2, y: 0.2, z: 0.2 },
+      },
+      {
+        position: { x: -9, y: 2.7, z: 3.75 },
+        rotation: { y: Math.PI },
+      },
+      {
+        position: { x: -9, y: 2.7, z: -7.5 },
+        rotation: { y: Math.PI },
+      },
+      {
+        position: { x: -9, y: 2.7, z: -3.75 },
+        rotation: { y: Math.PI },
+        scaling: { x: 0.2, y: 0.2, z: 0.2 },
       },
     ],
   },
