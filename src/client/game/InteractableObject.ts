@@ -8,7 +8,7 @@ import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTextur
 import type { Scene } from '@babylonjs/core/scene'
 import { Ingredient, InteractType } from '@shared/types/enums.ts'
 import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
-import { getItemDefinition } from '@shared/definitions.ts' // Ensure this import exists
+import { getItemDefinition } from '@shared/definitions.ts'
 
 export class InteractableObject {
   isActive: boolean = false
@@ -221,9 +221,9 @@ export class InteractableObject {
     switch (this.interactType) {
       case InteractType.Oven:
         {
-          // --- Oven Particle Effect Logic (unchanged) ---
+          // --- Oven Particle Effect Logic ---
           let fireTexture: Texture
-          const texturePath = 'assets/particles/Star-Texture.png'
+          const texturePath = 'assets/particles/Star-Texture.png' // Consider using a softer texture like flare.png if available
           if (InteractableObject.particleTextures.has(texturePath)) {
             fireTexture = InteractableObject.particleTextures.get(texturePath)!
           } else {
@@ -232,50 +232,73 @@ export class InteractableObject {
             InteractableObject.particleTextures.set(texturePath, fireTexture)
           }
 
-          const fire = new ParticleSystem('fire', 600, this.scene)
-          fire.particleTexture = fireTexture
+          const fire = new ParticleSystem('fire', 600, this.scene) // Name could be more specific like 'ovenFlame'
+          fire.particleTexture = fireTexture.clone()
           const firePosition = new Vector3()
           firePosition.copyFrom(this.mesh.getAbsolutePosition())
           firePosition.y += 1
-          fire.emitter = firePosition
-          const minEmitBox = new Vector3(-0.35, 0, -0.35)
-          const maxEmitBox = new Vector3(0.35, 0.2, 0.35)
+          firePosition.z -= 0.2
+
+          fire.emitter = firePosition // Emitter is a single point
+
+          // Emitter area (slightly wider than before, still flat)
+          const minEmitBox = new Vector3(-0.3, 0, -0.3)
+          const maxEmitBox = new Vector3(0.3, 0.1, 0.3) // Small vertical spread
           fire.minEmitBox = minEmitBox
           fire.maxEmitBox = maxEmitBox
-          fire.color1 = new Color4(0.6, 0.4, 0.9, 0.8)
-          fire.color2 = new Color4(0.4, 0.7, 0.9, 0.8)
-          fire.colorDead = new Color4(0.2, 0.1, 0.3, 0)
-          fire.addColorGradient(0, new Color4(0.6, 0.4, 0.9, 0.6))
-          fire.addColorGradient(0.3, new Color4(0.7, 0.5, 0.9, 0.7))
-          fire.addColorGradient(0.6, new Color4(0.4, 0.7, 0.9, 0.5))
-          fire.addColorGradient(1.0, new Color4(0.2, 0.5, 0.8, 0))
-          fire.minSize = 0.02
-          fire.maxSize = 0.12
-          fire.minLifeTime = 0.2
-          fire.maxLifeTime = 0.6
-          fire.addSizeGradient(0, 0.02)
-          fire.addSizeGradient(0.2, 0.08)
-          fire.addSizeGradient(0.4, 0.04)
-          fire.addSizeGradient(0.6, 0.1)
-          fire.addSizeGradient(0.8, 0.06)
-          fire.addSizeGradient(1.0, 0.01)
-          fire.emitRate = 150
-          fire.blendMode = ParticleSystem.BLENDMODE_ADD
+
+          // --- COLOR CHANGES START ---
+          // Define base colors (Orange/Yellow to Red range)
+          fire.color1 = new Color4(1.0, 0.7, 0.0, 1.0) // Bright Orange/Yellow
+          fire.color2 = new Color4(1.0, 0.3, 0.0, 1.0) // Orange-Red
+          fire.colorDead = new Color4(0.2, 0, 0, 0.0) // Fade to dark red transparent
+
+          // Define color gradient over particle lifetime
+          fire.addColorGradient(0.0, new Color4(1.0, 0.8, 0.1, 1.0)) // Start Bright Yellow/Orange
+          fire.addColorGradient(0.4, new Color4(1.0, 0.5, 0.0, 0.9)) // Mid-life Orange
+          fire.addColorGradient(0.8, new Color4(0.9, 0.1, 0.0, 0.5)) // Towards end: Red, slightly faded alpha
+          fire.addColorGradient(1.0, fire.colorDead.clone()) // End: Fully faded
+          // --- COLOR CHANGES END ---
+
+          fire.minSize = 0.03 // Slightly larger minimum
+          fire.maxSize = 0.15 // Slightly larger maximum
+
+          fire.minLifeTime = 0.15 // Shorter lifetime for faster flicker
+          fire.maxLifeTime = 0.4 // Shorter lifetime for faster flicker
+
+          // Optional: Size gradient (can make flames appear to thin out)
+          fire.addSizeGradient(0, 0.03)
+          fire.addSizeGradient(0.5, 0.15) // Grow
+          fire.addSizeGradient(1.0, 0.01) // Shrink rapidly at end
+
+          fire.emitRate = 250 // Increase emit rate for denser flames
+          fire.blendMode = ParticleSystem.BLENDMODE_ADD // Additive blending is good for fire
+
           fire.minInitialRotation = 0
           fire.maxInitialRotation = Math.PI * 2
-          const gravity = new Vector3(0, -2, 0)
-          fire.gravity = gravity
-          const direction1 = new Vector3(-0.3, 2, -0.3)
-          const direction2 = new Vector3(0.3, 3, 0.3)
+          fire.minAngularSpeed = -Math.PI * 2 // Faster rotation
+          fire.maxAngularSpeed = Math.PI * 2 // Faster rotation
+
+          // --- MOVEMENT CHANGES START ---
+          // Make flames rise - Zero gravity, rely on direction/emit power
+          fire.gravity = new Vector3(0, 0, 0) // No gravity pull
+
+          // Direction: Primarily upwards, with slight horizontal spread
+          const direction1 = new Vector3(-0.2, 1.5, -0.2) // Less horizontal, more vertical focus
+          const direction2 = new Vector3(0.2, 3.0, 0.2) // Stronger upward push
           fire.direction1 = direction1
           fire.direction2 = direction2
-          fire.minAngularSpeed = -Math.PI * 1.5
-          fire.maxAngularSpeed = Math.PI * 1.5
-          fire.minEmitPower = 0.05
-          fire.maxEmitPower = 0.2
-          fire.updateSpeed = 0.01
-          fire.disposeOnStop = false
 
+          // Emit Power: Controls initial speed
+          fire.minEmitPower = 0.5 // Stronger initial burst
+          fire.maxEmitPower = 1.0 // Stronger initial burst
+          // --- MOVEMENT CHANGES END ---
+
+          fire.updateSpeed = 0.008 // Slightly faster update for flickering effect
+
+          fire.disposeOnStop = true // Dispose when stopped (standard practice)
+
+          // --- SMOKE (Unchanged, but kept for context) ---
           let smokeTexture: Texture
           const smokeTexturePath = 'assets/particles/ExplosionTexture-Smoke-1.png'
           if (InteractableObject.particleTextures.has(smokeTexturePath)) {
@@ -286,39 +309,41 @@ export class InteractableObject {
             InteractableObject.particleTextures.set(smokeTexturePath, smokeTexture)
           }
           const smoke = new ParticleSystem('smoke', 200, this.scene)
-          smoke.particleTexture = smokeTexture
-          smoke.emitter = firePosition
-          smoke.minEmitBox = new Vector3(-0.4, 0.1, -0.4)
+          smoke.particleTexture = smokeTexture.clone()
+          smoke.emitter = firePosition // Smoke comes from the same spot
+          smoke.minEmitBox = new Vector3(-0.4, 0.1, -0.4) // Slightly above the fire base
           smoke.maxEmitBox = new Vector3(0.4, 0.3, 0.4)
-          smoke.color1 = new Color4(0.4, 0.4, 0.5, 0.2)
-          smoke.color2 = new Color4(0.2, 0.2, 0.3, 0.2)
-          smoke.colorDead = new Color4(0.1, 0.1, 0.1, 0)
-          smoke.addColorGradient(0, new Color4(0.4, 0.4, 0.6, 0.0))
-          smoke.addColorGradient(0.1, new Color4(0.3, 0.3, 0.4, 0.2))
-          smoke.addColorGradient(0.6, new Color4(0.2, 0.2, 0.25, 0.15))
-          smoke.addColorGradient(1.0, new Color4(0.1, 0.1, 0.1, 0))
-          smoke.minSize = 0.3
-          smoke.maxSize = 0.7
-          smoke.minLifeTime = 0.5
-          smoke.maxLifeTime = 1.2
-          smoke.addSizeGradient(0, 0.2)
-          smoke.addSizeGradient(0.3, 0.5)
-          smoke.addSizeGradient(0.7, 0.7)
-          smoke.addSizeGradient(1.0, 0.9)
-          smoke.emitRate = 30
-          smoke.blendMode = ParticleSystem.BLENDMODE_STANDARD
+          // Smoke Colors (grey tones, slightly less dense alpha)
+          smoke.color1 = new Color4(0.3, 0.3, 0.3, 0.15)
+          smoke.color2 = new Color4(0.1, 0.1, 0.1, 0.1)
+          smoke.colorDead = new Color4(0, 0, 0, 0)
+          smoke.addColorGradient(0, new Color4(0.4, 0.4, 0.4, 0.0)) // Start invisible
+          smoke.addColorGradient(0.2, new Color4(0.3, 0.3, 0.3, 0.15)) // Fade in
+          smoke.addColorGradient(0.8, new Color4(0.1, 0.1, 0.1, 0.05)) // Fade out
+          smoke.addColorGradient(1.0, new Color4(0, 0, 0, 0))
+          smoke.minSize = 0.4 // Larger smoke particles
+          smoke.maxSize = 0.9
+          smoke.minLifeTime = 0.8 // Smoke lingers longer
+          smoke.maxLifeTime = 1.8
+          // Smoke size gradient (starts small, grows, lingers)
+          smoke.addSizeGradient(0, 0.3)
+          smoke.addSizeGradient(0.5, 0.9)
+          smoke.addSizeGradient(1.0, 1.2) // Continues growing slightly as it fades
+          smoke.emitRate = 25 // Less dense smoke
+          smoke.blendMode = ParticleSystem.BLENDMODE_STANDARD // Standard blending for smoke
           smoke.minInitialRotation = 0
           smoke.maxInitialRotation = Math.PI * 2
-          smoke.minAngularSpeed = -0.5
-          smoke.maxAngularSpeed = 0.5
-          smoke.gravity = new Vector3(0, -1, 0)
-          smoke.direction1 = new Vector3(-0.2, 1, -0.2)
-          smoke.direction2 = new Vector3(0.2, 1.5, 0.2)
-          smoke.minEmitPower = 0.1
-          smoke.maxEmitPower = 0.3
+          smoke.minAngularSpeed = -0.3
+          smoke.maxAngularSpeed = 0.3
+          smoke.gravity = new Vector3(0, 0.5, 0) // Smoke rises slowly
+          smoke.direction1 = new Vector3(-0.1, 0.5, -0.1) // Gentle upward drift
+          smoke.direction2 = new Vector3(0.1, 1.0, 0.1)
+          smoke.minEmitPower = 0.05
+          smoke.maxEmitPower = 0.2
           smoke.updateSpeed = 0.01
-          smoke.disposeOnStop = false
+          smoke.disposeOnStop = true
 
+          // --- Start Systems ---
           fire.start()
           smoke.start()
 
@@ -361,10 +386,6 @@ export class InteractableObject {
 
     this.clearIngredientsOnBoard() // Clear previous visuals
 
-    if (this.interactType !== InteractType.Oven || !ingredients.includes(Ingredient.Rice)) {
-      this.hideCookingVisual()
-    }
-
     if (!this.ingredientLoader) {
       console.warn('IngredientLoader not available in InteractableObject.')
       this.lastIngredientsOnBoard = [...ingredients] // Update memory even if loader fails
@@ -381,7 +402,7 @@ export class InteractableObject {
 
         // Position ingredients on top, slightly offset based on index
         // Adjust offsets as needed for your station models
-        const offset = this.interactType === InteractType.ChoppingBoard ? 0.1 : this.interactType === InteractType.Oven ? 2.5 : 0
+        const offset = this.interactType === InteractType.ChoppingBoard ? 0.02 : this.interactType === InteractType.Oven ? 2.5 : 0
 
         const yOffset = offset + index * 0.05 // Base height + stacking offset
         const xOffset = ingredients.length > 1 ? (index - (ingredients.length - 1) / 2) * 0.15 : 0
