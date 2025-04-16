@@ -11,15 +11,6 @@ export interface ItemDefinition {
   isFinal?: boolean // Flag indicating if it's the final item in a recipe, which can be served
 }
 
-/*
-  Ebi,
-  Salmon,
-  SalmonNigiri,
-  EbiNigiri,
-  SeaUrchin,
-  SeaUrchinOpen,
-  SeaUrchinRoll,
- */
 
 // --- Item Registry ---
 export const ITEM_REGISTRY: Record<Ingredient, ItemDefinition> = {
@@ -159,7 +150,6 @@ function buildStepsRecursive(
   }
 }
 
-// --- REVISED getRecipeSteps (Main Function) ---
 /**
  * Generates a logical sequence of steps (get, process) needed to create a target recipe item.
  * @param targetRecipeId The ID of the final recipe for the order.
@@ -173,10 +163,6 @@ export function getRecipeSteps(targetRecipeId: string): RecipeStepInfo[] {
   const processed = new Set<Ingredient>()
 
   buildStepsRecursive(finalRecipe.result.ingredient, steps, processed, true)
-
-  // --- Optional: Optimization/Merging Pass ---
-  // Example: If Get Rice -> Process Rice happens consecutively, maybe merge visually?
-  // For now, the raw step list is clear enough. Let the UI handle presentation.
 
   return steps
 }
@@ -309,4 +295,85 @@ export function findCompletedRecipe(stationIngredients: Ingredient[], stationTyp
     }
   }
   return null // No matching recipe found
+}
+
+export interface Vector3Config {
+  x: number
+  y: number
+  z: number
+}
+
+export interface QuaternionConfig {
+  x: number
+  y: number
+  z: number
+  w: number
+}
+
+export interface IngredientVisualConfig {
+  scale?: Vector3Config
+  positionOffset?: Vector3Config // Offset relative to the base position (hand attachment or plate center)
+  rotationOffset?: QuaternionConfig // Rotation relative to the parent (hand attachment or plate)
+}
+
+export interface HoldingConfig {
+  hand?: IngredientVisualConfig // Config when held directly
+  onPlate?: IngredientVisualConfig // Config when on a plate
+  onBoard?: IngredientVisualConfig // Config when on a board (if applicable)
+}
+
+// --- Visual Configuration Registry ---
+// Store visual adjustments for ingredients when held
+// Offsets are relative to a base position determined by context (hand attachment point or plate center)
+export interface Vector3Config {
+  x: number
+  y: number
+  z: number
+}
+
+export interface QuaternionConfig {
+  x: number
+  y: number
+  z: number
+  w: number
+}
+
+export interface IngredientVisualContextConfig {
+  positionOffset?: Vector3Config
+  rotationOffset?: QuaternionConfig
+}
+
+export interface HoldingConfig {
+  scale?: Vector3Config
+  hand?: IngredientVisualContextConfig
+  onPlate?: IngredientVisualContextConfig
+  onBoard?: IngredientVisualContextConfig
+}
+
+// --- Visual Configuration Registry ---
+// Store visual adjustments for ingredients when held or placed.
+// Offsets are relative to a base position determined by context (hand attachment point, plate center, board anchor).
+// Scale is now unified per ingredient.
+export const INGREDIENT_VISUAL_CONFIG: Partial<Record<Ingredient, HoldingConfig>> = {
+  [Ingredient.Plate]: {
+    scale: { x: 0.6, y: 0.6, z: 0.6 },
+  },
+  [Ingredient.Onigiri]: {
+    scale: { x: 0.5, y: 0.5, z: 0.5 },
+  },
+  [Ingredient.CookedRice]: {
+    scale: { x: 0.35, y: 0.35, z: 0.35 },
+  },
+  [Ingredient.Nori]: {
+    scale: { x: 0.4, y: 0.4, z: 0.4 },
+  },
+  [Ingredient.EbiNigiri]: {
+    scale: { x: 0.6, y: 0.6, z: 0.6 },
+  },
+  [Ingredient.SalmonNigiri]: {
+    scale: { x: 0.6, y: 0.6, z: 0.6 },
+  },
+  [Ingredient.SeaUrchinRoll]: {
+    scale: { x: 0.6, y: 0.6, z: 0.6 },
+  },
 }

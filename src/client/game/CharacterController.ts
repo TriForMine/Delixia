@@ -12,7 +12,8 @@ import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
 import type { Mesh } from '@babylonjs/core/Meshes'
 import { CharacterState } from './CharacterState'
 import type { AudioManager } from '@client/game/managers/AudioManager.ts'
-import { getItemDefinition } from '@shared/definitions.ts'
+import { getItemDefinition, INGREDIENT_VISUAL_CONFIG, type IngredientVisualContextConfig } from '@shared/definitions.ts'
+import { TransformNode } from '@babylonjs/core/Meshes/transformNode'
 
 export class CharacterController {
   protected readonly audioManager: AudioManager
@@ -39,6 +40,7 @@ export class CharacterController {
   protected currentState: CharacterState = CharacterState.IDLE
   protected ingredient: Ingredient = Ingredient.None
   protected holdingPlate: boolean = false
+  protected readonly holdAttachmentPoint: TransformNode
 
   protected constructor(
     characterMesh: AbstractMesh,
@@ -58,6 +60,12 @@ export class CharacterController {
     this.impostorMesh.position.x = 0
     this.impostorMesh.position.z = 3.5
     this.impostorMesh.isPickable = false
+
+    this.holdAttachmentPoint = new TransformNode('holdAttachmentPoint', scene)
+    this.holdAttachmentPoint.parent = this.impostorMesh
+    this.holdAttachmentPoint.position = new Vector3(0, -0.2, -0.4) // Adjust as needed
+    this.holdAttachmentPoint.rotationQuaternion = Quaternion.Identity()
+    this.holdAttachmentPoint.scaling = Vector3.One() // Ensure it doesn't scale
 
     this.model = characterMesh
     this.model.parent = this.impostorMesh
@@ -115,12 +123,122 @@ export class CharacterController {
     this.physicsAggregate.body.setLinearDamping(10)
   }
 
-  dropIngredient() {
+  private clearHeldItemVisuals(): void {
     if (this.currentIngredientMesh) {
       this.currentIngredientMesh.dispose()
       this.currentIngredientMesh = undefined
     }
+    if (this.plateMesh) {
+      this.plateMesh.dispose()
+      this.plateMesh = undefined
+    }
+  }
+
+  private updateHeldItemVisuals(): void {
+    this.clearHeldItemVisuals() // Clear previous visuals
+
+    const plateHoldingConfig = INGREDIENT_VISUAL_CONFIG[Ingredient.Plate]
+    const heldIngredientConfig = INGREDIENT_VISUAL_CONFIG[this.ingredient]
+    const heldIngredientDef = getItemDefinition(this.ingredient)
+
+    const defaultScale = new Vector3(0.5, 0.5, 0.5)
+
+    // --- 1. Handle Plate ---
+    if (this.holdingPlate) {
+      this.plateMesh = this.ingredientLoader.getIngredientMesh(Ingredient.Plate)
+      if (this.plateMesh) {
+        // Parent plate to the attachment point
+        this.plateMesh.parent = this.holdAttachmentPoint
+
+        // Apply config or defaults to the plate
+        const plateScale = plateHoldingConfig?.scale
+          ? new Vector3(plateHoldingConfig.scale.x, plateHoldingConfig.scale.y, plateHoldingConfig.scale.z)
+          : defaultScale
+        this.plateMesh.scaling = plateScale
+
+        const contextConfig = plateHoldingConfig?.hand
+        const defaultPlatePos = Vector3.Zero()
+
+        this.plateMesh.position = contextConfig?.positionOffset
+          ? new Vector3(contextConfig.positionOffset.x, contextConfig.positionOffset.y, contextConfig.positionOffset.z)
+          : defaultPlatePos
+
+        this.plateMesh.rotationQuaternion = contextConfig?.rotationOffset
+          ? new Quaternion(
+              contextConfig.rotationOffset.x,
+              contextConfig.rotationOffset.y,
+              contextConfig.rotationOffset.z,
+              contextConfig.rotationOffset.w,
+            )
+          : Quaternion.Identity()
+
+        this.plateMesh.isPickable = false
+        this.plateMesh.getChildMeshes().forEach((m) => (m.isPickable = false))
+      }
+    }
+
+    // --- 2. Handle Ingredient ---
+    if (this.ingredient !== Ingredient.None && heldIngredientDef) {
+      this.currentIngredientMesh = this.ingredientLoader.getIngredientMesh(this.ingredient)
+      if (this.currentIngredientMesh) {
+        let targetParent: TransformNode | Mesh = this.holdAttachmentPoint
+        let contextConfig: IngredientVisualContextConfig | undefined
+        let basePosition: Vector3
+
+        if (this.holdingPlate && this.plateMesh) {
+          targetParent = this.plateMesh
+          contextConfig = heldIngredientConfig?.onPlate
+          basePosition = new Vector3(0, 0.1, 0)
+        } else {
+          targetParent = this.holdAttachmentPoint
+          contextConfig = heldIngredientConfig?.hand
+          basePosition = new Vector3(0, -0.1, 0.1)
+        }
+
+        this.currentIngredientMesh.parent = targetParent
+
+        const ingredientScale = heldIngredientConfig?.scale
+          ? new Vector3(heldIngredientConfig.scale.x, heldIngredientConfig.scale.y, heldIngredientConfig.scale.z)
+          : defaultScale
+        this.currentIngredientMesh.scaling = ingredientScale
+
+        const positionOffset = contextConfig?.positionOffset
+          ? new Vector3(contextConfig.positionOffset.x, contextConfig.positionOffset.y, contextConfig.positionOffset.z)
+          : Vector3.Zero()
+        this.currentIngredientMesh.position = basePosition.add(positionOffset)
+
+        this.currentIngredientMesh.rotationQuaternion = contextConfig?.rotationOffset
+          ? new Quaternion(
+              contextConfig.rotationOffset.x,
+              contextConfig.rotationOffset.y,
+              contextConfig.rotationOffset.z,
+              contextConfig.rotationOffset.w,
+            )
+          : Quaternion.Identity()
+
+        this.currentIngredientMesh.isPickable = false
+        this.currentIngredientMesh.getChildMeshes().forEach((m) => (m.isPickable = false))
+      }
+    }
+  }
+
+  dropIngredient() {
     this.ingredient = Ingredient.None
+    this.updateHeldItemVisuals()
+  }
+
+  dropPlate() {
+    if (!this.holdingPlate) return
+    this.holdingPlate = false
+    // If dropping plate also drops ingredient on it
+    if (this.ingredient !== Ingredient.None) {
+      const itemDef = getItemDefinition(this.ingredient)
+      if (itemDef?.isFinal) {
+        // Only results sit on plates typically
+        this.ingredient = Ingredient.None
+      }
+    }
+    this.updateHeldItemVisuals() // Update visuals after dropping
   }
 
   pickupIngredient(ingredient: Ingredient) {
@@ -138,58 +256,9 @@ export class CharacterController {
   }
 
   forceSetIngredient(ingredient: Ingredient) {
-    if (this.ingredient === ingredient) return // No change
-
+    if (this.ingredient === ingredient) return
     this.ingredient = ingredient
     this.updateHeldItemVisuals()
-  }
-
-  private updateHeldItemVisuals(): void {
-    // Clear existing visuals first
-    if (this.currentIngredientMesh) {
-      this.currentIngredientMesh.dispose()
-      this.currentIngredientMesh = undefined
-    }
-    if (this.plateMesh) {
-      this.plateMesh.dispose()
-      this.plateMesh = undefined
-    }
-
-    const heldIngredientDef = getItemDefinition(this.ingredient)
-
-    // 1. Show plate if holding one
-    if (this.holdingPlate) {
-      this.plateMesh = this.ingredientLoader.getIngredientMesh(Ingredient.Plate)
-
-      if (this.plateMesh) {
-        this.plateMesh.parent = this.model
-        this.plateMesh.position = new Vector3(0, 0.7, 0.4) // Position plate in hand
-        this.plateMesh.rotationQuaternion = Quaternion.Identity()
-        this.plateMesh.scaling = new Vector3(0.5, 0.5, 0.5)
-        this.plateMesh.isPickable = false
-        this.plateMesh.getChildMeshes().forEach((m) => (m.isPickable = false))
-      }
-    }
-
-    // 2. Show ingredient if holding one (and it's not 'None')
-    if (this.ingredient !== Ingredient.None && heldIngredientDef) {
-      this.currentIngredientMesh = this.ingredientLoader.getIngredientMesh(this.ingredient)
-      if (this.currentIngredientMesh) {
-        this.currentIngredientMesh.parent = this.model
-        // Position ingredient: on plate or in hand
-        if (this.holdingPlate && this.plateMesh) {
-          this.currentIngredientMesh.setParent(this.plateMesh) // Parent to plate for easier transform
-          this.currentIngredientMesh.position = new Vector3(0, 0.05, 0) // Position slightly above plate center
-        } else {
-          // Position directly in hand (if no plate)
-          this.currentIngredientMesh.position = new Vector3(0, 0.5, 0.4)
-        }
-        this.currentIngredientMesh.rotationQuaternion = Quaternion.Identity()
-        this.currentIngredientMesh.scaling = new Vector3(0.5, 0.5, 0.5) // Adjust scale as needed
-        this.currentIngredientMesh.isPickable = false
-        this.currentIngredientMesh.getChildMeshes().forEach((m) => (m.isPickable = false))
-      }
-    }
   }
 
   pickupPlate() {
@@ -206,20 +275,6 @@ export class CharacterController {
   forcePickupPlate() {
     if (this.holdingPlate) return
     this.holdingPlate = true
-    this.updateHeldItemVisuals()
-  }
-
-  dropPlate() {
-    if (!this.holdingPlate) return // Not holding
-    this.holdingPlate = false
-    // If dropping plate also drops ingredient on it
-    if (this.ingredient !== Ingredient.None) {
-      const itemDef = getItemDefinition(this.ingredient)
-      if (itemDef?.isFinal) {
-        // Only results sit on plates
-        this.ingredient = Ingredient.None
-      }
-    }
     this.updateHeldItemVisuals()
   }
 
@@ -272,12 +327,8 @@ export class CharacterController {
   }
 
   public dispose() {
-    if (this.currentIngredientMesh) {
-      this.currentIngredientMesh.dispose()
-    }
-    if (this.plateMesh) {
-      this.plateMesh.dispose()
-    }
+    this.clearHeldItemVisuals()
+    this.holdAttachmentPoint.dispose()
     this.impostorMesh.dispose()
     this.model.dispose()
     this.physicsAggregate.dispose()

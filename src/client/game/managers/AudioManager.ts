@@ -5,7 +5,7 @@ import {Scene} from "@babylonjs/core/scene";
 import { StaticSound } from '@babylonjs/core/AudioV2/abstractAudio/staticSound';
 import {AbstractMesh} from "@babylonjs/core/Meshes/abstractMesh";
 
-// SoundConfig interface remains the same
+// SoundConfig interface defines sound properties and spatial audio settings
 export interface SoundConfig {
     name: string
     path: string

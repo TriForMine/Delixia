@@ -494,18 +494,17 @@ export class GameEngine {
         $(objState).onChange(() => {
           const isCookingRiceNow = objState.isActive && objState.processingRecipeId === 'cooked_rice_recipe'
           if (isCookingRiceNow) {
-            console.log('hi')
             interactable.showCookingVisual(Ingredient.Rice)
           } else {
             interactable.hideCookingVisual()
           }
 
-          // Mettre à jour les ingrédients sur le dessus APRES la fin de cuisson
+          // Update ingredients on top AFTER cooking is finished
           if (!objState.isActive && objState.ingredientsOnBoard.length > 0) {
             const ingredients = objState.ingredientsOnBoard.map((i) => i as Ingredient)
             interactable.updateIngredientsOnBoard(ingredients)
           } else if (!objState.isActive) {
-            // Vider si la cuisson est finie et il n'y a rien
+            // Clear if cooking is finished and there are no ingredients
             interactable.clearIngredientsOnBoard()
           }
         })

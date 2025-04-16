@@ -79,7 +79,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
   const finalRecipe = getRecipeDefinition(order.recipeId)
   const [timeInfo, setTimeInfo] = useState(() => calculateTimeInfo(order))
 
-  // --- Timer effect (remains the same) ---
+  // --- Timer effect to update countdown for order deadlines ---
   useEffect(() => {
     setTimeInfo(calculateTimeInfo(order))
     if (order.deadline > 0 && order.deadline > Date.now()) {
@@ -232,7 +232,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
           )}
       </div>
 
-      {/* --- Timer display (remains similar) --- */}
+      {/* --- Progress bar for order deadline countdown --- */}
       {timeInfo.totalTime > 0 && (
         <div className="flex items-center gap-1.5 w-full mt-2">
           <Clock
@@ -251,11 +251,11 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
   )
 }
 
-// --- Orders component (structure remains the same, uses new OrderCard) ---
+// --- Main Orders component that displays all current orders using OrderCard ---
 export default function Orders() {
   const orders = useGameColyseusState((state) => state.orders)
   const sortedOrders = useMemo(() => {
-    // ... (sorting logic unchanged)
+    // Sort orders by expiration status and deadline
     if (!orders || orders.length === 0) return []
     return [...orders].sort((a, b) => {
       const aExpired = a.deadline > 0 && a.deadline <= Date.now()
@@ -266,7 +266,7 @@ export default function Orders() {
     })
   }, [orders])
 
-  // --- Container styling (remains the same) ---
+  // --- Fixed position container with scrolling for orders list ---
   return (
     <div className="fixed top-4 right-2 z-10 w-72 max-h-[calc(100vh-8rem)] overflow-y-auto overflow-x-hidden p-2 bg-black/40 backdrop-blur-sm rounded-lg shadow-lg flex flex-col">
       <h3 className="text-center font-semibold text-white/90 text-sm mb-2 flex items-center justify-center gap-1 flex-shrink-0">

@@ -14,7 +14,7 @@ export class IngredientLoader {
     this.assetsManager.autoHideLoadingUI = false
   }
 
-  // Charger les modèles d’ingrédients
+  // Load ingredient models
   public async loadIngredientModels(): Promise<void> {
     let tasksAdded = 0;
     for (const key in ITEM_REGISTRY) {

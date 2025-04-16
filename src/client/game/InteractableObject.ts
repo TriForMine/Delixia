@@ -10,14 +10,13 @@ import type { Scene } from '@babylonjs/core/scene'
 import type { Observer } from '@babylonjs/core/Misc/observable'
 import { Ingredient, InteractType } from '@shared/types/enums.ts'
 import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
-import { getItemDefinition } from '@shared/definitions.ts'
+import { getItemDefinition, INGREDIENT_VISUAL_CONFIG } from '@shared/definitions.ts'
 
-// Interface to store ingredient mesh along with its desired local offset
 interface DisplayedIngredientInfo {
   mesh: Mesh
   localOffset: Vector3
-  localRotation: Quaternion // Store local rotation if needed
-  localScale: Vector3 // Store intended scale
+  localRotation: Quaternion
+  localScale: Vector3
 }
 
 export class InteractableObject {
@@ -345,7 +344,7 @@ export class InteractableObject {
 
     fire.disposeOnStop = true // Dispose when stopped (standard practice)
 
-    // --- SMOKE (Unchanged, but kept for context) ---
+    // --- SMOKE PARTICLE SYSTEM CONFIGURATION ---
     let smokeTexture: Texture
     const smokeTexturePath = 'assets/particles/ExplosionTexture-Smoke-1.png'
     if (InteractableObject.particleTextures.has(smokeTexturePath)) {
@@ -411,7 +410,6 @@ export class InteractableObject {
   private _prepareIngredientVisual(
     ingredientId: Ingredient,
     localOffset: Vector3,
-    localScale: Vector3,
     localRotation: Quaternion = Quaternion.Identity(), // Default rotation
   ): DisplayedIngredientInfo | null {
     if (!this.ingredientLoader) return null
@@ -421,26 +419,40 @@ export class InteractableObject {
 
     mesh.isPickable = false
     mesh.getChildMeshes(false, (node) => node instanceof Mesh).forEach((m) => (m.isPickable = false))
-    mesh.setEnabled(true) // Make sure it's visible
+    mesh.setEnabled(true)
 
-    // We don't set parent. Position/rotation/scale are handled in render loop.
-    // We store the *intended* local state relative to the anchor.
+    // --- Apply Config ---
+    const holdingConfig = INGREDIENT_VISUAL_CONFIG[ingredientId]
+    const contextConfig = holdingConfig?.onBoard ?? holdingConfig?.hand
+
+    // Apply unified scale
+    const defaultScale = new Vector3(0.5, 0.5, 0.5)
+    const finalScale = holdingConfig?.scale ? new Vector3(holdingConfig.scale.x, holdingConfig.scale.y, holdingConfig.scale.z) : defaultScale
+
+    const rotationOffset = contextConfig?.rotationOffset
+      ? new Quaternion(contextConfig.rotationOffset.x, contextConfig.rotationOffset.y, contextConfig.rotationOffset.z, contextConfig.rotationOffset.w)
+      : Quaternion.Identity()
+    const finalRotation = localRotation.multiply(rotationOffset)
+
+    const positionOffset = contextConfig?.positionOffset
+      ? new Vector3(contextConfig.positionOffset.x, contextConfig.positionOffset.y, contextConfig.positionOffset.z)
+      : Vector3.Zero()
+    const finalOffset = localOffset.add(positionOffset)
+
     return {
       mesh,
-      localOffset: localOffset.clone(), // Clone to avoid mutation
-      localRotation: localRotation.clone(),
-      localScale: localScale.clone(),
+      localOffset: finalOffset.clone(),
+      localRotation: finalRotation.clone(),
+      localScale: finalScale.clone(),
     }
   }
 
   public updateIngredientsOnBoard(ingredients: Ingredient[]): void {
-    // Simple change detection (can be improved for exact diffing if needed)
     const ingredientsChanged =
       ingredients.length !== this.lastIngredientsOnBoard.length || !ingredients.every((ing, i) => ing === this.lastIngredientsOnBoard[i])
 
     if (!ingredientsChanged && this.displayedIngredientInfos.length > 0) {
-      // console.log('Ingredients unchanged, skipping update.');
-      return // No visual change needed
+      return
     }
 
     // --- Result Detection ---
@@ -448,9 +460,7 @@ export class InteractableObject {
     const previousResult = this.lastIngredientsOnBoard.find((ing) => getItemDefinition(ing)?.isFinal)
     const justGotResult = !!currentResult && !previousResult
 
-    console.log('Updating ingredients on board:', ingredients, 'Just got result:', justGotResult)
-
-    this.clearIngredientsOnBoard() // Clear previous visuals
+    this.clearIngredientsOnBoard()
 
     if (!this.ingredientLoader) {
       console.warn('IngredientLoader not available for updating board visuals.')
@@ -462,37 +472,28 @@ export class InteractableObject {
     let dishInfo: DisplayedIngredientInfo | null = null
     const otherIngredientInfos: DisplayedIngredientInfo[] = []
 
-    const baseScale = new Vector3(0.5, 0.5, 0.5) // Default scale for items
-    const plateScale = new Vector3(0.5, 0.5, 0.5) // Scale for the plate
-    const dishScale = new Vector3(0.5, 0.5, 0.5) // Scale for the final dish on the plate
-
     // --- Placement Logic ---
-    // This needs customization based on the InteractType
-
     if (this.interactType === InteractType.ServingBoard) {
       const hasPlate = ingredients.includes(Ingredient.Plate)
       const dishIngredientId = ingredients.find((ing) => ing !== Ingredient.Plate && getItemDefinition(ing)?.isFinal)
 
       if (hasPlate) {
-        // Place plate centered on the anchor
-        plateInfo = this._prepareIngredientVisual(Ingredient.Plate, Vector3.Zero(), plateScale)
+        plateInfo = this._prepareIngredientVisual(Ingredient.Plate, Vector3.Zero())
         if (plateInfo) this.displayedIngredientInfos.push(plateInfo)
       }
 
       if (dishIngredientId) {
-        // Place dish slightly above the plate's position, or directly on anchor if no plate
-        const dishYOffset = hasPlate ? 0.12 : 0.05 // Adjust Y based on plate height / anchor pos
+        const dishYOffset = hasPlate ? 0.12 : 0.05
         const dishOffset = new Vector3(0, dishYOffset, 0)
-        dishInfo = this._prepareIngredientVisual(dishIngredientId, dishOffset, dishScale)
+        dishInfo = this._prepareIngredientVisual(dishIngredientId, dishOffset)
         if (dishInfo) this.displayedIngredientInfos.push(dishInfo)
       }
     } else if (this.interactType === InteractType.ChoppingBoard || this.interactType === InteractType.Oven) {
-      // Stack or arrange non-final ingredients
       const isOven = this.interactType === InteractType.Oven
-      const yBaseOffset = isOven ? 2.4 : 0.1 // Oven items might sit higher
-      const yStackOffset = 0.05 // How much each item adds vertically
-      const xSpread = 0.15 // How much items spread horizontally
-      const zOffset = isOven ? 0.4 : 0 // Push items back for oven
+      const yBaseOffset = isOven ? 2.4 : 0.1
+      const yStackOffset = 0.05
+      const xSpread = 0.15
+      const zOffset = isOven ? 0.4 : 0
 
       const itemsToDisplay = ingredients.filter((ing) => ing !== Ingredient.Plate) // Filter out results/plates
       const numItems = itemsToDisplay.length
@@ -501,7 +502,7 @@ export class InteractableObject {
         const yPos = yBaseOffset + index * yStackOffset
         const xPos = numItems > 1 ? (index - (numItems - 1) / 2) * xSpread : 0
         const localOffset = new Vector3(xPos, yPos, zOffset)
-        const ingredientInfo = this._prepareIngredientVisual(ingredientId, localOffset, baseScale)
+        const ingredientInfo = this._prepareIngredientVisual(ingredientId, localOffset)
         if (ingredientInfo) {
           otherIngredientInfos.push(ingredientInfo)
         }
@@ -514,7 +515,7 @@ export class InteractableObject {
       this.playCraftCompleteEffect()
     }
 
-    this.lastIngredientsOnBoard = [...ingredients] // Update memory
+    this.lastIngredientsOnBoard = [...ingredients]
   }
 
   public showCookingVisual(ingredient: Ingredient): void {
@@ -523,9 +524,8 @@ export class InteractableObject {
     }
 
     if (ingredient === Ingredient.Rice && this.interactType === InteractType.Oven) {
-      const localOffset = new Vector3(0, 2.4, 0.4) // Adjust based on oven model & anchor
-      const localScale = new Vector3(0.5, 0.5, 0.5)
-      const visualInfo = this._prepareIngredientVisual(ingredient, localOffset, localScale)
+      const localOffset = new Vector3(0, 2.4, 0.4)
+      const visualInfo = this._prepareIngredientVisual(ingredient, localOffset)
 
       if (visualInfo) {
         this.cookingVisualInfo = visualInfo

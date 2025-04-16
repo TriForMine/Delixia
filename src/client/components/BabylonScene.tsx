@@ -27,7 +27,7 @@ export class CustomLoadingScreen implements ILoadingScreen {
   private createLoadingUI() {
     this.loadingDiv = document.createElement('div')
 
-    // Adaptation aux couleurs de App avec bg-base-200 et opacité
+    // Adaptation to App colors with bg-base-200 and opacity
     this.loadingDiv.className = `
       fixed inset-0
       flex flex-col
@@ -38,11 +38,11 @@ export class CustomLoadingScreen implements ILoadingScreen {
       pointer-events-none
     `
 
-    // Mise à jour de l'HTML interne avec des couleurs cohérentes
+    // Update internal HTML with consistent colors
     this.loadingDiv.innerHTML = `
   <!-- Center container -->
   <div class="flex flex-col items-center justify-center h-full max-w-2xl mx-auto px-6">
-    <!-- Game Title avec gradient appliqué sur le texte -->
+    <!-- Game Title with gradient applied to text -->
     <div class="text-center mb-12">
       <h1 class="text-5xl md:text-6xl font-bold mb-2 tracking-wider animate-pulse bg-gradient-to-br from-purple-300 via-pink-200 to-yellow-100 bg-clip-text text-transparent">
         Delixia
@@ -50,14 +50,14 @@ export class CustomLoadingScreen implements ILoadingScreen {
       <div class="h-1 w-24 mx-auto bg-gradient-to-r from-purple-300 via-pink-200 to-yellow-100 rounded-full"></div>
     </div>
 
-    <!-- Loading text (vous pouvez aussi appliquer un dégradé ici si besoin) -->
+    <!-- Loading text (you can also apply a gradient here if needed) -->
     <div class="w-full text-center mb-8">
       <p id="loading-text" class="text-xl md:text-2xl font-medium text-base-content opacity-80 tracking-wide">
         Loading...
       </p>
     </div>
 
-    <!-- Progress bar et indicateur -->
+    <!-- Progress bar and indicator -->
     <div class="w-full">
       <div class="relative">
         <div class="absolute inset-0 bg-primary/20 rounded-full blur-md transform scale-105"></div>
@@ -88,7 +88,7 @@ export class CustomLoadingScreen implements ILoadingScreen {
     this.loadingTextElement = this.loadingDiv.querySelector<HTMLParagraphElement>('#loading-text') ?? undefined
   }
 
-  // Les autres méthodes restent inchangées
+  // Standard UI methods for loading screen
   public displayLoadingUI(): void {
     if (!this.loadingDiv) return
     if (this.loadingTextElement) {
