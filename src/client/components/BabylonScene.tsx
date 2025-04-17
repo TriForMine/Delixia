@@ -119,6 +119,7 @@ export const BabylonScene = ({
   sceneOptions,
   onRender,
   onSceneReady,
+  onDispose,
   ...rest
 }: {
   antialias?: boolean
@@ -127,6 +128,7 @@ export const BabylonScene = ({
   sceneOptions?: SceneOptions
   onRender?: (scene: Scene) => void
   onSceneReady: (scene: Scene) => Promise<void>
+  onDispose?: () => void
 } & React.CanvasHTMLAttributes<HTMLCanvasElement>) => {
   const reactCanvas = useRef(null)
   const engineRef = useRef<AbstractEngine | null>(null)
@@ -164,6 +166,7 @@ export const BabylonScene = ({
 
     return () => {
       setIsEngineInitialized(false)
+      onDispose?.()
       if (engineRef.current) {
         engineRef.current.dispose()
         engineRef.current = null

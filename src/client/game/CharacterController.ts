@@ -12,8 +12,9 @@ import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
 import type { Mesh } from '@babylonjs/core/Meshes'
 import { CharacterState } from './CharacterState'
 import type { AudioManager } from '@client/game/managers/AudioManager.ts'
-import { getItemDefinition, INGREDIENT_VISUAL_CONFIG, type IngredientVisualContextConfig } from '@shared/definitions.ts'
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode'
+import { INGREDIENT_VISUAL_CONFIG, type IngredientVisualContextConfig } from '@shared/visualConfigs.ts'
+import { getItemDefinition } from '@shared/items.ts'
 
 export class CharacterController {
   protected readonly audioManager: AudioManager

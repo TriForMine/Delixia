@@ -1,9 +1,9 @@
-import {ArraySchema, MapSchema, Schema, type} from '@colyseus/schema'
+import { ArraySchema, MapSchema, Schema, type } from '@colyseus/schema'
 import { Ingredient, type InteractType } from '../types/enums.ts'
 import { InteractableObjectState } from './InteractableObjectState.ts'
 import { Player } from './Player.ts'
-import {Order} from "@shared/schemas/Order.ts";
-import {getItemDefinition} from "@shared/definitions.ts";
+import { Order } from '@shared/schemas/Order.ts'
+import { getItemDefinition } from '@shared/items.ts'
 
 export class GameRoomState extends Schema {
   @type({ map: Player })
@@ -13,19 +13,18 @@ export class GameRoomState extends Schema {
   interactableObjects = new MapSchema<InteractableObjectState>()
 
   @type({ array: Order })
-  orders = new ArraySchema<Order>();
+  orders = new ArraySchema<Order>()
 
   // Hash of the map configuration for version verification
-  @type("string")
-  mapHash: string = "";
+  @type('string')
+  mapHash: string = ''
 
   // Time left for the current game round, defaults to 5 minutes
-  @type("number")
+  @type('number')
   timeLeft: number = 5 * 60 * 1000
 
-  @type("number")
+  @type('number')
   score: number = 0
-
 
   createPlayer(id: string) {
     const player = new Player()
@@ -51,12 +50,12 @@ export class GameRoomState extends Schema {
   }
 
   updatePlayer(
-      id: string,
-      data: {
-        position: { x: number; y: number; z: number }
-        rotation: { y: number }
-        animationState: string
-      },
+    id: string,
+    data: {
+      position: { x: number; y: number; z: number }
+      rotation: { y: number }
+      animationState: string
+    },
   ) {
     const player = this.players.get(id)
     if (!player) return
@@ -114,18 +113,18 @@ export class GameRoomState extends Schema {
     const player = this.players.get(playerId)
     if (!player) return
 
-    const ingredientDef = getItemDefinition(ingredient);
+    const ingredientDef = getItemDefinition(ingredient)
 
     // Can't pick up if already holding something incompatible
     if (player.holdedIngredient !== Ingredient.None) {
-      return; // Already holding something
+      return // Already holding something
     }
     // If holding a plate, only allow picking up results
     if (player.holdingPlate && (!ingredientDef || !ingredientDef.isFinal)) {
-      return;
+      return
     }
 
-    player.holdedIngredient = ingredient;
+    player.holdedIngredient = ingredient
   }
 
   dropIngredient(playerId: string) {
@@ -139,15 +138,15 @@ export class GameRoomState extends Schema {
     const player = this.players.get(playerId)
     if (!player) return
 
-    const currentIngredient = player.holdedIngredient;
-    const currentIngredientIsFinal = currentIngredient !== Ingredient.None && !!getItemDefinition(currentIngredient)?.isFinal;
+    const currentIngredient = player.holdedIngredient
+    const currentIngredientIsFinal = currentIngredient !== Ingredient.None && !!getItemDefinition(currentIngredient)?.isFinal
 
     if (currentIngredient !== Ingredient.None && !currentIngredientIsFinal) {
-      return;
+      return
     }
 
     if (player.holdingPlate) {
-      return;
+      return
     }
 
     player.holdingPlate = true
@@ -158,13 +157,13 @@ export class GameRoomState extends Schema {
     if (!player) return
 
     if (player.holdedIngredient !== Ingredient.None) {
-      const heldItemDef = getItemDefinition(player.holdedIngredient);
+      const heldItemDef = getItemDefinition(player.holdedIngredient)
       if (heldItemDef?.isFinal) {
-        player.holdedIngredient = Ingredient.None;
+        player.holdedIngredient = Ingredient.None
       }
     }
 
-    player.holdingPlate = false;
+    player.holdingPlate = false
   }
 
   isHoldingPlate(playerId: string) {

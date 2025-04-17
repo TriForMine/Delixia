@@ -56,7 +56,7 @@ export class GameEngine {
   private chickAssetContainer: AssetContainer | null = null
   private chickenTemplateMesh: AbstractMesh | null = null
   private chickenAssetContainer: AssetContainer | null = null
-  private spawnedChicks = new Map<number, AbstractMesh>()
+  private spawnedCustomers = new Map<number, AbstractMesh>()
 
   // Pre-allocated vector for position calculations
   private _playerPosTemp: Vector3 = new Vector3()
@@ -128,6 +128,8 @@ export class GameEngine {
   dispose(): void {
     this.chickAssetContainer?.dispose()
     this.chickAssetContainer = null
+    this.chickenAssetContainer?.dispose()
+    this.chickenAssetContainer = null
     this.chickTemplateMesh = null
 
     if (this.poufParticleTexture) {
@@ -135,10 +137,10 @@ export class GameEngine {
       this.poufParticleTexture = null
     }
 
-    this.spawnedChicks.forEach((chickMesh) => {
+    this.spawnedCustomers.forEach((chickMesh) => {
       chickMesh.dispose()
     })
-    this.spawnedChicks.clear()
+    this.spawnedCustomers.clear()
 
     this.localController?.dispose()
     this.remoteControllers.forEach((controller) => controller.dispose())
@@ -596,7 +598,7 @@ export class GameEngine {
 
     $(this.room.state).orders.onAdd((order: Order) => {
       if (order.chairId !== -1) {
-        this.handleSpawnChick(order.chairId)
+        this.handleSpawnChick(order.chairId, order.customerType)
       }
       // Listen for changes to chairId *after* adding (less likely with current server logic, but good practice)
       $(order).listen('chairId', (currentChairId, previousChairId) => {
@@ -604,7 +606,7 @@ export class GameEngine {
           this.handleRemoveChick(previousChairId)
         }
         if (currentChairId !== -1) {
-          this.handleSpawnChick(currentChairId)
+          this.handleSpawnChick(currentChairId, order.customerType)
         }
       })
     })
@@ -618,7 +620,7 @@ export class GameEngine {
     // Initial spawn for existing orders when client joins
     this.room.state.orders.forEach((order) => {
       if (order.chairId !== -1) {
-        this.handleSpawnChick(order.chairId)
+        this.handleSpawnChick(order.chairId, order.customerType)
       }
     })
 
@@ -671,10 +673,12 @@ export class GameEngine {
     })
   }
 
-  private handleSpawnChick(chairId: number): void {
-    if (this.spawnedChicks.has(chairId)) return
+  private handleSpawnChick(chairId: number, customerType: string): void {
+    if (this.spawnedCustomers.has(chairId)) return
 
-    if (!this.chickTemplateMesh) {
+    const templateMesh = customerType === 'chick' ? this.chickTemplateMesh : this.chickenTemplateMesh
+
+    if (!templateMesh) {
       console.error('Chick template mesh is not loaded or available. Cannot spawn chick.')
       return
     }
@@ -685,7 +689,7 @@ export class GameEngine {
       return
     }
 
-    const newChick = this.chickTemplateMesh.clone(`chick_${chairId}`, null)
+    const newChick = templateMesh.clone(`chick_${chairId}`, null)
     if (!newChick) {
       console.error(`Failed to clone chick template mesh for chair ${chairId}.`)
       return
@@ -708,17 +712,17 @@ export class GameEngine {
     newChick.position = chickPosition
     newChick.rotation = chairMesh.rotation ? chairMesh.rotation : Vector3.Zero()
 
-    this.spawnedChicks.set(chairId, newChick)
+    this.spawnedCustomers.set(chairId, newChick)
     this.createChickPoufEffect(chickPosition)
 
     console.log('Spawned chick at chair ID:', chairId)
   }
 
   private handleRemoveChick(chairId: number): void {
-    const chickMesh = this.spawnedChicks.get(chairId)
+    const chickMesh = this.spawnedCustomers.get(chairId)
     if (chickMesh) {
       chickMesh.dispose()
-      this.spawnedChicks.delete(chairId)
+      this.spawnedCustomers.delete(chairId)
     }
   }
 

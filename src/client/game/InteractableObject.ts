@@ -10,7 +10,8 @@ import type { Scene } from '@babylonjs/core/scene'
 import type { Observer } from '@babylonjs/core/Misc/observable'
 import { Ingredient, InteractType } from '@shared/types/enums.ts'
 import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
-import { getItemDefinition, INGREDIENT_VISUAL_CONFIG } from '@shared/definitions.ts'
+import { INGREDIENT_VISUAL_CONFIG } from '@shared/visualConfigs'
+import { getItemDefinition } from '@shared/items'
 
 interface DisplayedIngredientInfo {
   mesh: Mesh

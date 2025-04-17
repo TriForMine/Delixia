@@ -74,9 +74,16 @@ export const Game = ({ onBackToMenu }: { onBackToMenu: () => void }) => {
     [gameEnded],
   )
 
+  const onDispose = useCallback(() => {
+    gameEngineRef.current?.dispose()
+    gameEngineRef.current = undefined
+  }, [])
+
   return (
     <div className="relative w-full h-full">
-      {!gameEnded && <BabylonScene antialias onSceneReady={onSceneReady} onRender={onRender} id="my-canvas" className="w-full h-full" />}
+      {!gameEnded && (
+        <BabylonScene antialias onDispose={onDispose} onSceneReady={onSceneReady} onRender={onRender} id="my-canvas" className="w-full h-full" />
+      )}
       <ConnectionStatusComponent onBackToMenu={onBackToMenu} gameEngineRef={gameEngineRef} />
       {isLoaded && (gameEnded ? <GameEndScreen finalScore={finalScore ?? 0} onBackToMenu={onBackToMenu} /> : <GameUI onBackToMenu={onBackToMenu} />)}
     </div>

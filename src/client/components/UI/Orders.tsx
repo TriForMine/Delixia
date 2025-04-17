@@ -1,11 +1,13 @@
 import type React from 'react'
 import { useState, useEffect, useMemo, memo } from 'react'
 import { useGameColyseusState } from '@client/hooks/colyseus'
-import { getItemDefinition, getRecipeDefinition, getRecipeSteps } from '@shared/definitions'
 import type { Order } from '@shared/schemas/Order.ts'
 import { type Ingredient, InteractType } from '@shared/types/enums'
 import { Flame, Slice, ChefHat, Clock, ArrowRight, Inbox, CookingPot, Dot } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { getItemDefinition } from '@shared/items'
+import { getRecipeDefinition } from '@shared/recipes.ts'
+import { getRecipeSteps } from '@shared/recipeSteps.ts'
 
 const calculateTimeInfo = (order: Order) => {
   const now = Date.now()
@@ -23,6 +25,49 @@ const calculateTimeInfo = (order: Order) => {
 
 interface OrderCardProps {
   order: Order
+}
+
+interface ProcessedRecipeInfo {
+  ingredientsToProcess: { ingredient: Ingredient; station: InteractType }[]
+  finalAssemblyIngredients: Ingredient[]
+  finalAssemblyStation: InteractType | null
+  allBaseIngredients: Ingredient[]
+}
+
+const processRecipeSteps = (recipeId: string): ProcessedRecipeInfo => {
+  const info: ProcessedRecipeInfo = { ingredientsToProcess: [], finalAssemblyIngredients: [], finalAssemblyStation: null, allBaseIngredients: [] }
+  if (!recipeId) return info
+  const steps = getRecipeSteps(recipeId)
+  if (steps.length === 0) return info
+
+  const processedOutputs = new Set<Ingredient>()
+  const baseIngredients = new Set<Ingredient>()
+
+  steps.forEach((step) => {
+    if (step.type === 'GET') {
+      baseIngredients.add(step.ingredient)
+    } else if (step.type === 'PROCESS') {
+      processedOutputs.add(step.ingredient)
+      step.requiredIngredients?.forEach((req) => {
+        if (!processedOutputs.has(req) && (step.stationType === InteractType.ChoppingBoard || step.stationType === InteractType.Oven)) {
+          const exists = info.ingredientsToProcess.some((p) => p.ingredient === req && p.station === step.stationType)
+          if (!exists) info.ingredientsToProcess.push({ ingredient: req, station: step.stationType })
+        }
+      })
+    }
+  })
+  info.allBaseIngredients = Array.from(baseIngredients)
+
+  const finalStep = steps[steps.length - 1]
+  if (finalStep?.type === 'PROCESS') {
+    info.finalAssemblyIngredients = finalStep.requiredIngredients ?? []
+    info.finalAssemblyStation = finalStep.stationType
+  } else if (finalStep?.type === 'GET') {
+    info.finalAssemblyIngredients = [finalStep.ingredient]
+    info.finalAssemblyStation = finalStep.stationType
+  }
+
+  return info
 }
 
 const StationIcon: React.FC<{ type: InteractType; size?: number; className?: string }> = ({ type, size = 14, className = '' }) => {
@@ -63,21 +108,13 @@ const IngredientIconRaw: React.FC<{
 }
 
 const IngredientIcon = memo(IngredientIconRaw, (prevProps, nextProps) => {
-  // Only re-render if ingredient or sizeClass changes
   return prevProps.ingredient === nextProps.ingredient && prevProps.sizeClass === nextProps.sizeClass
 })
 
-// --- Structure to hold processed recipe info ---
-interface ProcessedRecipeInfo {
-  ingredientsToProcess: { ingredient: Ingredient; station: InteractType }[]
-  finalAssemblyIngredients: Ingredient[]
-  finalAssemblyStation: InteractType | null
-  allBaseIngredients: Ingredient[] // Still useful to know everything needed initially
-}
-
 const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
-  const finalRecipe = getRecipeDefinition(order.recipeId)
+  const finalRecipe = useMemo(() => getRecipeDefinition(order.recipeId), [order.recipeId])
   const [timeInfo, setTimeInfo] = useState(() => calculateTimeInfo(order))
+  const processedInfo = useMemo(() => processRecipeSteps(order.recipeId), [order.recipeId])
 
   // --- Timer effect to update countdown for order deadlines ---
   useEffect(() => {
@@ -94,56 +131,6 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
     }
     return undefined
   }, [order.id, order.deadline, order.createdAt])
-
-  // --- Process Recipe Steps ---
-  const processedInfo = useMemo((): ProcessedRecipeInfo => {
-    const info: ProcessedRecipeInfo = {
-      ingredientsToProcess: [],
-      finalAssemblyIngredients: [],
-      finalAssemblyStation: null,
-      allBaseIngredients: [],
-    }
-    if (!order.recipeId) return info
-
-    const steps = getRecipeSteps(order.recipeId)
-    if (steps.length === 0) return info
-
-    const processedOutputs = new Set<Ingredient>()
-    const baseIngredients = new Set<Ingredient>()
-
-    // First pass: identify items that are outputs of processing and all base ingredients
-    steps.forEach((step) => {
-      if (step.type === 'GET') {
-        baseIngredients.add(step.ingredient)
-      } else if (step.type === 'PROCESS') {
-        processedOutputs.add(step.ingredient) // Mark this as a result of some process
-        step.requiredIngredients?.forEach((req) => {
-          // If a required ingredient is NOT an output of a PREVIOUS process,
-          // AND it needs processing at THIS step (Chop/Oven), add it to the list.
-          if (!processedOutputs.has(req) && (step.stationType === InteractType.ChoppingBoard || step.stationType === InteractType.Oven)) {
-            const exists = info.ingredientsToProcess.some((p) => p.ingredient === req && p.station === step.stationType)
-            if (!exists) {
-              info.ingredientsToProcess.push({ ingredient: req, station: step.stationType })
-            }
-          }
-        })
-      }
-    })
-
-    info.allBaseIngredients = Array.from(baseIngredients)
-
-    // Final Step Analysis
-    const finalStep = steps[steps.length - 1]
-    if (finalStep?.type === 'PROCESS') {
-      info.finalAssemblyIngredients = finalStep.requiredIngredients ?? []
-      info.finalAssemblyStation = finalStep.stationType
-    } else if (finalStep?.type === 'GET') {
-      info.finalAssemblyIngredients = [finalStep.ingredient]
-      info.finalAssemblyStation = finalStep.stationType
-    }
-
-    return info
-  }, [order.recipeId])
 
   if (!finalRecipe) {
     return <div className="bg-red-100 border border-red-400 text-red-700 px-2 py-1 rounded text-xs">Error: Recipe not found!</div>
