@@ -37,7 +37,7 @@ export const RECIPE_REGISTRY: Record<string, Recipe> = {
     result: { ingredient: Ingredient.CookedRice, quantity: 1 },
     requiredIngredients: [{ ingredient: Ingredient.Rice, quantity: 1 }],
     stationType: InteractType.Oven,
-    processingTime: 60000,
+    processingTime: 5000,
   },
   ebi_nigiri_recipe: {
     id: 'ebi_nigiri_recipe',

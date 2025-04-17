@@ -21,7 +21,7 @@ jobs:
         run: bun install
 
       - name: Build project
-        run: bun run client:build
+        run: bun run client:build --no-env
         env:
           PUBLIC_COLYSEUS_ENDPOINT: https://delixia-server.triformine.dev/
           PUBLIC_APP_VERSION: ${{ github.sha }}
