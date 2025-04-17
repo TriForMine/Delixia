@@ -738,6 +738,7 @@ export class GameEngine {
     this.room.onMessage('noMatchingOrder', () => this.playSfx('error'))
     this.room.onMessage('needPlate', () => this.playSfx('error'))
     this.room.onMessage('wrongIngredient', () => this.playSfx('error'))
+    this.room.onMessage('wrongOrder', () => this.playSfx('error'))
     this.room.onMessage('orderCompleted', () => this.playSfx('orderComplete'))
 
     this.room.onMessage('invalidServe', () => this.playSfx('error'))

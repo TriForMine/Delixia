@@ -63,7 +63,6 @@ export class InteractableObject {
 
   private isCooking: boolean = false
   private cookingStartTime: number = 0
-  private cookingEndTime: number = 0
   private cookingTotalDuration: number = 0
   private lastProgressBarUpdateTime: number = 0
   private readonly progressBarUpdateInterval: number = 150
@@ -163,8 +162,6 @@ export class InteractableObject {
       return
     }
 
-    const remainingTimeMs = Math.max(0, this.cookingEndTime - now)
-    const currentSeconds = Math.max(0, Math.ceil(remainingTimeMs / 1000)) // Still useful for color logic
     const progress = this.cookingTotalDuration > 0 ? Scalar.Clamp((now - this.cookingStartTime) / this.cookingTotalDuration, 0, 1) : 0
 
     // Get the drawing context
@@ -191,7 +188,7 @@ export class InteractableObject {
 
     if (fillWidth > 0) {
       let fillColor = '#86EFAC' // Green
-      if (currentSeconds <= 5 && currentSeconds > 0) {
+      if (progress >= 0.8) {
         fillColor = '#F87171' // Red
       } else if (progress >= 1) {
         // Change color instantly when progress hits 1
@@ -408,7 +405,6 @@ export class InteractableObject {
     }
 
     this.cookingStartTime = startTime
-    this.cookingEndTime = endTime
     this.cookingTotalDuration = Math.max(1, endTime - startTime)
     this.isCooking = true
 
@@ -470,8 +466,8 @@ export class InteractableObject {
     fire.emitter = firePosition // Emitter is a single point
 
     // Emitter area (slightly wider than before, still flat)
-    const minEmitBox = new Vector3(-0.2, 0, -0.2)
-    const maxEmitBox = new Vector3(0.2, 0.1, 0.2) // Small vertical spread
+    const minEmitBox = new Vector3(-0.3, 0, -0.3)
+    const maxEmitBox = new Vector3(0.3, 0.1, 0.3) // Small vertical spread
     fire.minEmitBox = minEmitBox
     fire.maxEmitBox = maxEmitBox
 
@@ -492,14 +488,14 @@ export class InteractableObject {
     fire.maxSize = 0.15 // Slightly larger maximum
 
     fire.minLifeTime = 0.15 // Shorter lifetime for faster flicker
-    fire.maxLifeTime = 0.4 // Shorter lifetime for faster flicker
+    fire.maxLifeTime = 0.25 // Shorter lifetime for faster flicker
 
     // Optional: Size gradient (can make flames appear to thin out)
     fire.addSizeGradient(0, 0.03)
     fire.addSizeGradient(0.5, 0.15) // Grow
     fire.addSizeGradient(1.0, 0.01) // Shrink rapidly at end
 
-    fire.emitRate = 250 // Increase emit rate for denser flames
+    fire.emitRate = 400 // Increase emit rate for denser flames
     fire.blendMode = ParticleSystem.BLENDMODE_ADD // Additive blending is good for fire
 
     fire.minInitialRotation = 0
@@ -563,7 +559,7 @@ export class InteractableObject {
     smoke.minLifeTime = 1.2 // lingers longer
     smoke.maxLifeTime = 2.5
 
-    smoke.emitRate = 12 // fewer particles, more wispy
+    smoke.emitRate = 6 // fewer particles, more wispy
     smoke.blendMode = ParticleSystem.BLENDMODE_STANDARD
 
     smoke.minInitialRotation = 0
@@ -681,10 +677,10 @@ export class InteractableObject {
       }
     } else if (this.interactType === InteractType.ChoppingBoard || this.interactType === InteractType.Oven) {
       const isOven = this.interactType === InteractType.Oven
-      const yBaseOffset = isOven ? 2.4 : 0
+      const yBaseOffset = isOven ? 3 : 0
       const yStackOffset = 0.05
       const xSpread = 0.15
-      const zOffset = isOven ? 0.4 : 0
+      const zOffset = isOven ? 0.37 : 0
 
       const itemsToDisplay = ingredients.filter((ing) => ing !== Ingredient.Plate) // Filter out results/plates
       const numItems = itemsToDisplay.length
@@ -715,7 +711,7 @@ export class InteractableObject {
     }
 
     if (ingredient === Ingredient.Rice && this.interactType === InteractType.Oven) {
-      const localOffset = new Vector3(0, 2.4, 0.4)
+      const localOffset = new Vector3(0, 3, 0.37)
       const visualInfo = this._prepareIngredientVisual(ingredient, localOffset)
 
       if (visualInfo) {

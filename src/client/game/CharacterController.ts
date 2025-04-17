@@ -345,8 +345,8 @@ export class CharacterController {
    * @param deltaTime Time elapsed since the last frame.
    */
   protected updateAnimations(deltaTime: number): void {
-    // Determine target animation
-    let targetAnim: AnimationGroup = this.idleAnim
+    // Determine target animation based on the current state
+    let targetAnim: AnimationGroup = this.idleAnim // Default to idle
     switch (this.currentState) {
       case CharacterState.IDLE:
         targetAnim = this.idleAnim
@@ -367,33 +367,49 @@ export class CharacterController {
         targetAnim = this.sambaDanceAnim
         break
     }
-    this.targetAnim = targetAnim
 
-    // Blend logic
-    let weightSum = 0
+    // Blending logic
+    let weightSum = 0 // Keep track of the weight used by non-idle animations
     for (const anim of this.nonIdleAnimations) {
       if (anim === targetAnim) {
-        // Smoothly blend up
+        // Smoothly blend weight towards 1.0 for the target animation
         anim.weight = moveTowards(anim.weight, 1.0, this.animationBlendSpeed * deltaTime)
-        // Ensure it's playing if not already
-        if (!anim.isPlaying) {
+        // Ensure the animation is playing if its weight is significant
+        if (!anim.isPlaying && anim.weight > 0.01) {
+          // Play only if weight is noticeable
+          // Determine if the target animation should loop based on its type
           const shouldLoop = anim === this.fallingAnim || anim === this.walkAnim || anim === this.sambaDanceAnim
-          anim.play(shouldLoop)
+          anim.play(shouldLoop) // Play with looping enabled only if necessary
+
+          // If the animation is not set to loop (e.g., Jump, Land),
+          // explicitly reset it to the beginning frame each time it starts playing.
+          // This prevents it from resuming mid-animation if played again quickly.
+          if (!shouldLoop) {
+            anim.goToFrame(0)
+          }
         }
       } else {
-        // Smoothly blend down
+        // Smoothly blend weight towards 0.0 for non-target animations
         anim.weight = moveTowards(anim.weight, 0.0, this.animationBlendSpeed * deltaTime)
-        if (anim.weight === 0 && anim.isPlaying) {
+        // Pause the animation if its weight becomes negligible to save resources
+        if (anim.weight < 0.01 && anim.isPlaying) {
           anim.pause()
         }
       }
+      // Accumulate the weight used by this non-idle animation
       weightSum += anim.weight
     }
 
-    // Idle animation blends up for leftover weight
+    // The idle animation takes up the remaining weight (1.0 - weightSum)
+    // Ensures a smooth transition back to idle when no other animation is fully active.
     this.idleAnim.weight = moveTowards(this.idleAnim.weight, Math.max(1.0 - weightSum, 0.0), this.animationBlendSpeed * deltaTime)
+
+    // Play or pause the idle animation based on its weight
     if (this.idleAnim.weight > 0 && !this.idleAnim.isPlaying) {
-      this.idleAnim.play(true) // Idle loops
+      this.idleAnim.play(true) // Idle animation always loops
+    } else if (this.idleAnim.weight <= 0 && this.idleAnim.isPlaying) {
+      // Pause idle if its weight drops to zero (another animation has taken over)
+      this.idleAnim.pause()
     }
   }
 }

@@ -13,7 +13,6 @@ import { CharacterState } from './CharacterState'
 import type { GameEngine } from './GameEngine.ts'
 import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
 import type { HavokPlugin } from '@babylonjs/core/Physics/v2/Plugins/havokPlugin'
-import { PhysicsRaycastResult } from '@babylonjs/core/Physics/physicsRaycastResult'
 import type { Contact } from './physics/Contact'
 import { CharacterSupportedState } from './physics/CharacterSupportedState'
 import type { AudioManager } from '@client/game/managers/AudioManager.ts'
@@ -30,7 +29,6 @@ export class LocalCharacterController extends CharacterController {
   readonly keyInteract = KBCode.KeyE
 
   private isJumping = false
-  private isFalling = false
   private previousJumpKeyState = false
   private previousInteractKeyState = false
   private previousState: CharacterState = CharacterState.IDLE
@@ -42,13 +40,6 @@ export class LocalCharacterController extends CharacterController {
   // Properties
   protected isGrounded: boolean = false
   protected groundCheckDistance: number = 0.1
-  protected groundCheckOriginOffset: number = 0.1
-  protected lastGroundedTime: number = 0
-
-  // Pre-allocate for performance
-  private readonly _raycastResult: PhysicsRaycastResult
-  private _vector3Tmp1: Vector3 = new Vector3()
-  private _vector3Tmp2: Vector3 = new Vector3()
 
   private readonly _startCollector: any
   private readonly _castCollector: any
@@ -118,8 +109,6 @@ export class LocalCharacterController extends CharacterController {
 
     camera.setTarget(this.cameraAttachPoint)
     this.thirdPersonCamera = camera
-
-    this._raycastResult = new PhysicsRaycastResult()
 
     // Initialize collectors for shape casting
     const hk = scene.getPhysicsEngine()!.getPhysicsPlugin() as HavokPlugin
@@ -211,9 +200,9 @@ export class LocalCharacterController extends CharacterController {
   private updateState(): void {
     const supportState = this.checkSupport()
     const verticalVelocity = this.physicsAggregate.body.getLinearVelocity().y
-    this.isFalling = verticalVelocity < -0.1
 
-    if (this.isGrounded && verticalVelocity <= 0) {
+    // Reset jumping flag only when truly supported and not moving upwards.
+    if (supportState === CharacterSupportedState.SUPPORTED && verticalVelocity <= 0.1) {
       this.isJumping = false
     }
 
@@ -222,41 +211,49 @@ export class LocalCharacterController extends CharacterController {
     if (this.inputMap.get(this.keyDance)) {
       newState = CharacterState.DANCING
     } else if (supportState === CharacterSupportedState.SUPPORTED) {
-      if (
-        this.previousState === CharacterState.FALLING ||
-        this.previousState === CharacterState.JUMPING ||
-        this.previousState === CharacterState.LANDING
-      ) {
-        newState = CharacterState.LANDING
-      } else {
+      // Did we just land? (Transitioned from an aerial state)
+      if (this.previousState === CharacterState.FALLING || this.previousState === CharacterState.JUMPING) {
+        newState = CharacterState.LANDING // Enter LANDING state
+      }
+      // If we are already in the LANDING state, we need to wait for the animation to finish
+      else if (this.currentState === CharacterState.LANDING) {
+        // Check the *current* state too
+        newState = CharacterState.LANDING // Stay in LANDING for now
+      }
+      // Otherwise, we are grounded and not currently landing, so switch to IDLE or WALKING
+      else {
         newState = this.isAnyMovementKeyDown() ? CharacterState.WALKING : CharacterState.IDLE
       }
     } else if (supportState === CharacterSupportedState.SLIDING) {
-      newState = CharacterState.FALLING
-    } else if (this.isFalling && this.isLanding()) {
-      newState = CharacterState.LANDING
-    } else if (this.isFalling) {
-      newState = CharacterState.FALLING
-    } else if (this.isJumping) {
-      newState = CharacterState.JUMPING
+      // Sliding on a steep slope
+      newState = CharacterState.FALLING // Treat sliding as falling for animation purposes
     } else {
-      newState = CharacterState.IDLE
+      // Determine if we are in the ascending phase of a jump or just falling
+      if (this.isJumping && verticalVelocity > 0) {
+        newState = CharacterState.JUMPING // Upward phase of the jump
+      } else {
+        newState = CharacterState.FALLING // Downward phase or free fall
+      }
     }
 
     // --- Play Landing Sound on State Transition ---
-    // Play sound when entering the LANDING state from a non-landing aerial state
+    // Play the sound when entering the LANDING state from an aerial state
     if (newState === CharacterState.LANDING && (this.previousState === CharacterState.FALLING || this.previousState === CharacterState.JUMPING)) {
       this.gameEngine.playSfx('jumpLand', 0.65, false)
     }
-    // If the state remains LANDING but the animation finished, transition out
-    else if (newState === CharacterState.LANDING && this.landingAnim.weight < 0.1) {
+
+    // --- Condition to Exit LANDING State ---
+    // If the current state is LANDING *and* the calculated newState is also LANDING (meaning we haven't decided to switch yet)
+    // *and* the landing animation's weight is very low (meaning it's almost finished blending out),
+    // then we can finally transition to IDLE or WALKING based on movement keys.
+    else if (this.currentState === CharacterState.LANDING && newState === CharacterState.LANDING && this.landingAnim.weight < 0.1) {
       newState = this.isAnyMovementKeyDown() ? CharacterState.WALKING : CharacterState.IDLE
     }
 
-    // Update the character's current state *after* checking for transitions
+    // Update the character's current state *after* all checks and potential transitions
     this.currentState = newState
 
-    // Update the previous state for the next frame's check
+    // Update the previous state for the next frame's check, using the final state determined above
     this.previousState = this.currentState
   }
 
@@ -387,34 +384,6 @@ export class LocalCharacterController extends CharacterController {
   protected checkGrounded(): boolean {
     const result = this.checkGroundWithShapeCast(this.groundCheckDistance)
     return result.isGrounded
-  }
-
-  private isLanding(): boolean {
-    return this.checkGround(0.9)
-  }
-
-  private checkGround(distance: number): boolean {
-    this._raycastResult.reset()
-
-    // Reuse the pre-allocated vectors
-    this._groundCheckStartPos.copyFrom(this.getTransform().position)
-    const rayOrigin = this._vector3Tmp1
-    rayOrigin.set(this._groundCheckStartPos.x, this._groundCheckStartPos.y - this.groundCheckOriginOffset, this._groundCheckStartPos.z)
-    const rayEnd = this._vector3Tmp2
-
-    // Use scaleToRef to avoid creating a new vector
-    Vector3.DownReadOnly.scaleToRef(distance, this._velocityTemp)
-    rayOrigin.addToRef(this._velocityTemp, rayEnd)
-
-    const physicsPlugin = this.scene.getPhysicsEngine()?.getPhysicsPlugin() as HavokPlugin
-    physicsPlugin.raycast(rayOrigin, rayEnd, this._raycastResult)
-
-    if (this._raycastResult.hasHit) {
-      this.lastGroundedTime = performance.now()
-      return true
-    }
-
-    return false
   }
 
   private _castWithCollectors(startPos: Vector3, endPos: Vector3): void {
