@@ -427,6 +427,11 @@ const rawMapConfigs: MapModelConfig[] = [
       friction: 0.8,
       restitution: 0.1,
     },
+    billboardOffset: {
+      x: 0,
+      y: 1.5,
+      z: 0,
+    },
     instances: [
       {
         interaction: {

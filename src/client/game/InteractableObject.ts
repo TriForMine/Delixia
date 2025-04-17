@@ -12,6 +12,7 @@ import { Ingredient, InteractType } from '@shared/types/enums.ts'
 import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
 import { INGREDIENT_VISUAL_CONFIG } from '@shared/visualConfigs'
 import { getItemDefinition } from '@shared/items'
+import { Scalar } from '@babylonjs/core'
 
 interface DisplayedIngredientInfo {
   mesh: Mesh
@@ -38,9 +39,9 @@ export class InteractableObject {
   private readonly ingredientLoader?: IngredientLoader
 
   // --- Ingredient Display Management ---
-  private ingredientAnchor: TransformNode // Anchor node parented to the board
-  private displayedIngredientInfos: DisplayedIngredientInfo[] = [] // Store mesh + local offset info
-  private cookingVisualInfo: DisplayedIngredientInfo | null = null // Separate info for cooking visual
+  private ingredientAnchor: TransformNode
+  private displayedIngredientInfos: DisplayedIngredientInfo[] = []
+  private cookingVisualInfo: DisplayedIngredientInfo | null = null
   private lastIngredientsOnBoard: Ingredient[] = []
 
   // --- Performance Optimizations ---
@@ -50,6 +51,22 @@ export class InteractableObject {
   // --- State ---
   private activeParticleSystems: ParticleSystem[] = []
   private disabled: boolean = false
+
+  // --- Cooking Progress UI ---
+  private progressBarPlane: Mesh | null = null
+  private progressBarTexture: DynamicTexture | null = null
+  private progressBarMaterial: StandardMaterial | null = null
+  private readonly progressBarTextureWidth = 512
+  private readonly progressBarTextureHeight = 64
+  private readonly progressBarPlaneWidth = 0.8
+  private readonly progressBarPlaneHeight = 0.15
+
+  private isCooking: boolean = false
+  private cookingStartTime: number = 0
+  private cookingEndTime: number = 0
+  private cookingTotalDuration: number = 0
+  private lastProgressBarUpdateTime: number = 0
+  private readonly progressBarUpdateInterval: number = 150
 
   constructor(
     mesh: Mesh,
@@ -68,31 +85,128 @@ export class InteractableObject {
     this.id = interactId
 
     // --- Ingredient Anchor Setup ---
-    // This invisible node follows the parent mesh but doesn't render.
-    // Ingredient positions will be calculated relative to this anchor's world position.
     this.ingredientAnchor = new TransformNode(`${mesh.name}_ingredientAnchor`, scene)
     this.ingredientAnchor.setParent(this.mesh)
-    // Set a default position relative to the parent mesh origin (e.g., slightly above surface)
-    // Adjust this Y value based on your station mesh pivot points
     this.ingredientAnchor.position = new Vector3(0, 0.1, 0)
     this.ingredientAnchor.rotationQuaternion = Quaternion.Identity()
-    this.ingredientAnchor.scaling = Vector3.One() // Anchor itself has unit scale
+    this.ingredientAnchor.scaling = Vector3.One()
 
     // 1) Create prompt disc
     this.promptDisc = MeshBuilder.CreateDisc(`${mesh.name}_prompt_disc`, { radius: 0.25, tessellation: 16 }, scene)
     this.promptDisc.billboardMode = Mesh.BILLBOARDMODE_ALL
     this.promptDisc.isPickable = false
-    this.promptDisc.renderingGroupId = 1 // Render in front
-    this.promptDisc.setEnabled(false) // Hidden by default
+    this.promptDisc.renderingGroupId = 1
+    this.promptDisc.setEnabled(false)
 
-    // 2) Setup prompt material (using shared texture)
+    // 2) Setup prompt material
     this._setupPromptMaterial(keyPrompt)
 
     // 3) Setup sparkle effect
-    this.createSparkleEffect() // Renamed for clarity
+    this.createSparkleEffect()
 
-    // 4) Setup render loop for updates
+    // 4) Setup Cooking Progress UI if it's an Oven
+    if (this.interactType === InteractType.Oven) {
+      this._setupHorizontalProgressBar()
+    }
+
+    // 5) Setup render loop for updates
     this._setupRenderObserver()
+  }
+
+  private _setupHorizontalProgressBar(): void {
+    // 1. Create the Plane Mesh
+    this.progressBarPlane = MeshBuilder.CreatePlane(
+      `${this.mesh.name}_progressBarPlane`,
+      {
+        width: this.progressBarPlaneWidth,
+        height: this.progressBarPlaneHeight,
+      },
+      this.scene,
+    )
+
+    // Position relative to the interactable mesh + offset
+    this.progressBarPlane.setAbsolutePosition(this.mesh.getAbsolutePosition().add(this.billboardOffset))
+    this.progressBarPlane.billboardMode = Mesh.BILLBOARDMODE_ALL // Always face camera
+    this.progressBarPlane.renderingGroupId = 1 // Render on top
+    this.progressBarPlane.isPickable = false
+    this.progressBarPlane.setEnabled(false) // Start hidden
+
+    // 2. Create the Dynamic Texture
+    this.progressBarTexture = new DynamicTexture(
+      `${this.mesh.name}_progressBarTexture`,
+      {
+        width: this.progressBarTextureWidth,
+        height: this.progressBarTextureHeight,
+      },
+      this.scene,
+      false,
+      Texture.BILINEAR_SAMPLINGMODE,
+    ) // MipMaps false, Bilinear sampling
+    this.progressBarTexture.hasAlpha = true // Needed for transparency/drawing
+
+    // 3. Create the Material
+    this.progressBarMaterial = new StandardMaterial(`${this.mesh.name}_progressBarMat`, this.scene)
+    this.progressBarMaterial.diffuseTexture = this.progressBarTexture
+    this.progressBarMaterial.opacityTexture = this.progressBarTexture // Use alpha from this texture
+    this.progressBarMaterial.useAlphaFromDiffuseTexture = false
+    this.progressBarMaterial.emissiveColor = Color3.White() // Ignore lighting
+    this.progressBarMaterial.disableLighting = true
+    this.progressBarMaterial.backFaceCulling = false // Prevent disappearing if viewed from behind
+
+    // 4. Apply Material to Plane
+    this.progressBarPlane.material = this.progressBarMaterial
+  }
+
+  // --- Update method for the Horizontal Progress Bar ---
+  private _updateHorizontalProgressBar(now: number): void {
+    if (!this.isCooking || !this.progressBarTexture || !this.progressBarPlane || !this.progressBarPlane.isEnabled) {
+      return
+    }
+
+    const remainingTimeMs = Math.max(0, this.cookingEndTime - now)
+    const currentSeconds = Math.max(0, Math.ceil(remainingTimeMs / 1000)) // Still useful for color logic
+    const progress = this.cookingTotalDuration > 0 ? Scalar.Clamp((now - this.cookingStartTime) / this.cookingTotalDuration, 0, 1) : 0
+
+    // Get the drawing context
+    const ctx = this.progressBarTexture.getContext()
+    if (!ctx) {
+      console.error(`[${this.id}] ERROR: Failed to get context from progressBarTexture!`)
+      return
+    }
+
+    // Define drawing parameters
+    const textureWidth = this.progressBarTextureWidth
+    const textureHeight = this.progressBarTextureHeight
+    const margin = 4
+    const barX = margin
+    const barY = margin
+    const barWidth = textureWidth - 2 * margin
+    const barHeight = textureHeight - 2 * margin
+    const fillWidth = barWidth * progress
+
+    // --- Drawing ---
+    ctx.clearRect(0, 0, textureWidth, textureHeight)
+    ctx.fillStyle = 'rgba(30, 30, 30, 0.8)'
+    ctx.fillRect(barX, barY, barWidth, barHeight)
+
+    if (fillWidth > 0) {
+      let fillColor = '#86EFAC' // Green
+      if (currentSeconds <= 5 && currentSeconds > 0) {
+        fillColor = '#F87171' // Red
+      } else if (progress >= 1) {
+        // Change color instantly when progress hits 1
+        fillColor = '#808080' // Grey when done
+      }
+      ctx.fillStyle = fillColor
+      ctx.fillRect(barX, barY, fillWidth, barHeight)
+    }
+
+    ctx.strokeStyle = 'rgba(200, 200, 200, 0.9)'
+    ctx.lineWidth = 2
+    ctx.strokeRect(barX, barY, barWidth, barHeight)
+
+    // *** Update the texture ***
+    this.progressBarTexture.update()
   }
 
   private _setupPromptMaterial(keyPrompt: string): void {
@@ -129,6 +243,8 @@ export class InteractableObject {
     }
 
     this._renderObserver = this.scene.onBeforeRenderObservable.add(() => {
+      const now = Date.now()
+
       // Update prompt position
       if (this.promptDisc.isEnabled()) {
         this.mesh.getAbsolutePosition().addToRef(this.billboardOffset, this._positionUpdateTemp)
@@ -159,6 +275,17 @@ export class InteractableObject {
             this.cookingVisualInfo.mesh.rotationQuaternion!,
           )
           this.cookingVisualInfo.mesh.scaling.copyFrom(this.cookingVisualInfo.localScale)
+        }
+      }
+
+      if (this.isCooking && this.interactType === InteractType.Oven && this.progressBarPlane) {
+        // Update position dynamically every frame
+        this.mesh.getAbsolutePosition().addToRef(this.billboardOffset, this._positionUpdateTemp)
+        this.progressBarPlane.setAbsolutePosition(this._positionUpdateTemp)
+
+        if (now - this.lastProgressBarUpdateTime > this.progressBarUpdateInterval) {
+          this._updateHorizontalProgressBar(now)
+          this.lastProgressBarUpdateTime = now
         }
       }
     })
@@ -245,15 +372,18 @@ export class InteractableObject {
     }
   }
 
-  public activate(): void {
+  public activate(activeSince?: number, processingEndTime?: number): void {
     if (this.isActive) return
     this.isActive = true
     this.showPrompt(false)
 
-    switch (this.interactType) {
-      case InteractType.Oven:
-        this._startOvenEffects()
-        break
+    const isOven = this.interactType === InteractType.Oven
+    const hasValidTimes = activeSince && processingEndTime && processingEndTime > activeSince
+    const shouldStartCooking = isOven && hasValidTimes
+
+    if (shouldStartCooking) {
+      this._startOvenEffects()
+      this.startCookingVisuals(activeSince!, processingEndTime!)
     }
   }
 
@@ -265,6 +395,53 @@ export class InteractableObject {
       system.stop()
     })
     this.activeParticleSystems = []
+
+    if (this.interactType === InteractType.Oven) {
+      this.stopCookingVisuals()
+    }
+  }
+
+  public startCookingVisuals(startTime: number, endTime: number): void {
+    if (this.interactType !== InteractType.Oven || !this.progressBarPlane || !this.progressBarTexture) {
+      console.error(`[${this.id}] Cannot start cooking visuals: Progress bar not setup correctly or not an Oven.`)
+      return
+    }
+
+    this.cookingStartTime = startTime
+    this.cookingEndTime = endTime
+    this.cookingTotalDuration = Math.max(1, endTime - startTime)
+    this.isCooking = true
+
+    this.progressBarPlane.setEnabled(true)
+
+    // --- Reset Update Timer ---
+    this.lastProgressBarUpdateTime = 0 // Reset timer to ensure the first update happens soon
+
+    // --- Trigger the initial update immediately ---
+    const initialTime = Date.now()
+    this._updateHorizontalProgressBar(initialTime) // Draw the very first frame
+    this.lastProgressBarUpdateTime = initialTime // Set the timer after the initial draw
+  }
+
+  public stopCookingVisuals(): void {
+    if (!this.isCooking) {
+      return
+    }
+    this.isCooking = false
+
+    if (this.progressBarPlane) {
+      this.progressBarPlane.setEnabled(false)
+    }
+
+    if (this.progressBarTexture) {
+      const ctx = this.progressBarTexture.getContext()
+      if (ctx) {
+        ctx.clearRect(0, 0, this.progressBarTextureWidth, this.progressBarTextureHeight)
+        this.progressBarTexture.update()
+      }
+    }
+
+    this.lastProgressBarUpdateTime = 0 // Reset timer
   }
 
   private _startOvenEffects(): void {
@@ -627,19 +804,32 @@ export class InteractableObject {
 
   public dispose(): void {
     console.log(`Disposing InteractableObject ${this.id} (${this.mesh.name})`)
-    this.deactivate() // Stop active effects
+    this.stopCookingVisuals()
+    this.deactivate()
     this.clearIngredientsOnBoard()
-    this.hideCookingVisual() // Dispose cooking visual too
+    this.hideCookingVisual()
 
     if (this.sparkleSystem) {
       this.sparkleSystem.stop()
-      this.sparkleSystem.dispose() // Dispose sparkle system
+      this.sparkleSystem.dispose()
+    }
+
+    if (this.progressBarPlane) {
+      this.progressBarPlane.dispose()
+      this.progressBarPlane = null
+    }
+    if (this.progressBarTexture) {
+      this.progressBarTexture.dispose()
+      this.progressBarTexture = null
+    }
+    if (this.progressBarMaterial) {
+      this.progressBarMaterial.dispose()
+      this.progressBarMaterial = null
     }
 
     this.promptDisc.dispose()
-    this.ingredientAnchor.dispose() // Dispose the anchor node
+    this.ingredientAnchor.dispose()
 
-    // Remove the render observer
     if (this._renderObserver) {
       this.scene.onBeforeRenderObservable.remove(this._renderObserver)
       this._renderObserver = null

@@ -35,6 +35,7 @@ import { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh'
 import type { Order } from '@shared/schemas/Order.ts'
 import { ParticleSystem } from '@babylonjs/core/Particles/particleSystem'
 import type { AssetContainer } from '@babylonjs/core/assetContainer'
+import { getRecipeDefinition } from '@shared/recipes.ts'
 
 export class GameEngine {
   public interactables: InteractableObject[] = []
@@ -283,7 +284,6 @@ export class GameEngine {
           child.isVisible = false
           child.isPickable = false
         })
-        console.log('Chick template mesh loaded and stored.')
       } else {
         console.error('Chick GLB loaded, but root node is not a mesh.')
       }
@@ -308,7 +308,6 @@ export class GameEngine {
           child.isVisible = false
           child.isPickable = false
         })
-        console.log('Chick template mesh loaded and stored.')
       } else {
         console.error('Chick GLB loaded, but root node is not a mesh.')
       }
@@ -412,44 +411,78 @@ export class GameEngine {
 
         const $ = getStateCallbacks(this.room)
 
-        $(this.room.state).interactableObjects.onAdd((objState) => {
-          // Listen for property changes on this object
-          $(objState).onChange(() => {
-            const interactable = this.interactables.find((obj) => obj.id === Number(objState.id))
-
-            if (!interactable) return
-
-            // Update disabled state
-            interactable.setDisabled(objState.disabled)
-
-            if (objState.isActive) {
-              interactable.activate() // e.g. start fire ParticleSystem
-            } else {
-              interactable.deactivate() // e.g. stop the effect
-            }
-
-            // Update ingredients
-            const ingredients = objState.ingredientsOnBoard.map((i) => i as Ingredient)
-            interactable.updateIngredientsOnBoard(ingredients)
-          })
-
-          const interactable = this.interactables.find((obj) => obj.id === Number(objState.id))
+        $(this.room.state).interactableObjects.onAdd((objState, key) => {
+          const interactable = this.interactables.find((obj) => obj.id === Number(key))
           if (!interactable) {
-            console.warn(`Interactable with ID ${objState.id} not found`)
+            console.warn(`Interactable ${key} added to state but not found in client list.`)
             return
           }
 
-          // Set initial disabled state
-          interactable.setDisabled(objState.disabled)
+          // Handle initial state and changes
+          const updateInteractable = (state: typeof objState) => {
+            interactable.setDisabled(state.disabled)
 
-          if (objState.isActive) {
-            interactable.activate() // e.g. start fire ParticleSystem
-          } else {
-            interactable.deactivate() // e.g. stop the effect
+            // Handle activation/deactivation, passing timing info for ovens
+            if (state.isActive) {
+              interactable.activate(state.activeSince, state.processingEndTime)
+            } else {
+              interactable.deactivate()
+            }
+
+            // Update ingredients on board (visuals)
+            const ingredients = state.ingredientsOnBoard.map((i) => i as Ingredient)
+            interactable.updateIngredientsOnBoard(ingredients)
+
+            // Handle cooking visual separately if needed (e.g., showing item inside oven)
+            if (interactable.interactType === InteractType.Oven) {
+              const isCookingRecipe = state.isActive && state.processingRecipeId && state.processingEndTime > 0
+              const recipe = isCookingRecipe ? getRecipeDefinition(state.processingRecipeId!) : null
+              // Show the *input* ingredient visual if cooking started
+              if (isCookingRecipe && recipe && recipe.requiredIngredients.length > 0) {
+                interactable.showCookingVisual(recipe.requiredIngredients[0].ingredient) // Assuming first ingredient
+              } else {
+                interactable.hideCookingVisual()
+              }
+            }
           }
 
-          const ingredients = objState.ingredientsOnBoard.map((i) => i as Ingredient)
-          interactable.updateIngredientsOnBoard(ingredients)
+          // Initial update
+          updateInteractable(objState)
+
+          // Listen for subsequent changes
+          $(objState).onChange(() => {
+            // Refetch interactable in case it was recreated (though unlikely here)
+            const currentInteractable = this.interactables.find((obj) => obj.id === Number(key))
+            if (currentInteractable) {
+              updateInteractable(objState)
+            }
+          })
+
+          // --- Specific Sound Handling (can remain mostly as is) ---
+          if (interactable.interactType === InteractType.Oven) {
+            // Oven loop sound tied to isActive state
+            $(objState).listen('isActive', (currentValue, previousValue) => {
+              if (currentValue && !previousValue) {
+                this.audioManager.playSound('ovenLoop', 0.6, true, interactable.mesh)
+              } else if (!currentValue && previousValue) {
+                this.audioManager.stopSound('ovenLoop')
+              }
+            })
+            // Initial check
+            if (objState.isActive) {
+              this.audioManager.playSound('ovenLoop', 0.6, true, interactable.mesh)
+            }
+          }
+
+          if (interactable.interactType === InteractType.ChoppingBoard) {
+            let previousIngredientsLength = objState.ingredientsOnBoard.length
+            $(objState).listen('ingredientsOnBoard', (currentIngredients) => {
+              if (currentIngredients.length !== previousIngredientsLength) {
+                this.playSfx('pickupPlace')
+                previousIngredientsLength = currentIngredients.length
+              }
+            })
+          }
         })
 
         this.setupGameEventListeners()
@@ -714,8 +747,6 @@ export class GameEngine {
 
     this.spawnedCustomers.set(chairId, newChick)
     this.createChickPoufEffect(chickPosition)
-
-    console.log('Spawned chick at chair ID:', chairId)
   }
 
   private handleRemoveChick(chairId: number): void {

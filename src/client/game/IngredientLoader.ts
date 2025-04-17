@@ -67,7 +67,7 @@ export class IngredientLoader {
         this.assetsManager.load()
       })
     } else {
-      console.log('No ingredient models to load based on registry.')
+      console.warn('No ingredient models to load based on registry.')
       return Promise.resolve()
     }
   }
