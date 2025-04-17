@@ -197,9 +197,14 @@ export class CharacterController {
 
         this.currentIngredientMesh.parent = targetParent
 
-        const ingredientScale = heldIngredientConfig?.scale
+        let ingredientScale = heldIngredientConfig?.scale
           ? new Vector3(heldIngredientConfig.scale.x, heldIngredientConfig.scale.y, heldIngredientConfig.scale.z)
           : defaultScale
+
+        if (this.holdingPlate && this.plateMesh) {
+          ingredientScale = new Vector3(ingredientScale.x / 0.5, ingredientScale.y / 0.5, ingredientScale.z / 0.5)
+        }
+
         this.currentIngredientMesh.scaling = ingredientScale
 
         const positionOffset = contextConfig?.positionOffset

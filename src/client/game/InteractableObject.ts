@@ -282,14 +282,18 @@ export class InteractableObject {
     fire.particleTexture = fireTexture.clone()
     const firePosition = new Vector3()
     firePosition.copyFrom(this.mesh.getAbsolutePosition())
-    firePosition.y += 1
+    firePosition.y += 0.4
     firePosition.z -= 0.2
+
+    const smokePosition = new Vector3()
+    smokePosition.copyFrom(firePosition)
+    smokePosition.y += 0.4
 
     fire.emitter = firePosition // Emitter is a single point
 
     // Emitter area (slightly wider than before, still flat)
-    const minEmitBox = new Vector3(-0.3, 0, -0.3)
-    const maxEmitBox = new Vector3(0.3, 0.1, 0.3) // Small vertical spread
+    const minEmitBox = new Vector3(-0.2, 0, -0.2)
+    const maxEmitBox = new Vector3(0.2, 0.1, 0.2) // Small vertical spread
     fire.minEmitBox = minEmitBox
     fire.maxEmitBox = maxEmitBox
 
@@ -344,7 +348,7 @@ export class InteractableObject {
 
     fire.disposeOnStop = true // Dispose when stopped (standard practice)
 
-    // --- SMOKE PARTICLE SYSTEM CONFIGURATION ---
+    // --- SMOKE PARTICLE SYSTEM CONFIGURATION (Cooking Smoke) ---
     let smokeTexture: Texture
     const smokeTexturePath = 'assets/particles/ExplosionTexture-Smoke-1.png'
     if (InteractableObject.particleTextures.has(smokeTexturePath)) {
@@ -354,46 +358,55 @@ export class InteractableObject {
       smokeTexture.hasAlpha = true
       InteractableObject.particleTextures.set(smokeTexturePath, smokeTexture)
     }
-    const smoke = new ParticleSystem('smoke', 200, this.scene)
+    const smoke = new ParticleSystem('smoke', 150, this.scene)
     smoke.particleTexture = smokeTexture.clone()
-    smoke.emitter = firePosition // Smoke comes from the same spot
-    smoke.minEmitBox = new Vector3(-0.4, 0.1, -0.4) // Slightly above the fire base
-    smoke.maxEmitBox = new Vector3(0.4, 0.3, 0.4)
-    // Smoke Colors (grey tones, slightly less dense alpha)
-    smoke.color1 = new Color4(0.3, 0.3, 0.3, 0.15)
-    smoke.color2 = new Color4(0.1, 0.1, 0.1, 0.1)
-    smoke.colorDead = new Color4(0, 0, 0, 0)
-    smoke.addColorGradient(0, new Color4(0.4, 0.4, 0.4, 0.0)) // Start invisible
-    smoke.addColorGradient(0.2, new Color4(0.3, 0.3, 0.3, 0.15)) // Fade in
-    smoke.addColorGradient(0.8, new Color4(0.1, 0.1, 0.1, 0.05)) // Fade out
-    smoke.addColorGradient(1.0, new Color4(0, 0, 0, 0))
-    smoke.minSize = 0.4 // Larger smoke particles
-    smoke.maxSize = 0.9
-    smoke.minLifeTime = 0.8 // Smoke lingers longer
-    smoke.maxLifeTime = 1.8
-    // Smoke size gradient (starts small, grows, lingers)
-    smoke.addSizeGradient(0, 0.3)
-    smoke.addSizeGradient(0.5, 0.9)
-    smoke.addSizeGradient(1.0, 1.2) // Continues growing slightly as it fades
-    smoke.emitRate = 25 // Less dense smoke
-    smoke.blendMode = ParticleSystem.BLENDMODE_STANDARD // Standard blending for smoke
+    smoke.emitter = smokePosition
+    smoke.minEmitBox = new Vector3(-0.3, 0.1, -0.3)
+    smoke.maxEmitBox = new Vector3(0.3, 0.2, 0.3)
+
+    // Whiter, very transparent
+    smoke.color1 = new Color4(1, 1, 1, 0.05)
+    smoke.color2 = new Color4(0.9, 0.9, 0.9, 0.03)
+    smoke.colorDead = new Color4(1, 1, 1, 0)
+
+    // Smooth fade in / out
+    smoke.addColorGradient(0.0, new Color4(1, 1, 1, 0.0)) // completely invisible at spawn
+    smoke.addColorGradient(0.3, new Color4(1, 1, 1, 0.05)) // gentle fade in
+    smoke.addColorGradient(0.7, new Color4(0.9, 0.9, 0.9, 0.02))
+    smoke.addColorGradient(1.0, new Color4(1, 1, 1, 0.0)) // fade out to invisible
+
+    // Soft, billowy look
+    smoke.minSize = 0.5
+    smoke.maxSize = 1.5
+    smoke.addSizeGradient(0.0, 0.4)
+    smoke.addSizeGradient(0.5, 1.2)
+    smoke.addSizeGradient(1.0, 1.8)
+
+    smoke.minLifeTime = 1.2 // lingers longer
+    smoke.maxLifeTime = 2.5
+
+    smoke.emitRate = 12 // fewer particles, more wispy
+    smoke.blendMode = ParticleSystem.BLENDMODE_STANDARD
+
     smoke.minInitialRotation = 0
     smoke.maxInitialRotation = Math.PI * 2
-    smoke.minAngularSpeed = -0.3
-    smoke.maxAngularSpeed = 0.3
-    smoke.gravity = new Vector3(0, 0.5, 0) // Smoke rises slowly
-    smoke.direction1 = new Vector3(-0.1, 0.5, -0.1) // Gentle upward drift
-    smoke.direction2 = new Vector3(0.1, 1.0, 0.1)
-    smoke.minEmitPower = 0.05
-    smoke.maxEmitPower = 0.2
-    smoke.updateSpeed = 0.01
+    smoke.minAngularSpeed = -0.2
+    smoke.maxAngularSpeed = 0.2
+
+    // Slow, upward drift
+    smoke.gravity = new Vector3(0, 0.2, 0)
+    smoke.direction1 = new Vector3(-0.05, 0.8, -0.05)
+    smoke.direction2 = new Vector3(0.05, 1.2, 0.05)
+    smoke.minEmitPower = 0.02
+    smoke.maxEmitPower = 0.08
+    smoke.updateSpeed = 0.02
+
     smoke.disposeOnStop = true
 
     // --- Start Systems ---
     fire.start()
     smoke.start()
 
-    // Store these systems to stop them later in deactivate()
     this.activeParticleSystems.push(fire, smoke)
   }
 
@@ -490,7 +503,7 @@ export class InteractableObject {
       }
     } else if (this.interactType === InteractType.ChoppingBoard || this.interactType === InteractType.Oven) {
       const isOven = this.interactType === InteractType.Oven
-      const yBaseOffset = isOven ? 2.4 : 0.1
+      const yBaseOffset = isOven ? 2.4 : 0
       const yStackOffset = 0.05
       const xSpread = 0.15
       const zOffset = isOven ? 0.4 : 0

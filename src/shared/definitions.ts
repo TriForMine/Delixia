@@ -11,7 +11,6 @@ export interface ItemDefinition {
   isFinal?: boolean // Flag indicating if it's the final item in a recipe, which can be served
 }
 
-
 // --- Item Registry ---
 export const ITEM_REGISTRY: Record<Ingredient, ItemDefinition> = {
   [Ingredient.None]: { id: Ingredient.None, name: 'None', icon: '', model: '' },
@@ -296,32 +295,6 @@ export function findCompletedRecipe(stationIngredients: Ingredient[], stationTyp
   }
   return null // No matching recipe found
 }
-
-export interface Vector3Config {
-  x: number
-  y: number
-  z: number
-}
-
-export interface QuaternionConfig {
-  x: number
-  y: number
-  z: number
-  w: number
-}
-
-export interface IngredientVisualConfig {
-  scale?: Vector3Config
-  positionOffset?: Vector3Config // Offset relative to the base position (hand attachment or plate center)
-  rotationOffset?: QuaternionConfig // Rotation relative to the parent (hand attachment or plate)
-}
-
-export interface HoldingConfig {
-  hand?: IngredientVisualConfig // Config when held directly
-  onPlate?: IngredientVisualConfig // Config when on a plate
-  onBoard?: IngredientVisualConfig // Config when on a board (if applicable)
-}
-
 // --- Visual Configuration Registry ---
 // Store visual adjustments for ingredients when held
 // Offsets are relative to a base position determined by context (hand attachment point or plate center)
@@ -358,22 +331,78 @@ export const INGREDIENT_VISUAL_CONFIG: Partial<Record<Ingredient, HoldingConfig>
   [Ingredient.Plate]: {
     scale: { x: 0.6, y: 0.6, z: 0.6 },
   },
-  [Ingredient.Onigiri]: {
-    scale: { x: 0.5, y: 0.5, z: 0.5 },
+  [Ingredient.Rice]: {
+    scale: { x: 0.4, y: 0.4, z: 0.4 },
+    onBoard: {
+      positionOffset: {
+        x: 0,
+        y: -0.1,
+        z: 0,
+      },
+    },
   },
   [Ingredient.CookedRice]: {
-    scale: { x: 0.35, y: 0.35, z: 0.35 },
+    scale: { x: 0.4, y: 0.4, z: 0.4 },
+    onBoard: {
+      positionOffset: {
+        x: 0,
+        y: -0.1,
+        z: 0,
+      },
+    },
   },
   [Ingredient.Nori]: {
     scale: { x: 0.4, y: 0.4, z: 0.4 },
+    onBoard: {
+      positionOffset: {
+        x: 0,
+        y: -0.05,
+        z: 0,
+      },
+    },
+  },
+  [Ingredient.Ebi]: {
+    onBoard: {
+      positionOffset: {
+        x: 0,
+        y: -0.05,
+        z: 0,
+      },
+    },
   },
   [Ingredient.EbiNigiri]: {
     scale: { x: 0.6, y: 0.6, z: 0.6 },
+  },
+  [Ingredient.Salmon]: {
+    onBoard: {
+      positionOffset: {
+        x: 0.23,
+        y: -0.1,
+        z: 0,
+      },
+    },
   },
   [Ingredient.SalmonNigiri]: {
     scale: { x: 0.6, y: 0.6, z: 0.6 },
   },
   [Ingredient.SeaUrchinRoll]: {
-    scale: { x: 0.6, y: 0.6, z: 0.6 },
+    scale: { x: 0.4, y: 0.4, z: 0.4 },
+    onBoard: {
+      positionOffset: {
+        x: 0,
+        y: -0.1,
+        z: 0,
+      },
+    },
+  },
+  [Ingredient.Onigiri]: {
+    scale: { x: 0.5, y: 0.5, z: 0.5 },
+    onBoard: {
+      positionOffset: {
+        x: 0,
+        y: -0.1,
+        z: 0,
+      },
+    },
   },
 }

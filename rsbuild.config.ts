@@ -10,6 +10,7 @@ export default defineConfig({
     template: './index.html',
   },
   source: {
+    exclude: [/src\/server/],
     define: {
       'import.meta.env': {},
     },
