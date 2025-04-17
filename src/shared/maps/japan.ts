@@ -404,13 +404,13 @@ const rawMapConfigs: MapModelConfig[] = [
     },
     instances: [
       {
-        position: { x: 2.9, y: 0.15, z: 8.6 },
+        position: { x: 3, y: 0.15, z: 8.6 },
         interaction: {
           interactType: InteractType.Fridge,
         },
       },
       {
-        position: { x: -2.9, y: 0.15, z: 8.6 },
+        position: { x: -3, y: 0.15, z: 8.6 },
         interaction: {
           interactType: InteractType.Fridge,
         },
@@ -420,7 +420,7 @@ const rawMapConfigs: MapModelConfig[] = [
   {
     map: 'japan',
     fileName: 'Oven.glb',
-    defaultScaling: { x: 0.5, y: 0.3, z: 0.5 },
+    defaultScaling: { x: 0.375, y: 0.3, z: 0.5 },
     defaultPhysics: {
       shapeType: PhysicsShapeType.BOX,
       mass: 0,
@@ -437,13 +437,13 @@ const rawMapConfigs: MapModelConfig[] = [
         interaction: {
           interactType: InteractType.Oven,
         },
-        position: { x: -1.75, y: 0.1, z: 8.5 },
+        position: { x: -2, y: 0.1, z: 8.57 },
       },
       {
         interaction: {
           interactType: InteractType.Oven,
         },
-        position: { x: 1.75, y: 0.1, z: 8.5 },
+        position: { x: 2, y: 0.1, z: 8.57 },
       },
     ],
   },
@@ -462,6 +462,14 @@ const rawMapConfigs: MapModelConfig[] = [
       },
       {
         position: { x: -4, y: 0.67, z: 6.5 },
+        rotation: { y: Math.PI },
+      },
+      {
+        position: { x: 1.25, y: 0.67, z: 8.5 },
+        rotation: { y: Math.PI },
+      },
+      {
+        position: { x: -1.25, y: 0.67, z: 8.5 },
         rotation: { y: Math.PI },
       },
     ],
@@ -744,7 +752,10 @@ const rawMapConfigs: MapModelConfig[] = [
     defaultScaling: { x: 1, y: 1, z: 1 },
     instances: [
       {
-        position: { x: 0.5, y: 0.5, z: 0.5 },
+        position: { x: 4, y: 0.6, z: 2 },
+      },
+      {
+        position: { x: -4, y: 0.6, z: 2 },
       },
     ],
   },
@@ -996,7 +1007,7 @@ const rawMapConfigs: MapModelConfig[] = [
       { position: { x: -4, y: 0.1, z: 8 }, rotation: { y: -Math.PI / 2 } },
       { position: { x: -4, y: 0.1, z: 3 }, rotation: { y: -Math.PI / 2 } },
 
-      { position: { x: 0, y: 0.1, z: 8.6 }, rotation: { y: Math.PI }, scaling: { x: 0.75, y: 0.3, z: 0.6 } },
+      { position: { x: 0, y: 0.1, z: 8.6 }, rotation: { y: Math.PI }, scaling: { x: 0.8, y: 0.3, z: 0.6 } },
 
       { position: { x: 0, y: 0.1, z: 5.25 }, scaling: { x: 0.9, y: 0.3, z: 1.25 } },
     ],
@@ -1084,7 +1095,7 @@ const rawMapConfigs: MapModelConfig[] = [
   {
     map: 'fastfood',
     fileName: 'Pot A.glb',
-    defaultScaling: { x: 0.55, y: 0.75, z: 0.55 },
+    defaultScaling: { x: 0.5, y: 0.7, z: 0.5 },
     defaultPhysics: {
       shapeType: PhysicsShapeType.MESH,
       mass: 0,
@@ -1093,11 +1104,11 @@ const rawMapConfigs: MapModelConfig[] = [
     },
     instances: [
       {
-        position: { x: 1.75, y: 0.77, z: 8.3 },
+        position: { x: 2, y: 0.77, z: 8.4 },
         rotation: { y: Math.PI },
       },
       {
-        position: { x: -1.75, y: 0.77, z: 8.3 },
+        position: { x: -2, y: 0.77, z: 8.4 },
         rotation: { y: Math.PI },
       },
     ],
