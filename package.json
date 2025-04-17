@@ -11,7 +11,8 @@
     "client:preview": "rsbuild preview",
     "dev": "concurrently --kill-others --prefix-colors \"blue,green\" --names \"CLIENT,SERVER\" \"bun run client:dev\" \"bun run server:dev\"",
     "server:dev": "bun run --watch src/server/index.ts",
-    "server:start": "bun run src/server/index.ts"
+    "server:start": "bun run src/server/index.ts",
+    "server:build": "bun build src/server/index.ts --compile --target=bun"
   },
   "dependencies": {
     "@babylonjs/core": "8.3.0",
