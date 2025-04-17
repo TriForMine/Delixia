@@ -6,7 +6,7 @@ import { Texture } from '@babylonjs/core/Materials/Textures/texture'
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial'
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color'
 import { Vector3 } from '@babylonjs/core/Maths/math.vector'
-import type { Mesh } from '@babylonjs/core/Meshes/mesh'
+import { Mesh } from '@babylonjs/core/Meshes/mesh'
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder'
 import { AssetsManager } from '@babylonjs/core/Misc/assetsManager'
 import { HavokPlugin } from '@babylonjs/core/Physics/v2/Plugins/havokPlugin'
@@ -22,7 +22,6 @@ import { InteractableObject } from './InteractableObject.ts'
 import { LocalCharacterController } from './LocalCharacterController'
 import { MapLoader } from './MapLoader.ts'
 import { RemoteCharacterController } from './RemoteCharacterController'
-import { AdvancedDynamicTexture } from '@babylonjs/gui/2D/advancedDynamicTexture'
 import '@babylonjs/core/Physics/joinedPhysicsEngineComponent'
 import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent'
 import { IngredientLoader } from '@client/game/IngredientLoader.ts'
@@ -36,6 +35,10 @@ import type { Order } from '@shared/schemas/Order.ts'
 import { ParticleSystem } from '@babylonjs/core/Particles/particleSystem'
 import type { AssetContainer } from '@babylonjs/core/assetContainer'
 import { getRecipeDefinition } from '@shared/recipes.ts'
+import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture'
+import { getItemDefinition } from '@shared/items.ts'
+import type { Observer } from '@babylonjs/core/Misc/observable'
+import { Scalar } from '@babylonjs/core/Maths/math.scalar'
 
 export class GameEngine {
   public interactables: InteractableObject[] = []
@@ -58,6 +61,18 @@ export class GameEngine {
   private chickenTemplateMesh: AbstractMesh | null = null
   private chickenAssetContainer: AssetContainer | null = null
   private spawnedCustomers = new Map<number, AbstractMesh>()
+
+  private customerOrderMeshes = new Map<number, Mesh>()
+  private orderUITextures = new Map<number, DynamicTexture>()
+  private orderUIMaterials = new Map<number, StandardMaterial>()
+  private uiRenderObserver: Observer<Scene> | null = null
+  private readonly customerUIOffset = new Vector3(0, 2.0, 0)
+  private _uiUpdatePosVector = new Vector3()
+
+  private customerOrderData = new Map<number, { createdAt: number; deadline: number }>()
+  private customerOrderIcons = new Map<number, HTMLImageElement>()
+  private lastOrderUIUpdateTimes = new Map<number, number>()
+  private readonly orderUIUpdateInterval = 250
 
   // Pre-allocated vector for position calculations
   private _playerPosTemp: Vector3 = new Vector3()
@@ -121,6 +136,8 @@ export class GameEngine {
 
     // Set a reasonable physics timestep
     scene.getPhysicsEngine()?.setTimeStep(1 / 60)
+
+    this._setupUIRenderObserver()
   }
 
   /**
@@ -152,6 +169,22 @@ export class GameEngine {
     InteractableObject.reset()
     this.ingredientLoader?.dispose() // Dispose ingredient loader
     this.scene.dispose()
+
+    if (this.uiRenderObserver) {
+      this.scene.onBeforeRenderObservable.remove(this.uiRenderObserver)
+      this.uiRenderObserver = null
+    }
+    this.customerOrderMeshes.forEach((mesh) => mesh.dispose())
+    this.customerOrderMeshes.clear()
+    this.orderUITextures.forEach((texture) => texture.dispose())
+    this.orderUITextures.clear()
+    this.orderUIMaterials.forEach((material) => material.dispose())
+    this.orderUIMaterials.clear()
+
+    this.customerOrderData.clear()
+    this.customerOrderIcons.clear()
+    this.lastOrderUIUpdateTimes.clear()
+
     console.log('GameEngine disposed')
   }
 
@@ -326,9 +359,6 @@ export class GameEngine {
 
     // When all assets are loaded
     this.assetsManager.onFinish = () => {
-      // Create UI if needed for other elements
-      AdvancedDynamicTexture.CreateFullscreenUI('UI')
-
       // Update loading state
       this.loadingState.assets.progress = 100
       this.loadingState.currentTask = 'Assets loaded, preparing map and sounds...'
@@ -508,6 +538,47 @@ export class GameEngine {
     this.inputManager.requestFocusAndPointerLock()
   }
 
+  private _setupUIRenderObserver(): void {
+    if (this.uiRenderObserver) {
+      this.scene.onBeforeRenderObservable.remove(this.uiRenderObserver) // Remove old one if exists
+    }
+    this.uiRenderObserver = this.scene.onBeforeRenderObservable.add(() => {
+      const now = Date.now()
+
+      this.customerOrderMeshes.forEach((uiMesh, chairId) => {
+        const customerMesh = this.spawnedCustomers.get(chairId)
+
+        if (customerMesh && customerMesh.isEnabled()) {
+          // --- Update Position (as before) ---
+          customerMesh.getAbsolutePosition().addToRef(this.customerUIOffset, this._uiUpdatePosVector)
+          uiMesh.setAbsolutePosition(this._uiUpdatePosVector)
+          if (!uiMesh.isEnabled()) uiMesh.setEnabled(true)
+
+          // --- Update Texture (Throttled) ---
+          const lastUpdate = this.lastOrderUIUpdateTimes.get(chairId) ?? 0
+          if (now - lastUpdate > this.orderUIUpdateInterval) {
+            const texture = this.orderUITextures.get(chairId)
+            const orderData = this.customerOrderData.get(chairId)
+            const iconImage = this.customerOrderIcons.get(chairId) // Get preloaded image
+
+            if (texture && orderData && iconImage && iconImage.complete) {
+              // Ensure image is loaded
+              this.drawOrderUIWithTimer(texture, orderData, iconImage)
+              this.lastOrderUIUpdateTimes.set(chairId, now)
+            }
+          }
+        } else {
+          // Hide UI if customer doesn't exist or is disabled
+          if (uiMesh.isEnabled()) uiMesh.setEnabled(false)
+          // Also clear the update timer tracker if the customer disappears
+          if (this.lastOrderUIUpdateTimes.has(chairId)) {
+            this.lastOrderUIUpdateTimes.delete(chairId)
+          }
+        }
+      })
+    })
+  }
+
   private setupGameEventListeners(): void {
     const $ = getStateCallbacks(this.room)
 
@@ -632,14 +703,18 @@ export class GameEngine {
     $(this.room.state).orders.onAdd((order: Order) => {
       if (order.chairId !== -1) {
         this.handleSpawnChick(order.chairId, order.customerType)
+        // Store data needed for the timer
+        this.customerOrderData.set(order.chairId, {
+          createdAt: order.createdAt,
+          deadline: order.deadline,
+        })
+        this.createCustomerOrderUI_3D(order.chairId, order.recipeId)
       }
-      // Listen for changes to chairId *after* adding (less likely with current server logic, but good practice)
-      $(order).listen('chairId', (currentChairId, previousChairId) => {
-        if (previousChairId !== -1) {
-          this.handleRemoveChick(previousChairId)
-        }
-        if (currentChairId !== -1) {
-          this.handleSpawnChick(currentChairId, order.customerType)
+
+      $(order).listen('deadline', (currentDeadline) => {
+        if (order.chairId !== -1 && this.customerOrderData.has(order.chairId)) {
+          this.customerOrderData.set(order.chairId, { createdAt: order.createdAt, deadline: currentDeadline })
+          this.lastOrderUIUpdateTimes.set(order.chairId, 0)
         }
       })
     })
@@ -647,13 +722,9 @@ export class GameEngine {
     $(this.room.state).orders.onRemove((order: Order) => {
       if (order.chairId !== -1) {
         this.handleRemoveChick(order.chairId)
-      }
-    })
-
-    // Initial spawn for existing orders when client joins
-    this.room.state.orders.forEach((order) => {
-      if (order.chairId !== -1) {
-        this.handleSpawnChick(order.chairId, order.customerType)
+        this.removeCustomerOrderUI_3D(order.chairId)
+        this.customerOrderData.delete(order.chairId)
+        this.lastOrderUIUpdateTimes.delete(order.chairId)
       }
     })
 
@@ -704,6 +775,197 @@ export class GameEngine {
 
       this.dispose()
     })
+  }
+
+  private createCustomerOrderUI_3D(chairId: number, recipeId: string): void {
+    if (this.customerOrderMeshes.has(chairId)) {
+      this.removeCustomerOrderUI_3D(chairId) // Clean up existing first
+    }
+    const customerMesh = this.spawnedCustomers.get(chairId)
+    if (!customerMesh) return
+    const recipe = getRecipeDefinition(recipeId)
+    if (!recipe) return
+    const finalItem = getItemDefinition(recipe.result.ingredient)
+    if (!finalItem || !finalItem.icon) return
+
+    const iconUrl = `/ingredients/${finalItem.icon}.png`
+    const planeSize = 0.6 // Slightly larger plane for bar
+    const textureWidth = 128
+    const textureHeight = 128 // Keep square texture
+
+    // 1. Create Plane Mesh (as before)
+    const plane = MeshBuilder.CreatePlane(`orderPlane_${chairId}`, { size: planeSize }, this.scene)
+    plane.billboardMode = Mesh.BILLBOARDMODE_ALL
+    plane.isPickable = false
+    plane.renderingGroupId = 1
+    plane.position = customerMesh.getAbsolutePosition().add(this.customerUIOffset)
+    plane.setEnabled(true)
+
+    // 2. Create Dynamic Texture (as before)
+    const dynamicTexture = new DynamicTexture(
+      `orderTex_${chairId}`,
+      { width: textureWidth, height: textureHeight },
+      this.scene,
+      false,
+      Texture.TRILINEAR_SAMPLINGMODE,
+    )
+    dynamicTexture.hasAlpha = true
+
+    // 3. Load the Image but store it, drawing happens in drawOrderUIWithTimer
+    const img = new Image()
+    img.src = iconUrl
+    img.onload = () => {
+      // Store the loaded image
+      this.customerOrderIcons.set(chairId, img)
+      // Trigger an initial draw now that the image is loaded
+      const orderData = this.customerOrderData.get(chairId)
+      if (orderData) {
+        this.drawOrderUIWithTimer(dynamicTexture, orderData, img)
+      } else {
+        // Fallback draw if order data somehow missing initially
+        this.drawOrderUIWithTimer(dynamicTexture, { createdAt: Date.now(), deadline: Date.now() + 60000 }, img) // Default 60s
+      }
+    }
+    img.onerror = () => {
+      console.error(`[UI 3D] Failed to load icon: ${iconUrl}`)
+      // Create a placeholder image object if loading fails
+      const placeholderImg = new Image() // You might need a more robust way
+      placeholderImg.width = 1
+      placeholderImg.height = 1 // Minimal size
+      this.customerOrderIcons.set(chairId, placeholderImg) // Store placeholder
+      // Trigger an initial draw with placeholder
+      const orderData = this.customerOrderData.get(chairId)
+      if (orderData) {
+        this.drawOrderUIWithTimer(dynamicTexture, orderData, placeholderImg, true) // Pass error flag
+      }
+    }
+
+    // 4. Create Material (as before)
+    const material = new StandardMaterial(`orderMat_${chairId}`, this.scene)
+    material.diffuseTexture = dynamicTexture
+    material.opacityTexture = dynamicTexture
+    material.useAlphaFromDiffuseTexture = false
+    material.specularColor = new Color3(0, 0, 0)
+    material.emissiveColor = Color3.White()
+    material.disableLighting = true
+    material.backFaceCulling = false
+
+    // 5. Apply Material (as before)
+    plane.material = material
+
+    // 6. Store references (as before)
+    this.customerOrderMeshes.set(chairId, plane)
+    this.orderUITextures.set(chairId, dynamicTexture)
+    this.orderUIMaterials.set(chairId, material)
+    // Reset update timer to force initial draw via observer
+    this.lastOrderUIUpdateTimes.set(chairId, 0)
+  }
+
+  private drawOrderUIWithTimer(
+    texture: DynamicTexture,
+    orderData: { createdAt: number; deadline: number },
+    iconImage: HTMLImageElement,
+    loadError: boolean = false,
+  ): void {
+    const textureWidth = texture.getSize().width
+    const textureHeight = texture.getSize().height
+    const ctx = texture.getContext() as CanvasRenderingContext2D
+
+    if (!ctx) return
+
+    // --- Calculate Time Percentage ---
+    let percentage = 1.0 // Default to full if no deadline
+    if (orderData.deadline > 0 && orderData.createdAt > 0) {
+      const totalDuration = orderData.deadline - orderData.createdAt
+      const now = Date.now()
+      const elapsed = now - orderData.createdAt
+      percentage = Scalar.Clamp(1.0 - elapsed / totalDuration, 0, 1)
+    }
+    // Handle case where time might be up but update is lagging
+    if (orderData.deadline > 0 && Date.now() > orderData.deadline) {
+      percentage = 0
+    }
+
+    // --- Define Areas ---
+    const padding = 16
+    const progressBarHeight = 18 // Height of the progress bar
+    const iconAreaHeight = textureHeight - progressBarHeight - padding * 3 // Height available for icon + top/bottom padding
+    const iconAreaY = padding
+    const progressBarY = iconAreaY + iconAreaHeight + padding // Position bar below icon area
+
+    // --- Clear and Draw Background ---
+    ctx.clearRect(0, 0, textureWidth, textureHeight)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)' // Background
+    ctx.beginPath()
+    ctx.roundRect(padding / 2, padding / 2, textureWidth - padding, textureHeight - padding, 15) // Slightly inset rounded rect
+    ctx.fill()
+
+    // --- Draw Icon ---
+    if (!loadError && iconImage.complete && iconImage.naturalWidth > 0) {
+      const iconSize = Math.min(textureWidth - padding * 2, iconAreaHeight) * 0.9 // Icon size uses 90% of its available area
+      const iconX = (textureWidth - iconSize) / 2
+      const iconY = iconAreaY + (iconAreaHeight - iconSize) / 2 // Center vertically in its area
+      ctx.drawImage(iconImage, iconX, iconY, iconSize, iconSize)
+    } else if (loadError) {
+      // Draw placeholder text if icon failed
+      ctx.fillStyle = 'white'
+      ctx.font = 'bold 30px Arial'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('?', textureWidth / 2, iconAreaY + iconAreaHeight / 2)
+    }
+
+    // --- Draw Progress Bar ---
+    if (orderData.deadline > 0) {
+      // Only draw if there's a deadline
+      const barX = padding
+      const barWidth = textureWidth - padding * 2
+      const fillWidth = barWidth * percentage
+
+      // Draw Bar Background (darker grey)
+      ctx.fillStyle = 'rgba(50, 50, 50, 0.8)'
+      ctx.fillRect(barX, progressBarY, barWidth, progressBarHeight)
+
+      // Determine Fill Color based on percentage
+      let fillColor = '#4ade80' // Green (default)
+      if (percentage < 0.25) {
+        fillColor = '#f87171' // Red
+      } else if (percentage < 0.6) {
+        fillColor = '#facc15' // Yellow
+      }
+      ctx.fillStyle = fillColor
+      ctx.fillRect(barX, progressBarY, fillWidth, progressBarHeight)
+
+      // Draw Bar Outline
+      ctx.strokeStyle = 'rgba(200, 200, 200, 0.7)'
+      ctx.lineWidth = 1
+      ctx.strokeRect(barX, progressBarY, barWidth, progressBarHeight)
+    }
+
+    // --- Update Texture ---
+    texture.update(true)
+  }
+
+  private removeCustomerOrderUI_3D(chairId: number): void {
+    const mesh = this.customerOrderMeshes.get(chairId)
+    if (mesh) {
+      mesh.dispose()
+      this.customerOrderMeshes.delete(chairId)
+    }
+    const texture = this.orderUITextures.get(chairId)
+    if (texture) {
+      texture.dispose()
+      this.orderUITextures.delete(chairId)
+    }
+    const material = this.orderUIMaterials.get(chairId)
+    if (material) {
+      material.dispose()
+      this.orderUIMaterials.delete(chairId)
+    }
+    // Clean up associated data
+    this.customerOrderData.delete(chairId)
+    this.customerOrderIcons.delete(chairId)
+    this.lastOrderUIUpdateTimes.delete(chairId)
   }
 
   private handleSpawnChick(chairId: number, customerType: string): void {
