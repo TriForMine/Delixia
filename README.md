@@ -49,7 +49,7 @@ The game utilizes a client-server architecture for real-time online multiplayer 
 ```mermaid
 graph LR
     subgraph Client ["Client (Browser)"]
-        UI[React UI (Orders, Timer, Score)]
+        UI["React UI (Orders, Timer, Score)"]
         Engine[Babylon.js Engine]
         LocalChar[Local Character Controller]
         RemoteChar[Remote Character Controller]
