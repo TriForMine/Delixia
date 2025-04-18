@@ -31,7 +31,6 @@ export class LocalCharacterController extends CharacterController {
   private isJumping = false
   private previousJumpKeyState = false
   private previousInteractKeyState = false
-  private previousState: CharacterState = CharacterState.IDLE
 
   private readonly cameraAttachPoint: TransformNode
   private readonly gameEngine: GameEngine
@@ -60,6 +59,8 @@ export class LocalCharacterController extends CharacterController {
   private targetVisibility: number = 1.0 // Target visibility level (1 = visible, 0 = invisible)
   private readonly fadeSpeed: number = 20.0 // Speed of the fade effect
   private readonly invisibleVisibilityValue: number = 0.0 // Visibility value when fully faded out (usually 0)
+
+  private isLandingAnimationActive: boolean = false;
 
   constructor(
     gameEngine: GameEngine,
@@ -115,8 +116,6 @@ export class LocalCharacterController extends CharacterController {
     const hknp = hk._hknp
     this._startCollector = hknp.HP_QueryCollector_Create(16)[1]
     this._castCollector = hknp.HP_QueryCollector_Create(16)[1]
-
-    this.previousState = this.currentState
   }
 
   // Pre-allocated vectors for update method
@@ -198,63 +197,74 @@ export class LocalCharacterController extends CharacterController {
   }
 
   private updateState(): void {
-    const supportState = this.checkSupport()
-    const verticalVelocity = this.physicsAggregate.body.getLinearVelocity().y
+    const supportState = this.checkSupport();
+    const verticalVelocity = this.physicsAggregate.body.getLinearVelocity().y;
+    const isMovingHorizontally = this.isAnyMovementKeyDown();
 
-    // Reset jumping flag only when truly supported and not moving upwards.
-    if (supportState === CharacterSupportedState.SUPPORTED && verticalVelocity <= 0.1) {
-      this.isJumping = false
+    let nextState: CharacterState;
+
+    // --- Check if Landing Animation is Still Active ---
+    // Use weight as primary indicator for blending completion.
+    // Reset the flag when the animation is no longer visually dominant.
+    if (this.isLandingAnimationActive && this.landingAnim.weight < 0.1) {
+      this.isLandingAnimationActive = false;
+      // Ensure the animation is reset if it was paused mid-way
+      if (!this.landingAnim.isPlaying) {
+        this.landingAnim.goToFrame(0);
+      }
     }
 
-    let newState: CharacterState
-
+    // --- State Determination Logic ---
     if (this.inputMap.get(this.keyDance)) {
-      newState = CharacterState.DANCING
+      nextState = CharacterState.DANCING;
+      this.isJumping = false;
+      this.isLandingAnimationActive = false; // Stop landing if dancing
     } else if (supportState === CharacterSupportedState.SUPPORTED) {
-      // Did we just land? (Transitioned from an aerial state)
-      if (this.previousState === CharacterState.FALLING || this.previousState === CharacterState.JUMPING) {
-        newState = CharacterState.LANDING // Enter LANDING state
+      // Grounded Logic
+
+      // Just landed? (Transitioned from aerial state)
+      if (this.currentState === CharacterState.FALLING || this.currentState === CharacterState.JUMPING) {
+        nextState = CharacterState.LANDING;
+        this.isJumping = false;
+        this.isLandingAnimationActive = true; // Start landing animation phase
+        this.gameEngine.playSfx('jumpLand', 0.65, false);
       }
-      // If we are already in the LANDING state, we need to wait for the animation to finish
-      else if (this.currentState === CharacterState.LANDING) {
-        // Check the *current* state too
-        newState = CharacterState.LANDING // Stay in LANDING for now
+      // Currently in landing animation phase?
+      else if (this.isLandingAnimationActive) {
+        // If moving, immediately break out to walking
+        if (isMovingHorizontally) {
+          nextState = CharacterState.WALKING;
+          this.isLandingAnimationActive = false; // Exit landing phase
+        } else {
+          // Stay in LANDING state visually, let animation blend out
+          nextState = CharacterState.LANDING;
+        }
       }
-      // Otherwise, we are grounded and not currently landing, so switch to IDLE or WALKING
+      // Already grounded and landing animation phase is finished
       else {
-        newState = this.isAnyMovementKeyDown() ? CharacterState.WALKING : CharacterState.IDLE
+        nextState = isMovingHorizontally ? CharacterState.WALKING : CharacterState.IDLE;
+        this.isJumping = false; // Ensure reset
       }
     } else if (supportState === CharacterSupportedState.SLIDING) {
-      // Sliding on a steep slope
-      newState = CharacterState.FALLING // Treat sliding as falling for animation purposes
+      // Sliding Logic
+      nextState = CharacterState.FALLING;
+      this.isJumping = false;
+      this.isLandingAnimationActive = false; // Stop landing if sliding
     } else {
-      // Determine if we are in the ascending phase of a jump or just falling
-      if (this.isJumping && verticalVelocity > 0) {
-        newState = CharacterState.JUMPING // Upward phase of the jump
+      // Aerial Logic
+      if (this.isJumping && verticalVelocity > 0.05) {
+        nextState = CharacterState.JUMPING;
       } else {
-        newState = CharacterState.FALLING // Downward phase or free fall
+        nextState = CharacterState.FALLING;
+        if (this.isJumping) {
+          this.isJumping = false;
+        }
       }
+      this.isLandingAnimationActive = false; // Not landing if aerial
     }
 
-    // --- Play Landing Sound on State Transition ---
-    // Play the sound when entering the LANDING state from an aerial state
-    if (newState === CharacterState.LANDING && (this.previousState === CharacterState.FALLING || this.previousState === CharacterState.JUMPING)) {
-      this.gameEngine.playSfx('jumpLand', 0.65, false)
-    }
-
-    // --- Condition to Exit LANDING State ---
-    // If the current state is LANDING *and* the calculated newState is also LANDING (meaning we haven't decided to switch yet)
-    // *and* the landing animation's weight is very low (meaning it's almost finished blending out),
-    // then we can finally transition to IDLE or WALKING based on movement keys.
-    else if (this.currentState === CharacterState.LANDING && newState === CharacterState.LANDING && this.landingAnim.weight < 0.1) {
-      newState = this.isAnyMovementKeyDown() ? CharacterState.WALKING : CharacterState.IDLE
-    }
-
-    // Update the character's current state *after* all checks and potential transitions
-    this.currentState = newState
-
-    // Update the previous state for the next frame's check, using the final state determined above
-    this.previousState = this.currentState
+    // Set the final state for this frame
+    this.currentState = nextState;
   }
 
   // Pre-allocated vectors for movement calculations
@@ -481,7 +491,7 @@ export class LocalCharacterController extends CharacterController {
 
     // Perform ray casting
     const hit = this.scene.pickWithRay(this._cameraRay, (mesh) => {
-      return mesh.isPickable && mesh !== this.getTransform()
+      return mesh.physicsBody != null && mesh.isEnabled() && mesh !== this.getTransform() && mesh.isPickable
     })
 
     // Calculate camera radius
@@ -497,7 +507,15 @@ export class LocalCharacterController extends CharacterController {
     clampedRadius = Math.min(clampedRadius, camera.upperRadiusLimit ?? 9999999)
     clampedRadius = Math.max(clampedRadius, camera.lowerRadiusLimit ?? 1)
 
-    camera.radius = clampedRadius
+    // Apply smooth transition to the new radius to prevent sudden jumps
+    // Using Scalar.Lerp for smoother adjustment
+    const lerpFactor = 1.0 - Math.exp(-15 * this.scene.getEngine().getDeltaTime() / 1000); // Adjust speed (15) as needed
+    camera.radius = Scalar.Lerp(camera.radius, clampedRadius, lerpFactor);
+
+    // Ensure radius doesn't go significantly below the intended clamped value due to lerp overshoot
+    if (Math.abs(camera.radius - clampedRadius) < 0.01) {
+      camera.radius = clampedRadius;
+    }
   }
 
   private isAnyMovementKeyDown(): boolean {

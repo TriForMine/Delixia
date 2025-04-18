@@ -405,15 +405,9 @@ const rawMapConfigs: MapModelConfig[] = [
     instances: [
       {
         position: { x: 3, y: 0.15, z: 8.6 },
-        interaction: {
-          interactType: InteractType.Fridge,
-        },
       },
       {
         position: { x: -3, y: 0.15, z: 8.6 },
-        interaction: {
-          interactType: InteractType.Fridge,
-        },
       },
     ],
   },
@@ -470,6 +464,30 @@ const rawMapConfigs: MapModelConfig[] = [
       },
       {
         position: { x: -1.25, y: 0.67, z: 8.5 },
+        rotation: { y: Math.PI },
+      },
+      {
+        position: { x: 3.1, y: 0.67, z: 2 },
+        rotation: { y: Math.PI },
+      },
+      {
+        position: { x: -3.1, y: 0.67, z: 2 },
+        rotation: { y: Math.PI },
+      },
+      {
+        position: { x: 4, y: 0.67, z: 2.8 },
+        rotation: { y: Math.PI },
+      },
+      {
+        position: { x: -4, y: 0.67, z: 2.8 },
+        rotation: { y: Math.PI },
+      },
+      {
+        position: { x: 4, y: 0.67, z: 8.25 },
+        rotation: { y: Math.PI },
+      },
+      {
+        position: { x: -4, y: 0.67, z: 8.25 },
         rotation: { y: Math.PI },
       },
     ],
@@ -762,10 +780,23 @@ const rawMapConfigs: MapModelConfig[] = [
   {
     map: 'japan',
     fileName: 'Candy cane.glb',
-    defaultScaling: { x: 0.01, y: 0.01, z: 0.01 },
+    defaultScaling: { x: 0.03, y: 0.05, z: 0.035 },
     instances: [
       {
-        position: { x: 0.5, y: 0.5, z: 0.5 },
+        position: { x: 4, y: 0, z: 3.9 },
+        rotation: { y: -Math.PI / 2 },
+      },
+      {
+        position: { x: 4, y: 0, z: 4.61 },
+        rotation: { y: Math.PI / 2 },
+      },
+      {
+        position: { x: -4, y: 0, z: 3.9 },
+        rotation: { y: -Math.PI / 2 },
+      },
+      {
+        position: { x: -4, y: 0, z: 4.61 },
+        rotation: { y: Math.PI / 2 },
       },
     ],
   },
@@ -1001,11 +1032,11 @@ const rawMapConfigs: MapModelConfig[] = [
 
       { position: { x: 4, y: 0.1, z: 6 }, rotation: { y: Math.PI / 2 } },
       { position: { x: 4, y: 0.1, z: 8 }, rotation: { y: Math.PI / 2 } },
-      { position: { x: 4, y: 0.1, z: 3 }, rotation: { y: Math.PI / 2 } },
+      { position: { x: 4, y: 0.1, z: 3 }, rotation: { y: Math.PI / 2 }, scaling: { x: 0.5, y: 0.3, z: 0.25 } },
 
       { position: { x: -4, y: 0.1, z: 6 }, rotation: { y: -Math.PI / 2 } },
       { position: { x: -4, y: 0.1, z: 8 }, rotation: { y: -Math.PI / 2 } },
-      { position: { x: -4, y: 0.1, z: 3 }, rotation: { y: -Math.PI / 2 } },
+      { position: { x: -4, y: 0.1, z: 3 }, rotation: { y: -Math.PI / 2 }, scaling: { x: 0.5, y: 0.3, z: 0.25 } },
 
       { position: { x: 0, y: 0.1, z: 8.6 }, rotation: { y: Math.PI }, scaling: { x: 0.8, y: 0.3, z: 0.6 } },
 

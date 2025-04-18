@@ -104,6 +104,7 @@ export class CharacterController {
     if (landingAnimGroup === undefined) throw new Error("'Landing' animation not found")
     this.landingAnim = landingAnimGroup
     this.landingAnim.weight = 0
+    this.landingAnim.loopAnimation = false
 
     const idleAnimGroup = animationGroups.find((ag) => ag.name === 'Idle')
     if (idleAnimGroup === undefined) throw new Error("'Idle' animation not found")
@@ -345,71 +346,70 @@ export class CharacterController {
    * @param deltaTime Time elapsed since the last frame.
    */
   protected updateAnimations(deltaTime: number): void {
-    // Determine target animation based on the current state
-    let targetAnim: AnimationGroup = this.idleAnim // Default to idle
+    let targetAnim: AnimationGroup = this.idleAnim;
     switch (this.currentState) {
       case CharacterState.IDLE:
-        targetAnim = this.idleAnim
-        break
+        targetAnim = this.idleAnim;
+        break;
       case CharacterState.WALKING:
-        targetAnim = this.walkAnim
-        break
+        targetAnim = this.walkAnim;
+        break;
       case CharacterState.JUMPING:
-        targetAnim = this.jumpAnim
-        break
+        targetAnim = this.jumpAnim;
+        break;
       case CharacterState.FALLING:
-        targetAnim = this.fallingAnim
-        break
+        targetAnim = this.fallingAnim;
+        break;
       case CharacterState.LANDING:
-        targetAnim = this.landingAnim
-        break
+        targetAnim = this.landingAnim;
+        break;
       case CharacterState.DANCING:
-        targetAnim = this.sambaDanceAnim
-        break
+        targetAnim = this.sambaDanceAnim;
+        break;
     }
 
-    // Blending logic
-    let weightSum = 0 // Keep track of the weight used by non-idle animations
-    for (const anim of this.nonIdleAnimations) {
-      if (anim === targetAnim) {
-        // Smoothly blend weight towards 1.0 for the target animation
-        anim.weight = moveTowards(anim.weight, 1.0, this.animationBlendSpeed * deltaTime)
-        // Ensure the animation is playing if its weight is significant
-        if (!anim.isPlaying && anim.weight > 0.01) {
-          // Play only if weight is noticeable
-          // Determine if the target animation should loop based on its type
-          const shouldLoop = anim === this.fallingAnim || anim === this.walkAnim || anim === this.sambaDanceAnim
-          anim.play(shouldLoop) // Play with looping enabled only if necessary
+    this.targetAnim = targetAnim;
 
-          // If the animation is not set to loop (e.g., Jump, Land),
-          // explicitly reset it to the beginning frame each time it starts playing.
-          // This prevents it from resuming mid-animation if played again quickly.
-          if (!shouldLoop) {
-            anim.goToFrame(0)
+    let weightSum = 0;
+    for (const anim of this.nonIdleAnimations) {
+      const targetWeight = anim === targetAnim ? 1.0 : 0.0;
+      anim.weight = moveTowards(anim.weight, targetWeight, this.animationBlendSpeed * deltaTime);
+
+      if (anim === targetAnim && anim.weight > 0.01 && !anim.isPlaying) {
+        const shouldLoop = anim === this.fallingAnim || anim === this.walkAnim || anim === this.sambaDanceAnim;
+        if (!shouldLoop) {
+          anim.goToFrame(0); // Ensure non-looping starts at frame 0
+        }
+        anim.play(shouldLoop);
+      } else if (anim !== targetAnim && anim.weight < 0.01) {
+        if (anim.isPlaying) {
+          anim.pause();
+          // Ensure non-looping animations are reset when they fully fade out or are paused
+          if (!anim.loopAnimation) {
+            anim.goToFrame(0);
           }
         }
-      } else {
-        // Smoothly blend weight towards 0.0 for non-target animations
-        anim.weight = moveTowards(anim.weight, 0.0, this.animationBlendSpeed * deltaTime)
-        // Pause the animation if its weight becomes negligible to save resources
-        if (anim.weight < 0.01 && anim.isPlaying) {
-          anim.pause()
-        }
       }
-      // Accumulate the weight used by this non-idle animation
-      weightSum += anim.weight
+      weightSum += anim.weight;
     }
 
-    // The idle animation takes up the remaining weight (1.0 - weightSum)
-    // Ensures a smooth transition back to idle when no other animation is fully active.
-    this.idleAnim.weight = moveTowards(this.idleAnim.weight, Math.max(1.0 - weightSum, 0.0), this.animationBlendSpeed * deltaTime)
-
-    // Play or pause the idle animation based on its weight
-    if (this.idleAnim.weight > 0 && !this.idleAnim.isPlaying) {
-      this.idleAnim.play(true) // Idle animation always loops
-    } else if (this.idleAnim.weight <= 0 && this.idleAnim.isPlaying) {
-      // Pause idle if its weight drops to zero (another animation has taken over)
-      this.idleAnim.pause()
+    this.idleAnim.weight = moveTowards(this.idleAnim.weight, Math.max(0.0, 1.0 - weightSum), this.animationBlendSpeed * deltaTime);
+    if (this.idleAnim.weight > 0.01 && !this.idleAnim.isPlaying) {
+      this.idleAnim.play(true);
+    } else if (this.idleAnim.weight < 0.01 && this.idleAnim.isPlaying) {
+      this.idleAnim.pause();
     }
   }
+
+  /** Helper to check if an animation is visually blended out */
+  protected isAnimationFinished(anim: AnimationGroup): boolean {
+    // Considered finished if not playing OR weight is very low
+    // For non-looping animations, check isPlaying specifically.
+    if (!anim.loopAnimation) {
+      return !anim.isPlaying && anim.weight < 0.1;
+    }
+    // For looping animations, weight is a better indicator of blend-out
+    return anim.weight < 0.1;
+  }
+
 }
