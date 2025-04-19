@@ -513,6 +513,12 @@ export class GameEngine {
                   interactable.hideCookingVisual()
                 }
               }
+
+              if (interactable.interactType === InteractType.ServingOrder) {
+                interactable.showDirtyPlateVisual(state.hasDirtyPlate)
+              } else {
+                interactable.showDirtyPlateVisual(false);
+              }
             }
 
             // Initial update

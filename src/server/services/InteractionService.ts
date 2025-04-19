@@ -39,7 +39,19 @@ export class InteractionService {
         this.handleTrashInteraction(client, player, state)
         break
       case InteractType.ServingOrder:
-        this.orderService.handleServeAttempt(client, player, obj.id, state)
+        if (obj.hasDirtyPlate && player.holdedIngredient === Ingredient.None && !player.holdingPlate) {
+          state.pickupPlate(client.sessionId);
+          obj.hasDirtyPlate = false;
+          obj.disabled = true;
+          logger.info(`Player ${client.sessionId} picked up dirty plate from chair ${objectId}. Chair now clean and disabled.`);
+          client.send('pickupPlace');
+        } else if (obj.hasDirtyPlate) {
+          client.send('alreadyCarrying', { message: 'Cannot interact while carrying something or plate is dirty.' });
+        }
+        else {
+          // Original serving logic (only if not picking up dirty plate)
+          this.orderService.handleServeAttempt(client, player, obj.id, state);
+        }
         break
       case InteractType.ChoppingBoard:
       case InteractType.Oven:

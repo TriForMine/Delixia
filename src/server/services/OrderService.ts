@@ -4,6 +4,7 @@ import { RECIPE_REGISTRY, getRecipeDefinition } from '@shared/recipes'
 import { logger, type Client } from 'colyseus'
 import { getItemDefinition } from '@shared/items'
 import type { Player } from '@shared/schemas/Player'
+import {InteractableObjectState} from "@shared/schemas/InteractableObjectState.ts";
 
 export class OrderService {
   private orderTimer: number = 5000 // Time until first order check
@@ -93,21 +94,29 @@ export class OrderService {
       const removedOrder = state.orders[indexToRemove]
 
       if (removedOrder) {
-        // Make the chair available again and disable it
         if (removedOrder.chairId !== -1) {
-          if (!availableChairIds.includes(removedOrder.chairId)) {
-            availableChairIds.push(removedOrder.chairId)
-          }
-          const chairObjState = state.interactableObjects.get(String(removedOrder.chairId))
+          const chairObjState = state.interactableObjects.get(String(removedOrder.chairId)) as InteractableObjectState | undefined;
           if (chairObjState) {
-            chairObjState.disabled = true // Disable interaction again
+            // Only disable if it doesn't have a dirty plate waiting
+            // If it has a dirty plate, it remains 'interactable' for pickup
+            if (!chairObjState.hasDirtyPlate) {
+              chairObjState.disabled = true;
+              if (!availableChairIds.includes(removedOrder.chairId)) {
+                availableChairIds.push(removedOrder.chairId); // Only make available if not dirty
+              }
+            } else {
+              // Keep it technically enabled for dirty plate pickup, but don't add to availableChairIds for new orders
+              chairObjState.disabled = false; // Or maybe a different state? For now, false allows interaction.
+            }
+            logger.info(`Removed order ${removedOrder.id}. Chair ${removedOrder.chairId} state updated (Dirty: ${chairObjState.hasDirtyPlate}, Disabled: ${chairObjState.disabled}).`);
           } else {
-            logger.error(`Could not find state for chair ${removedOrder.chairId} to disable after order removal.`)
+            logger.error(`Could not find state for chair ${removedOrder.chairId} during order cleanup.`);
+            if (!availableChairIds.includes(removedOrder.chairId)) {
+              availableChairIds.push(removedOrder.chairId); // Add back defensively if state not found
+            }
           }
         }
-        // Remove the order from the state array
-        state.orders.splice(indexToRemove, 1)
-        logger.info(`Removed order ${removedOrder.id} from state. Chair ${removedOrder.chairId} made available/disabled.`)
+        state.orders.splice(indexToRemove, 1);
       }
     }
   }
@@ -123,6 +132,7 @@ export class OrderService {
       return
     }
 
+
     // Find the active order assigned specifically to THIS chair
     const matchingOrder = state.orders.find((order) => order.chairId === chairObjectId && !order.completed)
 
@@ -130,6 +140,13 @@ export class OrderService {
       client.send('noOrderHere', { message: 'There is no active order at this seat!' })
       logger.warn(`Player ${client.sessionId} tried serving at chair ${chairObjectId}, but no matching active order found.`)
       return
+    }
+
+    const chairState = state.interactableObjects.get(String(chairObjectId)) as InteractableObjectState | undefined;
+    if (!chairState) {
+      logger.error(`Serve attempt: Chair state not found for ID ${chairObjectId}`);
+      client.send('error', { message: 'Internal server error.' });
+      return;
     }
 
     // Check if the held dish matches the order's recipe
@@ -144,18 +161,20 @@ export class OrderService {
 
     // All checks passed: Complete the order
     matchingOrder.completed = true // Mark for removal in the next update loop
-    const points = requiredRecipe.scoreValue ?? 100 // Use recipe score or default
-    state.score += points
+    const points = requiredRecipe.scoreValue ?? 100;
+    state.score += points;
+
+    chairState.hasDirtyPlate = true;
+    chairState.disabled = true;
 
     logger.info(
-      `Player ${client.sessionId} completed order ${matchingOrder.id} (${requiredRecipe.name}) at chair ${chairObjectId}. +${points} points. Score: ${state.score}`,
-    )
+        `Player ${client.sessionId} completed order ${matchingOrder.id} (${requiredRecipe.name}) at chair ${chairObjectId}. +${points} points. Score: ${state.score}. Chair marked dirty.`,
+    );
 
     // Clear player's hands (state methods handle visuals implicitly via listeners)
-    state.dropIngredient(client.sessionId)
-    state.dropPlate(client.sessionId)
+    state.dropIngredient(client.sessionId);
+    state.dropPlate(client.sessionId);
 
     client.send('orderCompleted', { message: `Order completed! +${points} points` })
-    // The cleanupOrders method in the update loop will handle removing the order and freeing the chair.
   }
 }

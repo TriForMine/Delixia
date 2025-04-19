@@ -12,7 +12,7 @@ import { Ingredient, InteractType } from '@shared/types/enums.ts'
 import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
 import { INGREDIENT_VISUAL_CONFIG } from '@shared/visualConfigs'
 import { getItemDefinition } from '@shared/items'
-import { Scalar } from '@babylonjs/core'
+import {IParticleSystem, Scalar} from '@babylonjs/core'
 
 interface DisplayedIngredientInfo {
   mesh: Mesh
@@ -67,6 +67,10 @@ export class InteractableObject {
   private lastProgressBarUpdateTime: number = 0
   private readonly progressBarUpdateInterval: number = 150
 
+  private dirtyPlateMesh: Mesh | null = null;
+  private dirtyPlateSmokeSystem: IParticleSystem | null = null;
+  private static smokeParticleTexture: Texture | null = null;
+
   constructor(
     mesh: Mesh,
     scene: Scene,
@@ -108,8 +112,120 @@ export class InteractableObject {
       this._setupHorizontalProgressBar()
     }
 
+    if (!InteractableObject.smokeParticleTexture && scene) {
+      const smokeTexturePath = 'assets/particles/ExplosionTexture-Smoke-1.png'; // ADJUST PATH if needed
+      try {
+        InteractableObject.smokeParticleTexture = new Texture(smokeTexturePath, scene);
+        InteractableObject.smokeParticleTexture.hasAlpha = true;
+      } catch (e) {
+        console.error("Failed to load smoke particle texture:", e);
+      }
+    }
+
     // 5) Setup render loop for updates
     this._setupRenderObserver()
+  }
+
+  public showDirtyPlateVisual(show: boolean): void {
+    if (show && !this.dirtyPlateMesh) {
+      // Create Plate Mesh
+      if (this.ingredientLoader) {
+        this.dirtyPlateMesh = this.ingredientLoader.getIngredientMesh(Ingredient.Plate);
+        if (this.dirtyPlateMesh) {
+          this.dirtyPlateMesh.setParent(this.mesh); // Parent to the chair mesh
+
+          const parentRotationY = this.mesh.rotation.y;
+          const tolerance = 0.01;
+
+          let localPosition = new Vector3(0, 0.15, -0.1); // Default if no match
+
+          // WARNING: Prone to precision errors and only handles specific angles!
+          if (Math.abs(parentRotationY) < tolerance) { // Facing default direction (e.g., positive Z)
+            localPosition = new Vector3(0, 2, -4);
+          } else if (Math.abs(parentRotationY - Math.PI / 2) < tolerance) { // Rotated 90 degrees right (e.g., facing positive X)
+            localPosition = new Vector3(-4, 2, 0); // Now offset needs to be on X
+          } else if (Math.abs(parentRotationY - Math.PI) < tolerance) { // Rotated 180 degrees (e.g., facing negative Z)
+            localPosition = new Vector3(0, 2, 4); // Offset needs to be positive Z
+          } else if (Math.abs(parentRotationY - (-Math.PI / 2)) < tolerance || Math.abs(parentRotationY - (3 * Math.PI / 2)) < tolerance) { // Rotated 90 degrees left (e.g., facing negative X)
+            localPosition = new Vector3(4, 2, 0); // Offset needs to be positive X
+          }
+
+          this.dirtyPlateMesh.position = localPosition;
+          this.dirtyPlateMesh.scaling = new Vector3(0.5 / this.mesh.scaling.x, -0.5 / this.mesh.scaling.y, 0.5 / this.mesh.scaling.z); // Scale to match chair
+          this.dirtyPlateMesh.isPickable = false;
+          this.dirtyPlateMesh.isVisible = true;
+          this.dirtyPlateMesh.getChildMeshes().forEach(m =>{
+            m.isPickable = false;
+            m.isVisible = true;
+          });
+
+          // Create Smoke Effect
+          this._createSmokeEffect(this.dirtyPlateMesh);
+        }
+      }
+    } else if (!show && this.dirtyPlateMesh) {
+      // Hide/Remove Plate Mesh and Smoke
+      if (this.dirtyPlateSmokeSystem) {
+        this.dirtyPlateSmokeSystem.stop();
+        // ParticleHelper might dispose automatically, or you might need:
+        // this.dirtyPlateSmokeSystem.dispose();
+        this.dirtyPlateSmokeSystem = null;
+      }
+      if (this.dirtyPlateMesh) {
+        this.dirtyPlateMesh.dispose();
+        this.dirtyPlateMesh = null;
+      }
+    }
+  }
+
+  private _createSmokeEffect(emitterMesh: Mesh): void {
+    if (this.dirtyPlateSmokeSystem) return; // Don't create if already exists
+
+    // Simplified Smoke Effect - Adapt particle parameters as needed
+    const capacity = 50;
+    const smokeSystem = new ParticleSystem(`dirtySmoke_${this.id}`, capacity, this.scene);
+
+    if (InteractableObject.smokeParticleTexture) {
+      smokeSystem.particleTexture = InteractableObject.smokeParticleTexture;
+    } else {
+      console.warn("Smoke texture not loaded, smoke effect will not display correctly.");
+      // Optionally create a fallback simple particle here
+      return; // Exit if no texture
+    }
+
+    smokeSystem.emitter = emitterMesh; // Emit from the dirty plate
+    smokeSystem.minEmitBox = new Vector3(-0.05, 0.05, -0.05); // Small area above plate center
+    smokeSystem.maxEmitBox = new Vector3(0.05, 0.1, 0.05);
+
+    // Colors (Greyish smoke)
+    smokeSystem.color1 = new Color4(0.7, 0.7, 0.7, 0.1);
+    smokeSystem.color2 = new Color4(0.8, 0.8, 0.8, 0.05);
+    smokeSystem.colorDead = new Color4(0.9, 0.9, 0.9, 0);
+
+    // Size (Small and wispy)
+    smokeSystem.minSize = 0.1;
+    smokeSystem.maxSize = 0.4;
+
+    // Lifetime
+    smokeSystem.minLifeTime = 1.5;
+    smokeSystem.maxLifeTime = 3.0;
+
+    // Emission Rate (Slow and continuous)
+    smokeSystem.emitRate = 10;
+
+    // Movement (Slow upward drift)
+    smokeSystem.gravity = new Vector3(0, 0.15, 0); // Slow rise
+    smokeSystem.direction1 = new Vector3(-0.05, 0.3, -0.05);
+    smokeSystem.direction2 = new Vector3(0.05, 0.6, 0.05);
+    smokeSystem.minEmitPower = 0.01;
+    smokeSystem.maxEmitPower = 0.05;
+    smokeSystem.updateSpeed = 0.015;
+
+    smokeSystem.blendMode = ParticleSystem.BLENDMODE_STANDARD; // Standard blending for smoke
+    smokeSystem.disposeOnStop = true; // Clean up when stopped
+
+    smokeSystem.start();
+    this.dirtyPlateSmokeSystem = smokeSystem;
   }
 
   private _setupHorizontalProgressBar(): void {
@@ -357,9 +473,12 @@ export class InteractableObject {
   }
 
   public showPrompt(show: boolean): void {
-    if (this.disabled || this.isActive) {
-      show = false
+    const allowPromptDespiteDisabled = this.interactType === InteractType.ServingOrder && !!this.dirtyPlateMesh;
+
+    if ((this.disabled || this.isActive) && !allowPromptDespiteDisabled) {
+      show = false;
     }
+
     if (this.promptDisc.isEnabled() !== show) {
       this.promptDisc.setEnabled(show)
       if (this.sparkleSystem) {
@@ -382,6 +501,8 @@ export class InteractableObject {
       this._startOvenEffects()
       this.startCookingVisuals(activeSince!, processingEndTime!)
     }
+
+    this.showDirtyPlateVisual(false);
   }
 
   public deactivate(): void {
@@ -830,5 +951,7 @@ export class InteractableObject {
       this.scene.onBeforeRenderObservable.remove(this._renderObserver)
       this._renderObserver = null
     }
+
+    this.showDirtyPlateVisual(false);
   }
 }
