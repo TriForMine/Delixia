@@ -15,6 +15,7 @@ export interface Recipe {
   processingTime?: number // Optional: Time in ms for stations like Oven
   scoreValue?: number // Optional: Score value for the recipe
   forServing?: boolean // Optional: Flag for serving orders
+  upgradesFrom?: string; // Optional: ID of the recipe this one upgrades from
 }
 
 // --- Recipe Registry ---
@@ -50,6 +51,7 @@ export const RECIPE_REGISTRY: Record<string, Recipe> = {
     stationType: InteractType.ChoppingBoard,
     scoreValue: 150,
     forServing: true,
+    upgradesFrom: 'onigiri_recipe',
   },
   salmon_nigiri_recipe: {
     id: 'salmon_nigiri_recipe',
@@ -63,6 +65,7 @@ export const RECIPE_REGISTRY: Record<string, Recipe> = {
     stationType: InteractType.ChoppingBoard,
     scoreValue: 150,
     forServing: true,
+    upgradesFrom: 'onigiri_recipe',
   },
   sea_urchin_recipe: {
     id: 'sea_urchin_recipe',
@@ -84,6 +87,7 @@ export const RECIPE_REGISTRY: Record<string, Recipe> = {
     stationType: InteractType.ChoppingBoard,
     scoreValue: 200,
     forServing: true,
+    upgradesFrom: 'onigiri_recipe',
   },
 }
 

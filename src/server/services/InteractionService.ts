@@ -7,6 +7,8 @@ import type { RecipeService } from './RecipeService'
 import { getItemDefinition } from '@shared/items'
 import type { OrderService } from './OrderService'
 import type { Player } from '@shared/schemas/Player.ts'
+import {findRecipeByResult, Recipe, RECIPE_REGISTRY} from '@shared/recipes'
+import {countRecipeRequirements} from "@shared/ingredientUtils.ts";
 
 export class InteractionService {
   constructor(
@@ -145,25 +147,118 @@ export class InteractionService {
     }
   }
 
-  private placeIngredientOnStation(client: Client, player: Player, obj: InteractableObjectState, state: GameRoomState): void {
-    const playerIngredient = player.holdedIngredient
-    const playerIngredientDef = getItemDefinition(playerIngredient)
+  private findRecipeThatUpgrades(baseRecipe: Recipe, addedIngredient: Ingredient, stationType: InteractType): Recipe | null {
+    const baseIngredientMap = countRecipeRequirements(baseRecipe.requiredIngredients);
+    const targetIngredientMap = new Map(baseIngredientMap);
+    targetIngredientMap.set(addedIngredient, (targetIngredientMap.get(addedIngredient) || 0) + 1);
 
-    if (!playerIngredientDef) return // Should not happen if holding valid ingredient
+    for (const recipeId in RECIPE_REGISTRY) {
+      const potentialUpgradeRecipe = RECIPE_REGISTRY[recipeId];
+
+      // Check basic conditions: station type, upgradesFrom link MUST match base recipe ID
+      if (potentialUpgradeRecipe.stationType !== stationType ||
+          potentialUpgradeRecipe.upgradesFrom !== baseRecipe.id) {
+        continue;
+      }
+
+      const upgradeRequirementsMap = countRecipeRequirements(potentialUpgradeRecipe.requiredIngredients);
+
+      // Check if the requirements match exactly: base ingredients + added ingredient
+      if (upgradeRequirementsMap.size !== targetIngredientMap.size) {
+        continue;
+      }
+      let match = true;
+      for (const [ingredient, count] of targetIngredientMap.entries()) {
+        if (upgradeRequirementsMap.get(ingredient) !== count) {
+          match = false;
+          break;
+        }
+      }
+
+      if (match) {
+        logger.debug(`Found upgrade recipe ${potentialUpgradeRecipe.id} for base ${baseRecipe.id} adding ${Ingredient[addedIngredient]}`);
+        return potentialUpgradeRecipe;
+      }
+    }
+    logger.debug(`No upgrade recipe found for base ${baseRecipe.id} adding ${Ingredient[addedIngredient]}`);
+    return null; // No matching upgrade recipe found
+  }
+
+  private placeIngredientOnStation(client: Client, player: Player, obj: InteractableObjectState, state: GameRoomState): void {
+    const playerIngredient = player.holdedIngredient;
+    const playerIngredientDef = getItemDefinition(playerIngredient);
+
+    if (!playerIngredientDef || playerIngredient === Ingredient.None) {
+      logger.warn(`Player ${client.sessionId} trying to place invalid/None ingredient.`);
+      return;
+    }
 
     if (obj.isActive) {
-      client.send('stationBusy', { message: 'Station is currently processing!' })
-      return
+      client.send('stationBusy', { message: 'Station is currently processing!' });
+      return;
     }
 
-    const currentIngredientsOnBoard = [...obj.ingredientsOnBoard.values()]
-    const hasFinalItem = currentIngredientsOnBoard.some((ing) => getItemDefinition(ing)?.isFinal)
-    if (hasFinalItem) {
-      client.send('boardNotEmpty', { message: 'Clear the completed item first!' })
-      return
+    const currentIngredientsOnBoard = [...obj.ingredientsOnBoard.values()];
+
+    if (currentIngredientsOnBoard.length === 1) {
+      const boardIngredient = currentIngredientsOnBoard[0];
+      const boardItemDef = getItemDefinition(boardIngredient);
+
+      // Check if the single item on board is a result item (and not a plate)
+      if (boardItemDef && boardItemDef.isResult && !boardItemDef.isPlate) {
+        const baseRecipe = findRecipeByResult(boardIngredient); // Find the recipe that MADE the item on board
+
+        if (baseRecipe) {
+          // Look for a recipe that upgrades this base recipe by adding the player's ingredient
+          const upgradeRecipe = this.findRecipeThatUpgrades(baseRecipe, playerIngredient, obj.type);
+
+          if (upgradeRecipe) {
+            // --- UPGRADE PATH ---
+            logger.info(`Player ${client.sessionId} is upgrading ${baseRecipe.name} with ${playerIngredientDef.name} to make ${upgradeRecipe.name} on ${InteractType[obj.type]} ${obj.id}`);
+
+            // 1. Consume the player's ingredient
+            state.dropIngredient(client.sessionId);
+
+            // 2. Clear the board of the OLD item
+            obj.ingredientsOnBoard.clear();
+            obj.activeSince = Date.now(); // Update timestamp after clearing
+
+            // 3. Process the UPGRADE recipe (add result or start timer)
+            if (upgradeRecipe.processingTime && upgradeRecipe.processingTime > 0) {
+              obj.isActive = true;
+              obj.processingRecipeId = upgradeRecipe.id;
+              obj.activeSince = Date.now();
+              obj.processingEndTime = obj.activeSince + upgradeRecipe.processingTime;
+              logger.info(`Starting processing for UPGRADED ${upgradeRecipe.name} on station ${obj.id} for ${upgradeRecipe.processingTime}ms.`);
+            } else {
+              // Instant upgrade
+              obj.ingredientsOnBoard.push(upgradeRecipe.result.ingredient);
+              obj.activeSince = Date.now(); // Update timestamp after adding result
+              logger.info(`Instantly UPGRADED to ${upgradeRecipe.name} on station ${obj.id}`);
+              // Optional: Play a specific "upgrade complete" sound?
+              client.send('orderCompleted'); // Reuse sound? Or add new one?
+            }
+            return; // Interaction handled (Upgrade)
+          }
+          else {
+            logger.debug(`No upgrade path found from ${baseRecipe.name} with ${playerIngredientDef.name} on ${InteractType[obj.type]} ${obj.id}`);
+          }
+        } else {
+          logger.debug(`Item ${boardItemDef.name} on board is a result, but couldn't find the recipe that made it.`);
+        }
+      }
     }
 
-    // Check if adding the ingredient progresses any recipe for this station
+    // --- FALLBACK: COMBINE BASE INGREDIENTS LOGIC (from previous answer) ---
+    logger.debug(`No upgrade scenario detected for ${playerIngredientDef.name} on ${InteractType[obj.type]} ${obj.id}. Checking base combination.`);
+
+    // Check if the board ALREADY contains a final item. Prevent adding more if so.
+    const boardHasFinalItem = currentIngredientsOnBoard.some((ing) => getItemDefinition(ing)?.isFinal);
+    if (boardHasFinalItem) {
+      client.send('boardNotEmpty', { message: 'Clear the completed item first!' });
+      return;
+    }
+
     const potentialIngredients = [...currentIngredientsOnBoard, playerIngredient]
     if (!this.recipeService.checkRecipeProgress(potentialIngredients, obj.type)) {
       client.send('invalidCombination', { message: 'Cannot add this ingredient here right now.' })

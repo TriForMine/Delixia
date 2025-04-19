@@ -5,10 +5,9 @@ import { type Ingredient, InteractType } from '@shared/types/enums';
 import { Flame, Slice, Inbox, CookingPot, ChefHat } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getItemDefinition } from '@shared/items';
-import {findRecipeByResult, getRecipeDefinition} from '@shared/recipes.ts';
+import { findRecipeByResult, getRecipeDefinition } from '@shared/recipes.ts';
 import { getRecipeSteps } from '@shared/recipeSteps.ts';
 
-// --- Calcul du temps restant ---
 const calculateTimeInfo = (order: Order) => {
     const now = Date.now();
     const timeLeft = Math.max(0, order.deadline - now);
@@ -23,7 +22,6 @@ const calculateTimeInfo = (order: Order) => {
     return { timeLeft, timePercentage, formattedTimeLeft, isUrgent, isExpired, totalTime };
 };
 
-// --- Interfaces ---
 interface StationTask {
     station: InteractType | null;
     ingredients: Ingredient[];
@@ -33,42 +31,35 @@ interface ProcessedRecipeInfo {
     allBaseIngredients: Ingredient[];
 }
 
-// --- Process recipe steps ---
 const processRecipeSteps = (recipeId: string): ProcessedRecipeInfo => {
     const info: ProcessedRecipeInfo = { tasks: [], allBaseIngredients: [] };
     if (!recipeId) return info;
 
-    const steps = getRecipeSteps(recipeId); // Get the detailed steps
+    const steps = getRecipeSteps(recipeId);
     if (steps.length === 0) return info;
 
     const baseIngredientsNeededGlobally = new Set<Ingredient>();
-    // Use a Map where the value is a Set to automatically handle uniqueness per station
     const ingredientsPerStation = new Map<InteractType, Set<Ingredient>>();
 
-    // First pass: Identify all base ingredients required anywhere in the process
     steps.forEach(step => {
         if (step.type === 'GET') {
             baseIngredientsNeededGlobally.add(step.ingredient);
         } else if (step.type === 'PROCESS') {
-            // Also consider base ingredients required directly for a process step
             step.requiredIngredients?.forEach(req => {
-                if (!findRecipeByResult(req)) { // Check if it's a base ingredient
+                if (!findRecipeByResult(req)) {
                     baseIngredientsNeededGlobally.add(req);
                 }
             });
         }
     });
 
-    // Second pass: Determine which ingredients need to arrive at which station
     steps.forEach((step) => {
         if (step.type === 'PROCESS') {
             const stationType = step.stationType;
             const stationIngredients = ingredientsPerStation.get(stationType) || new Set<Ingredient>();
 
             step.requiredIngredients?.forEach((reqIngredient) => {
-                // Check if this required ingredient is produced by another recipe step
                 const producingRecipe = findRecipeByResult(reqIngredient);
-
                 if (!producingRecipe || producingRecipe.stationType !== stationType) {
                     stationIngredients.add(reqIngredient);
                 }
@@ -80,31 +71,26 @@ const processRecipeSteps = (recipeId: string): ProcessedRecipeInfo => {
         }
     });
 
-    // Convert the map to the final task array structure
     ingredientsPerStation.forEach((ingredientsSet, station) => {
         if (ingredientsSet.size > 0) {
             info.tasks.push({ station, ingredients: Array.from(ingredientsSet) });
         }
     });
 
-
-    // Add the consolidated Stock task using all identified base ingredients
     if (baseIngredientsNeededGlobally.size > 0) {
         info.tasks.push({
-            station: InteractType.Stock, // Representing all stock points
+            station: InteractType.Stock,
             ingredients: Array.from(baseIngredientsNeededGlobally)
         });
-        info.allBaseIngredients = Array.from(baseIngredientsNeededGlobally); // Keep this for potential future use
+        info.allBaseIngredients = Array.from(baseIngredientsNeededGlobally);
     }
 
-
-    // Sort tasks for consistent display order (e.g., Stock -> Oven -> Chopping Board)
     const stationOrder: (InteractType | null)[] = [
-        InteractType.Stock, // Or Fridge, whichever represents base ingredient source
+        InteractType.Stock,
         InteractType.Oven,
         InteractType.ChoppingBoard,
-        InteractType.ServingBoard, // Add other stations if needed
-        null // Catch-all for any other station types
+        InteractType.ServingBoard,
+        null
     ];
     info.tasks.sort((a, b) => {
         const indexA = stationOrder.indexOf(a.station);
@@ -117,8 +103,6 @@ const processRecipeSteps = (recipeId: string): ProcessedRecipeInfo => {
     return info;
 };
 
-
-// --- Icône de station ---
 const StationIcon: React.FC<{ type: InteractType; size?: number }> = ({ type, size = 16 }) => {
     const iconProps = { size, strokeWidth: 2, className: 'flex-shrink-0' };
     switch (type) {
@@ -134,7 +118,6 @@ const StationIcon: React.FC<{ type: InteractType; size?: number }> = ({ type, si
     }
 };
 
-// --- Icône d'ingrédient ---
 const IngredientIcon: React.FC<{
     ingredient: Ingredient;
     sizeClass?: string;
@@ -161,7 +144,6 @@ const IngredientIcon: React.FC<{
     );
 });
 
-// --- Composant de carte de commande ---
 const OrderCard: React.FC<{ order: Order }> = ({ order }) => {
     const finalRecipe = useMemo(() => getRecipeDefinition(order.recipeId), [order.recipeId]);
     const [timeInfo, setTimeInfo] = useState(() => calculateTimeInfo(order));
@@ -199,19 +181,28 @@ const OrderCard: React.FC<{ order: Order }> = ({ order }) => {
                 timeInfo.isUrgent ? 'border-2 border-red-500' : ''
             } ${timeInfo.isExpired ? 'animate-blink' : ''}`}
         >
-            {/* En-tête : Icône du plat avec cadre */}
             <div className="flex justify-center mt-1 mb-1">
-                <div className="border-2 border-rose-400 rounded-full shadow-sm p-1">
+                <motion.div
+                    className="relative bg-white/100 rounded-full shadow-lg p-1"
+                    style={{ boxShadow: '0 0 10px rgba(159, 122, 234, 0.5)' }}
+                    animate={{ scale: [1, 1.05, 1] }}
+                    transition={{ repeat: Infinity, duration: 2 }}
+                >
+                    <div
+                        className="absolute inset-0 rounded-full"
+                        style={{
+                            background: 'radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, rgba(244, 114, 182, 0.3) 70%, transparent 100%)'
+                        }}
+                    />
                     <img
                         src={finalIconUrl}
                         alt="Final dish"
-                        className="w-13 h-13 object-contain rounded-full"
+                        className="w-10 h-10 object-contain rounded-full relative z-10"
                         onError={(e) => (e.currentTarget.src = '/icons/placeholder.png')}
                     />
-                </div>
+                </motion.div>
             </div>
 
-            {/* Tâches par station */}
             <div className="flex flex-col gap-1">
                 {processedInfo.tasks.map((task, taskIndex) => (
                     <div key={`${order.id}-task-${taskIndex}`} className="flex items-center gap-0.5 justify-center">
@@ -230,12 +221,11 @@ const OrderCard: React.FC<{ order: Order }> = ({ order }) => {
                 ))}
             </div>
 
-            {/* Barre de progression + temps */}
             {timeInfo.totalTime > 0 && (
                 <div className="flex items-center gap-1 mt-1">
-                    <div className="flex-grow h-3 bg-gray-400 rounded-full overflow-hidden">
+                    <div className="flex-grow h-2 bg-gray-400 rounded-full overflow-hidden">
                         <div
-                            className={`h-full ${timeInfo.isUrgent ? 'bg-red-500' : 'bg-purple-400'} transition-all duration-1000`}
+                            className={`h-full ${timeInfo.isUrgent ? 'bg-red-500' : 'bg-green-400'} transition-all duration-1000`}
                             style={{ width: `${timeInfo.timePercentage}%` }}
                         />
                     </div>
@@ -248,7 +238,6 @@ const OrderCard: React.FC<{ order: Order }> = ({ order }) => {
     );
 };
 
-// --- Composant principal des commandes ---
 export default function Orders() {
     const orders = useGameColyseusState((state) => state.orders);
     const sortedOrders = useMemo(() => {

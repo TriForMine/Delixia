@@ -132,7 +132,6 @@ export class OrderService {
       return
     }
 
-
     // Find the active order assigned specifically to THIS chair
     const matchingOrder = state.orders.find((order) => order.chairId === chairObjectId && !order.completed)
 
@@ -152,10 +151,20 @@ export class OrderService {
     // Check if the held dish matches the order's recipe
     const requiredRecipe = getRecipeDefinition(matchingOrder.recipeId)
     if (!requiredRecipe || requiredRecipe.result.ingredient !== playerIngredient) {
-      client.send('wrongOrder', { message: 'This is not the dish ordered here!' })
-      logger.warn(
-        `Player ${client.sessionId} served ${heldItemDef.name} at chair ${chairObjectId}, but order ${matchingOrder.id} needs ${requiredRecipe?.name ?? 'unknown'}.`,
-      )
+      state.dropIngredient(client.sessionId)
+      state.dropPlate(client.sessionId)
+
+      state.score -= 50
+
+      chairState.hasDirtyPlate = true;
+      chairState.disabled = true;
+      matchingOrder.completed = true;
+
+      client.send('wrongServe', { message: 'This is not the correct dish!' })
+        logger.warn(
+            `Player ${client.sessionId} tried to serve the wrong dish at chair ${chairObjectId}. Expected: ${requiredRecipe?.result.ingredient}, got: ${playerIngredient}`,
+        )
+
       return
     }
 

@@ -139,6 +139,7 @@ export class GameEngine {
     scene.particlesEnabled = true
     scene.collisionsEnabled = true
     scene.fogEnabled = true
+    scene.fogStart = 15
 
     // Set a reasonable physics timestep
     scene.getPhysicsEngine()?.setTimeStep(1 / 60)
@@ -581,7 +582,6 @@ export class GameEngine {
 
     // Request initial pointer lock and focus
     this.inputManager.requestFocusAndPointerLock()
-    this._createBackgroundClouds();
   }
 
   private _setupUIRenderObserver(): void {
@@ -1552,123 +1552,5 @@ export class GameEngine {
         this.remoteControllers.delete(sessionId)
       }
     })
-  }
-
-  private _createBackgroundClouds(): void {
-    const cloudTexturePath = 'assets/particles/ExplosionFog-Texture-2.png'; // REMPLACE par ton chemin de texture réel
-    let cloudTexture: Texture | null = null;
-    try {
-      cloudTexture = new Texture(cloudTexturePath, this.scene);
-      cloudTexture.hasAlpha = true;
-    } catch (e) {
-      console.warn(`Texture de nuage non trouvée à ${cloudTexturePath}. Les nuages ne s'afficheront pas.`);
-      return;
-    }
-
-    // Fonction interne pour créer un système de nuages à une position donnée
-    const createCloudSystemAt = (
-        namePrefix: string,
-        emitterPosition: Vector3,
-        particleCount: number,
-        baseColor1: Color4,
-        baseColor2: Color4
-    ) => {
-      const cloudSystem = new ParticleSystem(`${namePrefix}_${emitterPosition.x.toFixed(0)}_${emitterPosition.z.toFixed(0)}`, particleCount, this.scene);
-      cloudSystem.particleTexture = cloudTexture!.clone();
-
-      cloudSystem.emitter = emitterPosition; // Utiliser la position fournie
-
-      // Boîte d'émission RELATIVE à l'émetteur (plus petite maintenant qu'on a plusieurs émetteurs)
-      const emitBoxSize = 25; // Taille de la zone d'où les particules naissent autour de l'émetteur
-      cloudSystem.minEmitBox = new Vector3(-emitBoxSize / 2, -5, -emitBoxSize / 2);
-      cloudSystem.maxEmitBox = new Vector3(emitBoxSize / 2, 5, emitBoxSize / 2);
-
-      // Couleurs et Taille (idem qu'avant)
-      cloudSystem.color1 = baseColor1;
-      cloudSystem.color2 = baseColor2;
-      cloudSystem.colorDead = new Color4(0, 0, 0, 0);
-      cloudSystem.minSize = 8.0;
-      cloudSystem.maxSize = 15.0;
-      cloudSystem.minLifeTime = 20.0;
-      cloudSystem.maxLifeTime = 40.0;
-
-      // Émission (Ajuster si besoin pour la performance)
-      cloudSystem.emitRate = 3; // Taux d'émission réduit car plus d'émetteurs
-
-      // Mouvement (Dérive toujours aléatoire)
-      cloudSystem.gravity = new Vector3(0, 0, 0);
-      const horizontalDriftMin = -1.0;
-      const horizontalDriftMax = 1.0;
-      const verticalDriftMin = -0.1;
-      const verticalDriftMax = 0.1;
-      const depthDriftMin = -0.1; // Légère dérive en profondeur permise
-      const depthDriftMax = 0.1;
-
-      cloudSystem.direction1 = new Vector3(
-          Scalar.RandomRange(horizontalDriftMin, horizontalDriftMax),
-          Scalar.RandomRange(verticalDriftMin, verticalDriftMax),
-          Scalar.RandomRange(depthDriftMin, depthDriftMax)
-      );
-      cloudSystem.direction2 = new Vector3(
-          Scalar.RandomRange(horizontalDriftMin, horizontalDriftMax),
-          Scalar.RandomRange(verticalDriftMin, verticalDriftMax),
-          Scalar.RandomRange(depthDriftMin, depthDriftMax)
-      );
-      cloudSystem.minEmitPower = 0.1;
-      cloudSystem.maxEmitPower = 0.5;
-      cloudSystem.updateSpeed = 0.01;
-
-      // Apparence (idem)
-      cloudSystem.minAngularSpeed = -0.1;
-      cloudSystem.maxAngularSpeed = 0.1;
-      cloudSystem.blendMode = ParticleSystem.BLENDMODE_STANDARD;
-
-      cloudSystem.start();
-      return cloudSystem;
-    };
-
-    // --- Définir les positions des émetteurs ---
-    const distance = 70; // Distance du centre
-    const height = 30;   // Hauteur
-    const numParticlesPerSystem = 250; // Réduit car on a plus de systèmes
-
-    const emitterPositions: Vector3[] = [
-      // Derrière
-      new Vector3(0, height, distance),
-      new Vector3(distance / 2, height, distance * 0.8), // Arrière-droite
-      new Vector3(-distance / 2, height, distance * 0.8), // Arrière-gauche
-      // Côtés
-      new Vector3(distance, height, 0),
-      new Vector3(-distance, height, 0),
-      // Avant (plus loin sur les côtés)
-      new Vector3(distance * 0.8, height, -distance / 2),
-      new Vector3(-distance * 0.8, height, -distance / 2),
-      // Un peu plus haut et décalé pour varier
-      new Vector3(distance * 0.4, height * 1.5, distance * 0.4),
-      new Vector3(-distance * 0.4, height * 1.5, -distance * 0.4),
-    ];
-
-    // Palette 1: Rose Poudré / Pêche Doux
-    const kawaiiPink1 = new Color4(1.0, 0.85, 0.9, 0.18);  // Rose très pâle, un peu transparent
-    const kawaiiPink2 = new Color4(1.0, 0.78, 0.82, 0.28); // Rose un peu plus soutenu
-
-    // Palette 2: Lavande Claire / Bleu Ciel Très Pâle
-    const kawaiiLilac1 = new Color4(0.85, 0.85, 1.0, 0.18); // Lavande très pâle
-    const kawaiiLilac2 = new Color4(0.75, 0.8, 1.0, 0.28);  // Bleu/lavande doux
-
-    // --- Créer les systèmes de particules pour chaque position et couleur ---
-    emitterPositions.forEach((pos, index) => {
-      // Alterner les couleurs ou les mélanger
-      if (index % 2 === 0) {
-        createCloudSystemAt(`kawaiiPinkClouds_${index}`, pos, numParticlesPerSystem, kawaiiPink1, kawaiiPink2);
-      } else {
-        createCloudSystemAt(`kawaiiLilacClouds_${index}`, pos, numParticlesPerSystem, kawaiiLilac1, kawaiiLilac2);
-      }
-      // Ou pour avoir les deux couleurs à chaque point :
-      // createCloudSystemAt(`blueClouds_${index}`, pos, numParticlesPerSystem / 2, blueColor1, blueColor2);
-      // createCloudSystemAt(`yellowClouds_${index}`, pos, numParticlesPerSystem / 2, yellowColor1, yellowColor2);
-    });
-
-    console.log(`Systèmes de particules de nuages (multi-émetteurs: ${emitterPositions.length}) créés.`);
   }
 }
