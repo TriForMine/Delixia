@@ -507,7 +507,7 @@ export class GameEngine {
 
             // Handle cooking visual separately if needed (e.g., showing item inside oven)
             if (interactable.interactType === InteractType.Oven) {
-              const isCookingRecipe = state.isActive && state.processingRecipeId && state.processingEndTime > 0
+              const isCookingRecipe = objState.isActive && objState.processingRecipeId && objState.processingTimeLeft > 0
               const recipe = isCookingRecipe ? getRecipeDefinition(state.processingRecipeId!) : null
               // Show the *input* ingredient visual if cooking started
               if (isCookingRecipe && recipe && recipe.requiredIngredients.length > 0) {

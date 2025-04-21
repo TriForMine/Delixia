@@ -31,6 +31,10 @@ export class InteractableObjectState extends Schema {
   @type('string')
   processingRecipeId: string | null = null
 
+  // Timestamp when the current state started (e.g., when cooking began)
+  @type('number')
+  activeSince: number = 0
+
   // Timestamp (server time) when the current processing will end (0 if not processing)
   @type('number')
   processingTimeLeft: number = 0

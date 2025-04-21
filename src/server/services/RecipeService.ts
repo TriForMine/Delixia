@@ -28,11 +28,13 @@ export class RecipeService {
         obj.isActive = true
         obj.processingRecipeId = completedRecipe.id
         obj.processingTimeLeft = completedRecipe.processingTime
+        obj.activeSince = Date.now()
         obj.totalProcessingDuration = completedRecipe.processingTime
         logger.info(`Starting processing for ${completedRecipe.name} on station ${obj.id} for ${completedRecipe.processingTime}ms.`)
       } else {
         // Instant recipe completion
         obj.ingredientsOnBoard.push(completedRecipe.result.ingredient)
+        obj.activeSince = Date.now()
         logger.info(`Instantly created ${completedRecipe.name} on station ${obj.id}`)
       }
     }
@@ -53,6 +55,7 @@ export class RecipeService {
     obj.processingRecipeId = null
     obj.processingTimeLeft = 0
     obj.totalProcessingDuration = 0
+    obj.activeSince = Date.now()
   }
 
   /**
