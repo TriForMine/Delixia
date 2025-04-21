@@ -12,7 +12,7 @@ import { Ingredient, InteractType } from '@shared/types/enums.ts'
 import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
 import { INGREDIENT_VISUAL_CONFIG } from '@shared/visualConfigs'
 import { getItemDefinition } from '@shared/items'
-import {IParticleSystem, Scalar} from '@babylonjs/core'
+import { type IParticleSystem, Scalar } from '@babylonjs/core'
 
 interface DisplayedIngredientInfo {
   mesh: Mesh
@@ -61,15 +61,13 @@ export class InteractableObject {
   private readonly progressBarPlaneWidth = 0.8
   private readonly progressBarPlaneHeight = 0.15
 
-  private isCooking: boolean = false
-  private cookingStartTime: number = 0
-  private cookingTotalDuration: number = 0
-  private lastProgressBarUpdateTime: number = 0
-  private readonly progressBarUpdateInterval: number = 150
+  private isProcessing: boolean = false
+  private processingTimeLeft: number = 0
+  private totalProcessingDuration: number = 0
 
-  private dirtyPlateMesh: Mesh | null = null;
-  private dirtyPlateSmokeSystem: IParticleSystem | null = null;
-  private static smokeParticleTexture: Texture | null = null;
+  private dirtyPlateMesh: Mesh | null = null
+  private dirtyPlateSmokeSystem: IParticleSystem | null = null
+  private static smokeParticleTexture: Texture | null = null
 
   constructor(
     mesh: Mesh,
@@ -113,12 +111,12 @@ export class InteractableObject {
     }
 
     if (!InteractableObject.smokeParticleTexture && scene) {
-      const smokeTexturePath = 'assets/particles/ExplosionTexture-Smoke-1.png'; // ADJUST PATH if needed
+      const smokeTexturePath = 'assets/particles/ExplosionTexture-Smoke-1.png' // ADJUST PATH if needed
       try {
-        InteractableObject.smokeParticleTexture = new Texture(smokeTexturePath, scene);
-        InteractableObject.smokeParticleTexture.hasAlpha = true;
+        InteractableObject.smokeParticleTexture = new Texture(smokeTexturePath, scene)
+        InteractableObject.smokeParticleTexture.hasAlpha = true
       } catch (e) {
-        console.error("Failed to load smoke particle texture:", e);
+        console.error('Failed to load smoke particle texture:', e)
       }
     }
 
@@ -130,102 +128,106 @@ export class InteractableObject {
     if (show && !this.dirtyPlateMesh) {
       // Create Plate Mesh
       if (this.ingredientLoader) {
-        this.dirtyPlateMesh = this.ingredientLoader.getIngredientMesh(Ingredient.Plate);
+        this.dirtyPlateMesh = this.ingredientLoader.getIngredientMesh(Ingredient.Plate)
         if (this.dirtyPlateMesh) {
-          this.dirtyPlateMesh.setParent(this.mesh); // Parent to the chair mesh
+          this.dirtyPlateMesh.setParent(this.mesh) // Parent to the chair mesh
 
-          const parentRotationY = this.mesh.rotation.y;
-          const tolerance = 0.01;
+          const parentRotationY = this.mesh.rotation.y
+          const tolerance = 0.01
 
-          let localPosition = new Vector3(0, 0.15, -0.1); // Default if no match
+          let localPosition = new Vector3(0, 0.15, -0.1) // Default if no match
 
           // WARNING: Prone to precision errors and only handles specific angles!
-          if (Math.abs(parentRotationY) < tolerance) { // Facing default direction (e.g., positive Z)
-            localPosition = new Vector3(0, 2, -4);
-          } else if (Math.abs(parentRotationY - Math.PI / 2) < tolerance) { // Rotated 90 degrees right (e.g., facing positive X)
-            localPosition = new Vector3(-4, 2, 0); // Now offset needs to be on X
-          } else if (Math.abs(parentRotationY - Math.PI) < tolerance) { // Rotated 180 degrees (e.g., facing negative Z)
-            localPosition = new Vector3(0, 2, 4); // Offset needs to be positive Z
-          } else if (Math.abs(parentRotationY - (-Math.PI / 2)) < tolerance || Math.abs(parentRotationY - (3 * Math.PI / 2)) < tolerance) { // Rotated 90 degrees left (e.g., facing negative X)
-            localPosition = new Vector3(4, 2, 0); // Offset needs to be positive X
+          if (Math.abs(parentRotationY) < tolerance) {
+            // Facing default direction (e.g., positive Z)
+            localPosition = new Vector3(0, 2, -4)
+          } else if (Math.abs(parentRotationY - Math.PI / 2) < tolerance) {
+            // Rotated 90 degrees right (e.g., facing positive X)
+            localPosition = new Vector3(-4, 2, 0) // Now offset needs to be on X
+          } else if (Math.abs(parentRotationY - Math.PI) < tolerance) {
+            // Rotated 180 degrees (e.g., facing negative Z)
+            localPosition = new Vector3(0, 2, 4) // Offset needs to be positive Z
+          } else if (Math.abs(parentRotationY - -Math.PI / 2) < tolerance || Math.abs(parentRotationY - (3 * Math.PI) / 2) < tolerance) {
+            // Rotated 90 degrees left (e.g., facing negative X)
+            localPosition = new Vector3(4, 2, 0) // Offset needs to be positive X
           }
 
-          this.dirtyPlateMesh.position = localPosition;
-          this.dirtyPlateMesh.scaling = new Vector3(0.5 / this.mesh.scaling.x, -0.5 / this.mesh.scaling.y, 0.5 / this.mesh.scaling.z); // Scale to match chair
-          this.dirtyPlateMesh.isPickable = false;
-          this.dirtyPlateMesh.isVisible = true;
-          this.dirtyPlateMesh.getChildMeshes().forEach(m =>{
-            m.isPickable = false;
-            m.isVisible = true;
-          });
+          this.dirtyPlateMesh.position = localPosition
+          this.dirtyPlateMesh.scaling = new Vector3(0.5 / this.mesh.scaling.x, -0.5 / this.mesh.scaling.y, 0.5 / this.mesh.scaling.z) // Scale to match chair
+          this.dirtyPlateMesh.isPickable = false
+          this.dirtyPlateMesh.isVisible = true
+          this.dirtyPlateMesh.getChildMeshes().forEach((m) => {
+            m.isPickable = false
+            m.isVisible = true
+          })
 
           // Create Smoke Effect
-          this._createSmokeEffect(this.dirtyPlateMesh);
+          this._createSmokeEffect(this.dirtyPlateMesh)
         }
       }
     } else if (!show && this.dirtyPlateMesh) {
       // Hide/Remove Plate Mesh and Smoke
       if (this.dirtyPlateSmokeSystem) {
-        this.dirtyPlateSmokeSystem.stop();
+        this.dirtyPlateSmokeSystem.stop()
         // ParticleHelper might dispose automatically, or you might need:
         // this.dirtyPlateSmokeSystem.dispose();
-        this.dirtyPlateSmokeSystem = null;
+        this.dirtyPlateSmokeSystem = null
       }
       if (this.dirtyPlateMesh) {
-        this.dirtyPlateMesh.dispose();
-        this.dirtyPlateMesh = null;
+        this.dirtyPlateMesh.dispose()
+        this.dirtyPlateMesh = null
       }
     }
   }
 
   private _createSmokeEffect(emitterMesh: Mesh): void {
-    if (this.dirtyPlateSmokeSystem) return; // Don't create if already exists
+    if (this.dirtyPlateSmokeSystem) return // Don't create if already exists
 
     // Simplified Smoke Effect - Adapt particle parameters as needed
-    const capacity = 50;
-    const smokeSystem = new ParticleSystem(`dirtySmoke_${this.id}`, capacity, this.scene);
+    const capacity = 50
+    const smokeSystem = new ParticleSystem(`dirtySmoke_${this.id}`, capacity, this.scene)
 
     if (InteractableObject.smokeParticleTexture) {
-      smokeSystem.particleTexture = InteractableObject.smokeParticleTexture;
+      smokeSystem.particleTexture = InteractableObject.smokeParticleTexture
     } else {
-      console.warn("Smoke texture not loaded, smoke effect will not display correctly.");
+      console.warn('Smoke texture not loaded, smoke effect will not display correctly.')
       // Optionally create a fallback simple particle here
-      return; // Exit if no texture
+      return // Exit if no texture
     }
 
-    smokeSystem.emitter = emitterMesh; // Emit from the dirty plate
-    smokeSystem.minEmitBox = new Vector3(-0.05, 0.05, -0.05); // Small area above plate center
-    smokeSystem.maxEmitBox = new Vector3(0.05, 0.1, 0.05);
+    smokeSystem.emitter = emitterMesh // Emit from the dirty plate
+    smokeSystem.minEmitBox = new Vector3(-0.05, 0.05, -0.05) // Small area above plate center
+    smokeSystem.maxEmitBox = new Vector3(0.05, 0.1, 0.05)
 
     // Colors (Greyish smoke)
-    smokeSystem.color1 = new Color4(0.7, 0.7, 0.7, 0.1);
-    smokeSystem.color2 = new Color4(0.8, 0.8, 0.8, 0.05);
-    smokeSystem.colorDead = new Color4(0.9, 0.9, 0.9, 0);
+    smokeSystem.color1 = new Color4(0.7, 0.7, 0.7, 0.1)
+    smokeSystem.color2 = new Color4(0.8, 0.8, 0.8, 0.05)
+    smokeSystem.colorDead = new Color4(0.9, 0.9, 0.9, 0)
 
     // Size (Small and wispy)
-    smokeSystem.minSize = 0.1;
-    smokeSystem.maxSize = 0.4;
+    smokeSystem.minSize = 0.1
+    smokeSystem.maxSize = 0.4
 
     // Lifetime
-    smokeSystem.minLifeTime = 1.5;
-    smokeSystem.maxLifeTime = 3.0;
+    smokeSystem.minLifeTime = 1.5
+    smokeSystem.maxLifeTime = 3.0
 
     // Emission Rate (Slow and continuous)
-    smokeSystem.emitRate = 10;
+    smokeSystem.emitRate = 10
 
     // Movement (Slow upward drift)
-    smokeSystem.gravity = new Vector3(0, 0.15, 0); // Slow rise
-    smokeSystem.direction1 = new Vector3(-0.05, 0.3, -0.05);
-    smokeSystem.direction2 = new Vector3(0.05, 0.6, 0.05);
-    smokeSystem.minEmitPower = 0.01;
-    smokeSystem.maxEmitPower = 0.05;
-    smokeSystem.updateSpeed = 0.015;
+    smokeSystem.gravity = new Vector3(0, 0.15, 0) // Slow rise
+    smokeSystem.direction1 = new Vector3(-0.05, 0.3, -0.05)
+    smokeSystem.direction2 = new Vector3(0.05, 0.6, 0.05)
+    smokeSystem.minEmitPower = 0.01
+    smokeSystem.maxEmitPower = 0.05
+    smokeSystem.updateSpeed = 0.015
 
-    smokeSystem.blendMode = ParticleSystem.BLENDMODE_STANDARD; // Standard blending for smoke
-    smokeSystem.disposeOnStop = true; // Clean up when stopped
+    smokeSystem.blendMode = ParticleSystem.BLENDMODE_STANDARD // Standard blending for smoke
+    smokeSystem.disposeOnStop = true // Clean up when stopped
 
-    smokeSystem.start();
-    this.dirtyPlateSmokeSystem = smokeSystem;
+    smokeSystem.start()
+    this.dirtyPlateSmokeSystem = smokeSystem
   }
 
   private _setupHorizontalProgressBar(): void {
@@ -273,12 +275,12 @@ export class InteractableObject {
   }
 
   // --- Update method for the Horizontal Progress Bar ---
-  private _updateHorizontalProgressBar(now: number): void {
-    if (!this.isCooking || !this.progressBarTexture || !this.progressBarPlane || !this.progressBarPlane.isEnabled) {
+  private _updateHorizontalProgressBar(): void {
+    if (!this.isProcessing || !this.progressBarTexture || !this.progressBarPlane || !this.progressBarPlane.isEnabled) {
       return
     }
 
-    const progress = this.cookingTotalDuration > 0 ? Scalar.Clamp((now - this.cookingStartTime) / this.cookingTotalDuration, 0, 1) : 0
+    const progress = this.totalProcessingDuration > 0 ? Scalar.Clamp(1.0 - this.processingTimeLeft / this.totalProcessingDuration, 0, 1) : 0
 
     // Get the drawing context
     const ctx = this.progressBarTexture.getContext()
@@ -330,6 +332,8 @@ export class InteractableObject {
     } else {
       dynamicTexture = new DynamicTexture(textureKey, { width: 64, height: 64 }, this.scene, false) // Generate MipMaps = false for sharp text
       const ctx = dynamicTexture.getContext() as CanvasRenderingContext2D
+      // Transparent black
+      ctx.fillStyle = Color4.FromHexString('#00000066').toHexString()
       ctx.fillRect(0, 0, 64, 64)
       ctx.fillStyle = '#FF9999' // Dark text
       ctx.font = 'bold 32px "Patrick Hand"' // Simple, clear font
@@ -356,8 +360,6 @@ export class InteractableObject {
     }
 
     this._renderObserver = this.scene.onBeforeRenderObservable.add(() => {
-      const now = Date.now()
-
       // Update prompt position
       if (this.promptDisc.isEnabled()) {
         this.mesh.getAbsolutePosition().addToRef(this.billboardOffset, this._positionUpdateTemp)
@@ -391,15 +393,9 @@ export class InteractableObject {
         }
       }
 
-      if (this.isCooking && this.interactType === InteractType.Oven && this.progressBarPlane) {
-        // Update position dynamically every frame
+      if (this.isProcessing && this.progressBarPlane) {
         this.mesh.getAbsolutePosition().addToRef(this.billboardOffset, this._positionUpdateTemp)
         this.progressBarPlane.setAbsolutePosition(this._positionUpdateTemp)
-
-        if (now - this.lastProgressBarUpdateTime > this.progressBarUpdateInterval) {
-          this._updateHorizontalProgressBar(now)
-          this.lastProgressBarUpdateTime = now
-        }
       }
     })
   }
@@ -473,10 +469,10 @@ export class InteractableObject {
   }
 
   public showPrompt(show: boolean): void {
-    const allowPromptDespiteDisabled = this.interactType === InteractType.ServingOrder && !!this.dirtyPlateMesh;
+    const allowPromptDespiteDisabled = this.interactType === InteractType.ServingOrder && !!this.dirtyPlateMesh
 
     if ((this.disabled || this.isActive) && !allowPromptDespiteDisabled) {
-      show = false;
+      show = false
     }
 
     if (this.promptDisc.isEnabled() !== show) {
@@ -488,77 +484,59 @@ export class InteractableObject {
     }
   }
 
-  public activate(activeSince?: number, processingEndTime?: number): void {
-    if (this.isActive) return
+  public activate(isActive: boolean): void {
+    if (isActive) return
     this.isActive = true
     this.showPrompt(false)
 
-    const isOven = this.interactType === InteractType.Oven
-    const hasValidTimes = activeSince && processingEndTime && processingEndTime > activeSince
-    const shouldStartCooking = isOven && hasValidTimes
-
-    if (shouldStartCooking) {
-      this._startOvenEffects()
-      this.startCookingVisuals(activeSince!, processingEndTime!)
+    if (!this.isProcessing) {
+      this.showPrompt(false)
+      if (this.interactType === InteractType.Oven) {
+        this._startOvenEffects()
+      }
     }
 
-    this.showDirtyPlateVisual(false);
+    this.showDirtyPlateVisual(false)
   }
 
   public deactivate(): void {
-    if (!this.isActive) return
-    this.isActive = false
-
     this.activeParticleSystems.forEach((system) => {
       system.stop()
     })
     this.activeParticleSystems = []
 
-    if (this.interactType === InteractType.Oven) {
-      this.stopCookingVisuals()
+    if (this.isProcessing) {
+      this.isProcessing = false
+      if (this.progressBarPlane) this.progressBarPlane.setEnabled(false)
     }
   }
 
-  public startCookingVisuals(startTime: number, endTime: number): void {
-    if (this.interactType !== InteractType.Oven || !this.progressBarPlane || !this.progressBarTexture) {
-      console.error(`[${this.id}] Cannot start cooking visuals: Progress bar not setup correctly or not an Oven.`)
-      return
-    }
-
-    this.cookingStartTime = startTime
-    this.cookingTotalDuration = Math.max(1, endTime - startTime)
-    this.isCooking = true
-
-    this.progressBarPlane.setEnabled(true)
-
-    // --- Reset Update Timer ---
-    this.lastProgressBarUpdateTime = 0 // Reset timer to ensure the first update happens soon
-
-    // --- Trigger the initial update immediately ---
-    const initialTime = Date.now()
-    this._updateHorizontalProgressBar(initialTime) // Draw the very first frame
-    this.lastProgressBarUpdateTime = initialTime // Set the timer after the initial draw
-  }
-
-  public stopCookingVisuals(): void {
-    if (!this.isCooking) {
-      return
-    }
-    this.isCooking = false
+  public updateProcessingProgress(timeLeft: number, totalDuration: number): void {
+    const wasProcessing = this.isProcessing
+    this.isProcessing = timeLeft > 0 && totalDuration > 0
+    this.processingTimeLeft = timeLeft
+    this.totalProcessingDuration = totalDuration
 
     if (this.progressBarPlane) {
-      this.progressBarPlane.setEnabled(false)
+      this.progressBarPlane.setEnabled(this.isProcessing)
     }
 
-    if (this.progressBarTexture) {
-      const ctx = this.progressBarTexture.getContext()
-      if (ctx) {
-        ctx.clearRect(0, 0, this.progressBarTextureWidth, this.progressBarTextureHeight)
-        this.progressBarTexture.update()
+    if (this.isProcessing) {
+      this._updateHorizontalProgressBar() // Update visuals immediately
+      if (!wasProcessing && this.interactType === InteractType.Oven) {
+        // If just started processing AND it's an oven, start effects
+        this._startOvenEffects()
       }
+    } else if (wasProcessing && !this.isProcessing) {
+      // If just stopped processing
+      if (this.interactType === InteractType.Oven) {
+        // Stop oven-specific effects
+        this.activeParticleSystems.forEach((system) => system.stop())
+        this.activeParticleSystems = []
+      }
+      // Ensure progress bar is hidden
+      if (this.progressBarPlane) this.progressBarPlane.setEnabled(false)
     }
-
-    this.lastProgressBarUpdateTime = 0 // Reset timer
   }
 
   private _startOvenEffects(): void {
@@ -921,7 +899,6 @@ export class InteractableObject {
 
   public dispose(): void {
     console.log(`Disposing InteractableObject ${this.id} (${this.mesh.name})`)
-    this.stopCookingVisuals()
     this.deactivate()
     this.clearIngredientsOnBoard()
     this.hideCookingVisual()
@@ -952,6 +929,6 @@ export class InteractableObject {
       this._renderObserver = null
     }
 
-    this.showDirtyPlateVisual(false);
+    this.showDirtyPlateVisual(false)
   }
 }

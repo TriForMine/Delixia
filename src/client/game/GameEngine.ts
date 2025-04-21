@@ -39,9 +39,9 @@ import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTextur
 import { getItemDefinition } from '@shared/items.ts'
 import type { Observer } from '@babylonjs/core/Misc/observable'
 import { Scalar } from '@babylonjs/core/Maths/math.scalar'
-import {PhysicsAggregate} from "@babylonjs/core/Physics/v2/physicsAggregate";
-import {PhysicsShapeType} from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
-import {BackEase, EasingFunction, Animation, QuadraticEase} from '@babylonjs/core/Animations'
+import { PhysicsAggregate } from '@babylonjs/core/Physics/v2/physicsAggregate'
+import { PhysicsShapeType } from '@babylonjs/core/Physics/v2/IPhysicsEnginePlugin'
+import { BackEase, EasingFunction, Animation, QuadraticEase } from '@babylonjs/core/Animations'
 
 export class GameEngine {
   public interactables: InteractableObject[] = []
@@ -57,7 +57,7 @@ export class GameEngine {
   private performanceManager?: PerformanceManager
   private loadedCharacterContainer: any
   private poufParticleTexture: Texture | null = null
-  private portalParticleTexture: Texture | null = null;
+  private portalParticleTexture: Texture | null = null
   private onGameOverCallback: (score: number) => void = () => {}
 
   private chickTemplateMesh: AbstractMesh | null = null
@@ -73,7 +73,7 @@ export class GameEngine {
   private readonly customerUIOffset = new Vector3(0, 2.0, 0)
   private _uiUpdatePosVector = new Vector3()
 
-  private customerOrderData = new Map<number, { createdAt: number; deadline: number }>()
+  private customerOrderData = new Map<number, { timeLeft: number; totalDuration: number }>()
   private customerOrderIcons = new Map<number, HTMLImageElement>()
   private lastOrderUIUpdateTimes = new Map<number, number>()
   private readonly orderUIUpdateInterval = 250
@@ -98,7 +98,7 @@ export class GameEngine {
 
   private readonly audioManager: AudioManager
 
-  private boundaryWalls: Mesh[] = [];
+  private boundaryWalls: Mesh[] = []
 
   private soundList: SoundConfig[] = [
     { name: 'pickupPlace', path: 'assets/audio/pickup_place.ogg', options: { volume: 0.3 } },
@@ -192,12 +192,12 @@ export class GameEngine {
     this.customerOrderIcons.clear()
     this.lastOrderUIUpdateTimes.clear()
 
-    this.boundaryWalls.forEach(wall => {
+    this.boundaryWalls.forEach((wall) => {
       // It's good practice to dispose the physics body before the mesh if possible
-      wall.getPhysicsBody()?.dispose(); // Dispose physics body
-      wall.dispose(); // Dispose mesh
-    });
-    this.boundaryWalls = []; // Clear the array
+      wall.getPhysicsBody()?.dispose() // Dispose physics body
+      wall.dispose() // Dispose mesh
+    })
+    this.boundaryWalls = [] // Clear the array
 
     console.log('GameEngine disposed')
   }
@@ -301,10 +301,10 @@ export class GameEngine {
     this.scene.environmentTexture = rp.cubeTexture
 
     // --- AJOUT DU BROUILLARD (Version Ajustée) ---
-    this.scene.fogMode = Scene.FOGMODE_EXP2;
-    this.scene.fogColor = Color3.Lerp(Color3.FromHexString("#FBCFE8"), Color3.White(), 0.2);
-    this.scene.fogDensity = 0.015; // Ajuste pour + ou - de brouillard
-    this.scene.fogEnabled = true;
+    this.scene.fogMode = Scene.FOGMODE_EXP2
+    this.scene.fogColor = Color3.Lerp(Color3.FromHexString('#FBCFE8'), Color3.White(), 0.2)
+    this.scene.fogDensity = 0.015 // Ajuste pour + ou - de brouillard
+    this.scene.fogEnabled = true
     // --- FIN AJOUT BROUILLARD ---
 
     // When the character model is loaded, store it for later use
@@ -378,20 +378,20 @@ export class GameEngine {
       console.error('Failed to load pouf particle texture:', error)
     }
 
-    const portalTexturePath = 'assets/particles/Runes1.png';
+    const portalTexturePath = 'assets/particles/Runes1.png'
     try {
-      this.portalParticleTexture = new Texture(portalTexturePath, this.scene);
-      this.portalParticleTexture.hasAlpha = true;
-      console.log('Portal particle texture loaded successfully.');
+      this.portalParticleTexture = new Texture(portalTexturePath, this.scene)
+      this.portalParticleTexture.hasAlpha = true
+      console.log('Portal particle texture loaded successfully.')
     } catch (error) {
-      console.error('Failed to load portal particle texture, falling back to pouf:', error);
+      console.error('Failed to load portal particle texture, falling back to pouf:', error)
       // Fallback to the old texture if flare.png doesn't exist
-      const fallbackTexturePath = 'assets/particles/Star-Texture.png';
+      const fallbackTexturePath = 'assets/particles/Star-Texture.png'
       try {
-        this.poufParticleTexture = new Texture(fallbackTexturePath, this.scene);
-        this.poufParticleTexture.hasAlpha = true;
+        this.poufParticleTexture = new Texture(fallbackTexturePath, this.scene)
+        this.poufParticleTexture.hasAlpha = true
       } catch (fallbackError) {
-        console.error('Failed to load fallback pouf texture:', fallbackError);
+        console.error('Failed to load fallback pouf texture:', fallbackError)
       }
     }
 
@@ -427,7 +427,7 @@ export class GameEngine {
           engine.loadingScreen.loadingUIText = this.loadingState.currentTask
           engine.loadingScreen.updateProgress(100)
 
-          this.createBoundaryWalls();
+          this.createBoundaryWalls()
 
           // Initialize players now that everything is loaded
           this.initializePlayers()
@@ -451,133 +451,135 @@ export class GameEngine {
     })
 
     this.ingredientLoader
-        .loadIngredientModels()
-        .then(() => {
-          ingredientModelsLoaded = true
-          checkLoadingComplete()
-        })
-        .catch((error) => {
-          console.error('Error loading ingredient models:', error)
-        })
+      .loadIngredientModels()
+      .then(() => {
+        ingredientModelsLoaded = true
+        checkLoadingComplete()
+      })
+      .catch((error) => {
+        console.error('Error loading ingredient models:', error)
+      })
 
     // Start asset loading.
     this.assetsManager.load()
 
     kitchenLoader.loadAndPlaceModels(
-        kitchenFolder,
-        mapConfigs,
-        () => {
-          this.interactables = kitchenLoader.interactables
+      kitchenFolder,
+      mapConfigs,
+      () => {
+        this.interactables = kitchenLoader.interactables
 
-          mapLoaded = true
-          this.loadingState.map.loaded = true
-          this.loadingState.map.progress = 100
-          this.loadingState.currentTask = 'Map loading complete'
-          if (engine.loadingScreen instanceof CustomLoadingScreen) {
-            const totalProgress = (this.loadingState.assets.progress + this.loadingState.map.progress) / 2
-            engine.loadingScreen.updateProgress(totalProgress)
-            engine.loadingScreen.loadingUIText = this.loadingState.currentTask
+        mapLoaded = true
+        this.loadingState.map.loaded = true
+        this.loadingState.map.progress = 100
+        this.loadingState.currentTask = 'Map loading complete'
+        if (engine.loadingScreen instanceof CustomLoadingScreen) {
+          const totalProgress = (this.loadingState.assets.progress + this.loadingState.map.progress) / 2
+          engine.loadingScreen.updateProgress(totalProgress)
+          engine.loadingScreen.loadingUIText = this.loadingState.currentTask
+        }
+
+        const $ = getStateCallbacks(this.room)
+
+        $(this.room.state).interactableObjects.onAdd((objState, key) => {
+          const interactable = this.interactables.find((obj) => obj.id === Number(key))
+          if (!interactable) {
+            console.warn(`Interactable ${key} added to state but not found in client list.`)
+            return
           }
 
-          const $ = getStateCallbacks(this.room)
+          // Handle initial state and changes
+          const updateInteractable = (state: typeof objState) => {
+            interactable.setDisabled(state.disabled)
 
-          $(this.room.state).interactableObjects.onAdd((objState, key) => {
-            const interactable = this.interactables.find((obj) => obj.id === Number(key))
-            if (!interactable) {
-              console.warn(`Interactable ${key} added to state but not found in client list.`)
-              return
+            // Handle activation/deactivation, passing timing info for ovens
+            if (state.isActive) {
+              interactable.activate(state.isActive)
+            } else {
+              interactable.deactivate()
             }
 
-            // Handle initial state and changes
-            const updateInteractable = (state: typeof objState) => {
-              interactable.setDisabled(state.disabled)
+            interactable.updateProcessingProgress(state.processingTimeLeft, state.totalProcessingDuration)
 
-              // Handle activation/deactivation, passing timing info for ovens
-              if (state.isActive) {
-                interactable.activate(state.activeSince, state.processingEndTime)
-              } else {
-                interactable.deactivate()
-              }
+            // Update ingredients on board (visuals)
+            const ingredients = state.ingredientsOnBoard.map((i) => i as Ingredient)
+            interactable.updateIngredientsOnBoard(ingredients)
 
-              // Update ingredients on board (visuals)
-              const ingredients = state.ingredientsOnBoard.map((i) => i as Ingredient)
-              interactable.updateIngredientsOnBoard(ingredients)
-
-              // Handle cooking visual separately if needed (e.g., showing item inside oven)
-              if (interactable.interactType === InteractType.Oven) {
-                const isCookingRecipe = state.isActive && state.processingRecipeId && state.processingEndTime > 0
-                const recipe = isCookingRecipe ? getRecipeDefinition(state.processingRecipeId!) : null
-                // Show the *input* ingredient visual if cooking started
-                if (isCookingRecipe && recipe && recipe.requiredIngredients.length > 0) {
-                  interactable.showCookingVisual(recipe.requiredIngredients[0].ingredient) // Assuming first ingredient
-                } else {
-                  interactable.hideCookingVisual()
-                }
-              }
-
-              if (interactable.interactType === InteractType.ServingOrder) {
-                interactable.showDirtyPlateVisual(state.hasDirtyPlate)
-              } else {
-                interactable.showDirtyPlateVisual(false);
-              }
-            }
-
-            // Initial update
-            updateInteractable(objState)
-
-            // Listen for subsequent changes
-            $(objState).onChange(() => {
-              // Refetch interactable in case it was recreated (though unlikely here)
-              const currentInteractable = this.interactables.find((obj) => obj.id === Number(key))
-              if (currentInteractable) {
-                updateInteractable(objState)
-              }
-            })
-
-            // --- Specific Sound Handling (can remain mostly as is) ---
+            // Handle cooking visual separately if needed (e.g., showing item inside oven)
             if (interactable.interactType === InteractType.Oven) {
-              // Oven loop sound tied to isActive state
-              $(objState).listen('isActive', (currentValue, previousValue) => {
-                if (currentValue && !previousValue) {
-                  this.audioManager.playSound('ovenLoop', 0.6, true, interactable.mesh)
-                } else if (!currentValue && previousValue) {
-                  this.audioManager.stopSound('ovenLoop')
-                }
-              })
-              // Initial check
-              if (objState.isActive) {
-                this.audioManager.playSound('ovenLoop', 0.6, true, interactable.mesh)
+              const isCookingRecipe = state.isActive && state.processingRecipeId && state.processingEndTime > 0
+              const recipe = isCookingRecipe ? getRecipeDefinition(state.processingRecipeId!) : null
+              // Show the *input* ingredient visual if cooking started
+              if (isCookingRecipe && recipe && recipe.requiredIngredients.length > 0) {
+                interactable.showCookingVisual(recipe.requiredIngredients[0].ingredient) // Assuming first ingredient
+              } else {
+                interactable.hideCookingVisual()
               }
             }
 
-            if (interactable.interactType === InteractType.ChoppingBoard) {
-              let previousIngredientsLength = objState.ingredientsOnBoard.length
-              $(objState).listen('ingredientsOnBoard', (currentIngredients) => {
-                if (currentIngredients.length !== previousIngredientsLength) {
-                  this.playSfx('pickupPlace')
-                  previousIngredientsLength = currentIngredients.length
-                }
-              })
+            if (interactable.interactType === InteractType.ServingOrder) {
+              interactable.showDirtyPlateVisual(state.hasDirtyPlate)
+            } else {
+              interactable.showDirtyPlateVisual(false)
+            }
+          }
+
+          // Initial update
+          updateInteractable(objState)
+
+          // Listen for subsequent changes
+          $(objState).onChange(() => {
+            // Refetch interactable in case it was recreated (though unlikely here)
+            const currentInteractable = this.interactables.find((obj) => obj.id === Number(key))
+            if (currentInteractable) {
+              updateInteractable(objState)
             }
           })
 
-          this.setupGameEventListeners()
-
-          checkLoadingComplete()
-        },
-        (progress) => {
-          this.loadingState.map.progress = progress
-          this.loadingState.currentTask = `Loading map: ${progress.toFixed(0)}%`
-
-          // Update loading screen with combined progress
-          const engine = this.scene.getEngine()
-          if (engine.loadingScreen instanceof CustomLoadingScreen) {
-            const totalProgress = (this.loadingState.assets.progress + this.loadingState.map.progress) / 2
-            engine.loadingScreen.updateProgress(totalProgress)
-            engine.loadingScreen.loadingUIText = this.loadingState.currentTask
+          // --- Specific Sound Handling (can remain mostly as is) ---
+          if (interactable.interactType === InteractType.Oven) {
+            // Oven loop sound tied to isActive state
+            $(objState).listen('isActive', (currentValue, previousValue) => {
+              if (currentValue && !previousValue) {
+                this.audioManager.playSound('ovenLoop', 0.6, true, interactable.mesh)
+              } else if (!currentValue && previousValue) {
+                this.audioManager.stopSound('ovenLoop')
+              }
+            })
+            // Initial check
+            if (objState.isActive) {
+              this.audioManager.playSound('ovenLoop', 0.6, true, interactable.mesh)
+            }
           }
-        },
-        this.room.state.mapHash, // Pass the server's map hash for verification
+
+          if (interactable.interactType === InteractType.ChoppingBoard) {
+            let previousIngredientsLength = objState.ingredientsOnBoard.length
+            $(objState).listen('ingredientsOnBoard', (currentIngredients) => {
+              if (currentIngredients.length !== previousIngredientsLength) {
+                this.playSfx('pickupPlace')
+                previousIngredientsLength = currentIngredients.length
+              }
+            })
+          }
+        })
+
+        this.setupGameEventListeners()
+
+        checkLoadingComplete()
+      },
+      (progress) => {
+        this.loadingState.map.progress = progress
+        this.loadingState.currentTask = `Loading map: ${progress.toFixed(0)}%`
+
+        // Update loading screen with combined progress
+        const engine = this.scene.getEngine()
+        if (engine.loadingScreen instanceof CustomLoadingScreen) {
+          const totalProgress = (this.loadingState.assets.progress + this.loadingState.map.progress) / 2
+          engine.loadingScreen.updateProgress(totalProgress)
+          engine.loadingScreen.loadingUIText = this.loadingState.currentTask
+        }
+      },
+      this.room.state.mapHash, // Pass the server's map hash for verification
     )
 
     // Request initial pointer lock and focus
@@ -630,58 +632,62 @@ export class GameEngine {
    */
   private createBoundaryWalls(): void {
     // Define map boundaries (adjust these based on your actual map size)
-    const minX = -9;
-    const maxX = 9;
-    const minZ = -9;
-    const maxZ = 9;
-    const wallHeight = 20; // Make walls tall enough
-    const wallThickness = 0.5; // Relatively thin walls
+    const minX = -9
+    const maxX = 9
+    const minZ = -9
+    const maxZ = 9
+    const wallHeight = 20 // Make walls tall enough
+    const wallThickness = 0.5 // Relatively thin walls
 
     const createWall = (name: string, position: Vector3, size: Vector3) => {
-      const wall = MeshBuilder.CreateBox(name, { width: size.x, height: size.y, depth: size.z }, this.scene);
-      wall.position = position;
-      wall.visibility = 0; // Make the wall invisible
-      wall.isPickable = false; // Not interactable
+      const wall = MeshBuilder.CreateBox(name, { width: size.x, height: size.y, depth: size.z }, this.scene)
+      wall.position = position
+      wall.visibility = 0 // Make the wall invisible
+      wall.isPickable = false // Not interactable
 
       // Add static physics body
-      new PhysicsAggregate(wall, PhysicsShapeType.BOX, { mass: 0, friction: 0.5, restitution: 0.1 }, this.scene);
+      new PhysicsAggregate(wall, PhysicsShapeType.BOX, { mass: 0, friction: 0.5, restitution: 0.1 }, this.scene)
       // wallAggregate.body.setMotionType(PhysicsMotionType.STATIC); // Mass 0 usually implies static
 
-      this.boundaryWalls.push(wall); // Keep track for disposal
-    };
+      this.boundaryWalls.push(wall) // Keep track for disposal
+    }
 
     // Calculate lengths based on boundaries
-    const wallLengthX = maxX - minX + wallThickness; // Add thickness to span correctly
-    const wallLengthZ = maxZ - minZ + wallThickness;
+    const wallLengthX = maxX - minX + wallThickness // Add thickness to span correctly
+    const wallLengthZ = maxZ - minZ + wallThickness
 
     // Wall positions (centered vertically)
-    const wallY = wallHeight / 2;
+    const wallY = wallHeight / 2
 
     // Back wall (negative Z)
-    createWall("BoundaryWall_Back",
-        new Vector3((minX + maxX) / 2, wallY, minZ - wallThickness / 2),
-        new Vector3(wallLengthX, wallHeight, wallThickness)
-    );
+    createWall(
+      'BoundaryWall_Back',
+      new Vector3((minX + maxX) / 2, wallY, minZ - wallThickness / 2),
+      new Vector3(wallLengthX, wallHeight, wallThickness),
+    )
 
     // Front wall (positive Z)
-    createWall("BoundaryWall_Front",
-        new Vector3((minX + maxX) / 2, wallY, maxZ + wallThickness / 2),
-        new Vector3(wallLengthX, wallHeight, wallThickness)
-    );
+    createWall(
+      'BoundaryWall_Front',
+      new Vector3((minX + maxX) / 2, wallY, maxZ + wallThickness / 2),
+      new Vector3(wallLengthX, wallHeight, wallThickness),
+    )
 
     // Left wall (negative X)
-    createWall("BoundaryWall_Left",
-        new Vector3(minX - wallThickness / 2, wallY, (minZ + maxZ) / 2),
-        new Vector3(wallThickness, wallHeight, wallLengthZ)
-    );
+    createWall(
+      'BoundaryWall_Left',
+      new Vector3(minX - wallThickness / 2, wallY, (minZ + maxZ) / 2),
+      new Vector3(wallThickness, wallHeight, wallLengthZ),
+    )
 
     // Right wall (positive X)
-    createWall("BoundaryWall_Right",
-        new Vector3(maxX + wallThickness / 2, wallY, (minZ + maxZ) / 2),
-        new Vector3(wallThickness, wallHeight, wallLengthZ)
-    );
+    createWall(
+      'BoundaryWall_Right',
+      new Vector3(maxX + wallThickness / 2, wallY, (minZ + maxZ) / 2),
+      new Vector3(wallThickness, wallHeight, wallLengthZ),
+    )
 
-    console.log(`Created ${this.boundaryWalls.length} invisible boundary walls.`);
+    console.log(`Created ${this.boundaryWalls.length} invisible boundary walls.`)
   }
 
   private setupGameEventListeners(): void {
@@ -756,7 +762,7 @@ export class GameEngine {
         if (!interactable) return
         interactable.setDisabled(objState.disabled)
         if (objState.isActive && interactable.interactType !== InteractType.Oven) {
-          interactable.activate()
+          interactable.activate(objState.isActive)
         } else if (!objState.isActive && interactable.interactType !== InteractType.Oven) {
           interactable.deactivate()
         }
@@ -773,7 +779,7 @@ export class GameEngine {
 
         // Activate non-oven items initially if needed
         if (objState.isActive && initialInteractable.interactType !== InteractType.Oven) {
-          initialInteractable.activate()
+          initialInteractable.activate(objState.isActive)
         }
       }
     })
@@ -810,15 +816,20 @@ export class GameEngine {
         this.handleSpawnChick(order.chairId, order.customerType)
         // Store data needed for the timer
         this.customerOrderData.set(order.chairId, {
-          createdAt: order.createdAt,
-          deadline: order.deadline,
+          timeLeft: order.timeLeft,
+          totalDuration: order.totalDuration,
         })
         this.createCustomerOrderUI_3D(order.chairId, order.recipeId)
       }
 
-      $(order).listen('deadline', (currentDeadline) => {
-        if (order.chairId !== -1 && this.customerOrderData.has(order.chairId)) {
-          this.customerOrderData.set(order.chairId, { createdAt: order.createdAt, deadline: currentDeadline })
+      $(order).listen('timeLeft', (newTimeLeft) => {
+        if (this.customerOrderData.has(order.chairId)) {
+          // Update stored data
+          this.customerOrderData.set(order.chairId, {
+            timeLeft: newTimeLeft,
+            totalDuration: order.totalDuration, // Keep total duration
+          })
+          // Force UI update by resetting last update time
           this.lastOrderUIUpdateTimes.set(order.chairId, 0)
         }
       })
@@ -885,7 +896,7 @@ export class GameEngine {
 
   private createCustomerOrderUI_3D(chairId: number, recipeId: string): void {
     if (this.customerOrderMeshes.has(chairId)) {
-      this.removeCustomerOrderUI_3D(chairId) // Clean up existing first
+      this.removeCustomerOrderUI_3D(chairId)
     }
     const customerMesh = this.spawnedCustomers.get(chairId)
     if (!customerMesh) return
@@ -895,11 +906,10 @@ export class GameEngine {
     if (!finalItem || !finalItem.icon) return
 
     const iconUrl = `/ingredients/${finalItem.icon}.png`
-    const planeSize = 0.6 // Slightly larger plane for bar
+    const planeSize = 0.6
     const textureWidth = 128
-    const textureHeight = 128 // Keep square texture
+    const textureHeight = 128
 
-    // 1. Create Plane Mesh (as before)
     const plane = MeshBuilder.CreatePlane(`orderPlane_${chairId}`, { size: planeSize }, this.scene)
     plane.billboardMode = Mesh.BILLBOARDMODE_ALL
     plane.isPickable = false
@@ -907,46 +917,36 @@ export class GameEngine {
     plane.position = customerMesh.getAbsolutePosition().add(this.customerUIOffset)
     plane.setEnabled(true)
 
-    // 2. Create Dynamic Texture (as before)
     const dynamicTexture = new DynamicTexture(
-        `orderTex_${chairId}`,
-        { width: textureWidth, height: textureHeight },
-        this.scene,
-        false,
-        Texture.TRILINEAR_SAMPLINGMODE,
+      `orderTex_${chairId}`,
+      { width: textureWidth, height: textureHeight },
+      this.scene,
+      false,
+      Texture.TRILINEAR_SAMPLINGMODE,
     )
     dynamicTexture.hasAlpha = true
 
-    // 3. Load the Image but store it, drawing happens in drawOrderUIWithTimer
     const img = new Image()
     img.src = iconUrl
     img.onload = () => {
-      // Store the loaded image
       this.customerOrderIcons.set(chairId, img)
-      // Trigger an initial draw now that the image is loaded
-      const orderData = this.customerOrderData.get(chairId)
+      const orderData = this.customerOrderData.get(chairId) // Fetch the already stored {timeLeft, totalDuration}
       if (orderData) {
-        this.drawOrderUIWithTimer(dynamicTexture, orderData, img)
-      } else {
-        // Fallback draw if order data somehow missing initially
-        this.drawOrderUIWithTimer(dynamicTexture, { createdAt: Date.now(), deadline: Date.now() + 60000 }, img) // Default 60s
+        this.drawOrderUIWithTimer(dynamicTexture, orderData, img) // Initial draw with correct data
       }
     }
     img.onerror = () => {
       console.error(`[UI 3D] Failed to load icon: ${iconUrl}`)
-      // Create a placeholder image object if loading fails
-      const placeholderImg = new Image() // You might need a more robust way
+      const placeholderImg = new Image()
       placeholderImg.width = 1
-      placeholderImg.height = 1 // Minimal size
-      this.customerOrderIcons.set(chairId, placeholderImg) // Store placeholder
-      // Trigger an initial draw with placeholder
+      placeholderImg.height = 1
+      this.customerOrderIcons.set(chairId, placeholderImg)
       const orderData = this.customerOrderData.get(chairId)
       if (orderData) {
-        this.drawOrderUIWithTimer(dynamicTexture, orderData, placeholderImg, true) // Pass error flag
+        this.drawOrderUIWithTimer(dynamicTexture, orderData, placeholderImg, true)
       }
     }
 
-    // 4. Create Material (as before)
     const material = new StandardMaterial(`orderMat_${chairId}`, this.scene)
     material.diffuseTexture = dynamicTexture
     material.opacityTexture = dynamicTexture
@@ -955,65 +955,54 @@ export class GameEngine {
     material.emissiveColor = Color3.White()
     material.disableLighting = true
     material.backFaceCulling = false
-
-    // 5. Apply Material (as before)
     plane.material = material
 
-    // 6. Store references (as before)
     this.customerOrderMeshes.set(chairId, plane)
     this.orderUITextures.set(chairId, dynamicTexture)
     this.orderUIMaterials.set(chairId, material)
-    // Reset update timer to force initial draw via observer
-    this.lastOrderUIUpdateTimes.set(chairId, 0)
+    this.lastOrderUIUpdateTimes.set(chairId, 0) // Force initial draw via observer
   }
 
   private drawOrderUIWithTimer(
-      texture: DynamicTexture,
-      orderData: { createdAt: number; deadline: number },
-      iconImage: HTMLImageElement,
-      loadError: boolean = false,
+    texture: DynamicTexture,
+    orderData: { timeLeft: number; totalDuration: number }, // MODIFIED signature
+    iconImage: HTMLImageElement,
+    loadError: boolean = false,
   ): void {
     const textureWidth = texture.getSize().width
     const textureHeight = texture.getSize().height
     const ctx = texture.getContext() as CanvasRenderingContext2D
-
     if (!ctx) return
 
-    // --- Calculate Time Percentage ---
-    let percentage = 1.0 // Default to full if no deadline
-    if (orderData.deadline > 0 && orderData.createdAt > 0) {
-      const totalDuration = orderData.deadline - orderData.createdAt
-      const now = Date.now()
-      const elapsed = now - orderData.createdAt
-      percentage = Scalar.Clamp(1.0 - elapsed / totalDuration, 0, 1)
-    }
-    // Handle case where time might be up but update is lagging
-    if (orderData.deadline > 0 && Date.now() > orderData.deadline) {
+    // --- Calculate Time Percentage using timeLeft and totalDuration ---
+    let percentage = 1.0
+    if (orderData.totalDuration > 0) {
+      // Check totalDuration first
+      percentage = Scalar.Clamp(orderData.timeLeft / orderData.totalDuration, 0, 1)
+    } else if (orderData.timeLeft <= 0) {
+      // Handle edge case where duration might be 0 but time is up
       percentage = 0
     }
+    // --- End Percentage Calculation ---
 
-    // --- Define Areas ---
     const padding = 16
-    const progressBarHeight = 18 // Height of the progress bar
-    const iconAreaHeight = textureHeight - progressBarHeight - padding * 3 // Height available for icon + top/bottom padding
+    const progressBarHeight = 18
+    const iconAreaHeight = textureHeight - progressBarHeight - padding * 3
     const iconAreaY = padding
-    const progressBarY = iconAreaY + iconAreaHeight + padding // Position bar below icon area
+    const progressBarY = iconAreaY + iconAreaHeight + padding
 
-    // --- Clear and Draw Background ---
     ctx.clearRect(0, 0, textureWidth, textureHeight)
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)' // Background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
     ctx.beginPath()
-    ctx.roundRect(padding / 2, padding / 2, textureWidth - padding, textureHeight - padding, 15) // Slightly inset rounded rect
+    ctx.roundRect(padding / 2, padding / 2, textureWidth - padding, textureHeight - padding, 15)
     ctx.fill()
 
-    // --- Draw Icon ---
     if (!loadError && iconImage.complete && iconImage.naturalWidth > 0) {
-      const iconSize = Math.min(textureWidth - padding * 2, iconAreaHeight) * 0.9 // Icon size uses 90% of its available area
+      const iconSize = Math.min(textureWidth - padding * 2, iconAreaHeight) * 0.9
       const iconX = (textureWidth - iconSize) / 2
-      const iconY = iconAreaY + (iconAreaHeight - iconSize) / 2 // Center vertically in its area
+      const iconY = iconAreaY + (iconAreaHeight - iconSize) / 2
       ctx.drawImage(iconImage, iconX, iconY, iconSize, iconSize)
     } else if (loadError) {
-      // Draw placeholder text if icon failed
       ctx.fillStyle = 'white'
       ctx.font = 'bold 30px Arial'
       ctx.textAlign = 'center'
@@ -1021,34 +1010,28 @@ export class GameEngine {
       ctx.fillText('?', textureWidth / 2, iconAreaY + iconAreaHeight / 2)
     }
 
-    // --- Draw Progress Bar ---
-    if (orderData.deadline > 0) {
-      // Only draw if there's a deadline
+    // --- Draw Progress Bar (Only if totalDuration exists) ---
+    if (orderData.totalDuration > 0) {
       const barX = padding
       const barWidth = textureWidth - padding * 2
       const fillWidth = barWidth * percentage
 
-      // Draw Bar Background (darker grey)
       ctx.fillStyle = 'rgba(50, 50, 50, 0.8)'
       ctx.fillRect(barX, progressBarY, barWidth, progressBarHeight)
 
-      // Determine Fill Color based on percentage
-      let fillColor = '#4ade80' // Green (default)
-      if (percentage < 0.25) {
+      let fillColor = '#4ade80' // Green
+      if (percentage < 0.25)
         fillColor = '#f87171' // Red
-      } else if (percentage < 0.6) {
-        fillColor = '#facc15' // Yellow
-      }
+      else if (percentage < 0.6) fillColor = '#facc15' // Yellow
       ctx.fillStyle = fillColor
       ctx.fillRect(barX, progressBarY, fillWidth, progressBarHeight)
 
-      // Draw Bar Outline
       ctx.strokeStyle = 'rgba(200, 200, 200, 0.7)'
       ctx.lineWidth = 1
       ctx.strokeRect(barX, progressBarY, barWidth, progressBarHeight)
     }
+    // --- End Progress Bar Drawing ---
 
-    // --- Update Texture ---
     texture.update(true)
   }
 
@@ -1068,238 +1051,226 @@ export class GameEngine {
       material.dispose()
       this.orderUIMaterials.delete(chairId)
     }
-    // Clean up associated data
-    this.customerOrderData.delete(chairId)
+    this.customerOrderData.delete(chairId) // Ensure data is cleaned up too
     this.customerOrderIcons.delete(chairId)
     this.lastOrderUIUpdateTimes.delete(chairId)
   }
 
   private handleSpawnChick(chairId: number, customerType: string): void {
-    if (this.spawnedCustomers.has(chairId)) return;
+    if (this.spawnedCustomers.has(chairId)) return
 
-    const templateMesh = customerType === 'chick' ? this.chickTemplateMesh : this.chickenTemplateMesh;
-    const templateContainer = customerType === 'chick' ? this.chickAssetContainer : this.chickenAssetContainer;
+    const templateMesh = customerType === 'chick' ? this.chickTemplateMesh : this.chickenTemplateMesh
+    const templateContainer = customerType === 'chick' ? this.chickAssetContainer : this.chickenAssetContainer
 
     if (!templateMesh || !templateContainer) {
-      console.error(`${customerType === 'chick' ? 'Chick' : 'Chicken'} template mesh or container is not loaded or available. Cannot spawn.`);
-      return;
+      console.error(`${customerType === 'chick' ? 'Chick' : 'Chicken'} template mesh or container is not loaded or available. Cannot spawn.`)
+      return
     }
 
-    const chairObject = this.interactables.find((obj) => obj.id === chairId && obj.interactType === InteractType.ServingOrder);
+    const chairObject = this.interactables.find((obj) => obj.id === chairId && obj.interactType === InteractType.ServingOrder)
     if (!chairObject) {
-      console.error(`Could not find chair object with ID ${chairId} to spawn customer.`);
-      return;
+      console.error(`Could not find chair object with ID ${chairId} to spawn customer.`)
+      return
     }
 
-    const instance = templateContainer.instantiateModelsToScene(name => `${name}_${chairId}`, false, { doNotInstantiate: true });
-    const newCustomer = instance.rootNodes[0] as AbstractMesh;
+    const instance = templateContainer.instantiateModelsToScene((name) => `${name}_${chairId}`, false, { doNotInstantiate: true })
+    const newCustomer = instance.rootNodes[0] as AbstractMesh
 
     if (!newCustomer) {
-      console.error(`Failed to clone customer template mesh for chair ${chairId}.`);
-      return;
+      console.error(`Failed to clone customer template mesh for chair ${chairId}.`)
+      return
     }
 
-    newCustomer.setEnabled(true);
-    newCustomer.isVisible = true;
-    newCustomer.isPickable = false;
+    newCustomer.setEnabled(true)
+    newCustomer.isVisible = true
+    newCustomer.isPickable = false
 
     newCustomer.getChildMeshes().forEach((child) => {
-      child.setEnabled(true);
-      child.isVisible = true;
-      child.isPickable = false;
+      child.setEnabled(true)
+      child.isVisible = true
+      child.isPickable = false
       if (child.material) {
-        child.material = child.material.clone(`${child.material.name}_${chairId}`);
+        child.material = child.material.clone(`${child.material.name}_${chairId}`)
       }
-    });
+    })
 
-    const finalScale = new Vector3(0.075, 0.075, 0.075);
-    newCustomer.scaling = Vector3.Zero();
+    const finalScale = new Vector3(0.075, 0.075, 0.075)
+    newCustomer.scaling = Vector3.Zero()
 
-    const chairMesh = chairObject.mesh;
-    const chairPosition = chairMesh.getAbsolutePosition();
-    const customerPosition = chairPosition.add(new Vector3(0, 0.05, 0));
-    newCustomer.position = customerPosition;
-    newCustomer.rotation = chairMesh.rotation ? chairMesh.rotation.clone() : Vector3.Zero();
+    const chairMesh = chairObject.mesh
+    const chairPosition = chairMesh.getAbsolutePosition()
+    const customerPosition = chairPosition.add(new Vector3(0, 0.05, 0))
+    newCustomer.position = customerPosition
+    newCustomer.rotation = chairMesh.rotation ? chairMesh.rotation.clone() : Vector3.Zero()
 
-    this.spawnedCustomers.set(chairId, newCustomer);
+    this.spawnedCustomers.set(chairId, newCustomer)
 
-    const animationDurationSeconds = 0.4;
-    const frameRate = 60;
-    const totalFrames = animationDurationSeconds * frameRate;
+    const animationDurationSeconds = 0.4
+    const frameRate = 60
+    const totalFrames = animationDurationSeconds * frameRate
 
     const scaleAnimation = new Animation(
-        `customerSpawnScale_${chairId}`,
-        "scaling",
-        frameRate,
-        Animation.ANIMATIONTYPE_VECTOR3,
-        Animation.ANIMATIONLOOPMODE_CONSTANT
-    );
+      `customerSpawnScale_${chairId}`,
+      'scaling',
+      frameRate,
+      Animation.ANIMATIONTYPE_VECTOR3,
+      Animation.ANIMATIONLOOPMODE_CONSTANT,
+    )
 
-    const keys = [];
+    const keys = []
     keys.push({
       frame: 0,
-      value: Vector3.Zero()
-    });
+      value: Vector3.Zero(),
+    })
     keys.push({
       frame: totalFrames,
-      value: finalScale
-    });
-    scaleAnimation.setKeys(keys);
+      value: finalScale,
+    })
+    scaleAnimation.setKeys(keys)
 
-    const easingFunction = new BackEase(0.6);
-    easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEOUT);
-    scaleAnimation.setEasingFunction(easingFunction);
+    const easingFunction = new BackEase(0.6)
+    easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEOUT)
+    scaleAnimation.setEasingFunction(easingFunction)
 
-    newCustomer.animations = newCustomer.animations || [];
-    newCustomer.animations.push(scaleAnimation);
+    newCustomer.animations = newCustomer.animations || []
+    newCustomer.animations.push(scaleAnimation)
 
-    this.scene.beginAnimation(
-        newCustomer,
-        0,
-        totalFrames,
-        false,
-        1.0,
-        () => {
-          newCustomer.scaling.copyFrom(finalScale);
-        }
-    );
+    this.scene.beginAnimation(newCustomer, 0, totalFrames, false, 1.0, () => {
+      newCustomer.scaling.copyFrom(finalScale)
+    })
 
-    this.createPortalSpawnEffect(customerPosition);
+    this.createPortalSpawnEffect(customerPosition)
   }
 
   private handleRemoveChick(chairId: number): void {
-    const customerMesh = this.spawnedCustomers.get(chairId);
+    const customerMesh = this.spawnedCustomers.get(chairId)
     if (customerMesh) {
       // 1. Define and start the scale-down animation
-      const animationDurationSeconds = 0.3;
-      const frameRate = 60;
-      const totalFrames = animationDurationSeconds * frameRate;
+      const animationDurationSeconds = 0.3
+      const frameRate = 60
+      const totalFrames = animationDurationSeconds * frameRate
 
       const scaleAnimation = new Animation(
-          `customerDespawnScale_${chairId}`,
-          "scaling",
-          frameRate,
-          Animation.ANIMATIONTYPE_VECTOR3,
-          Animation.ANIMATIONLOOPMODE_CONSTANT
-      );
+        `customerDespawnScale_${chairId}`,
+        'scaling',
+        frameRate,
+        Animation.ANIMATIONTYPE_VECTOR3,
+        Animation.ANIMATIONLOOPMODE_CONSTANT,
+      )
 
       // Keys: From current scale to zero
-      const keys = [];
+      const keys = []
       keys.push({
         frame: 0,
-        value: customerMesh.scaling.clone()
-      });
+        value: customerMesh.scaling.clone(),
+      })
       keys.push({
         frame: totalFrames,
-        value: Vector3.Zero() // End at zero scale
-      });
-      scaleAnimation.setKeys(keys);
+        value: Vector3.Zero(), // End at zero scale
+      })
+      scaleAnimation.setKeys(keys)
 
       // Optional: Add easing for a smoother start
-      const easingFunction = new QuadraticEase();
-      easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEIN);
-      scaleAnimation.setEasingFunction(easingFunction);
+      const easingFunction = new QuadraticEase()
+      easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEIN)
+      scaleAnimation.setEasingFunction(easingFunction)
 
       // Ensure previous animations on scaling are stopped if any
-      this.scene.stopAnimation(customerMesh, `customerSpawnScale_${chairId}`);
+      this.scene.stopAnimation(customerMesh, `customerSpawnScale_${chairId}`)
 
       // Attach animation
-      customerMesh.animations = customerMesh.animations || [];
-      customerMesh.animations.push(scaleAnimation);
+      customerMesh.animations = customerMesh.animations || []
+      customerMesh.animations.push(scaleAnimation)
 
       // 2. Begin the animation and schedule disposal in the callback
-      this.scene.beginAnimation(
-          customerMesh,
-          0,
-          totalFrames,
-          false,
-          1.0,
-          () => {
-            if (customerMesh && !customerMesh.isDisposed()) {
-              customerMesh.dispose();
-            }
-            this.spawnedCustomers.delete(chairId);
-          }
-      );
+      this.scene.beginAnimation(customerMesh, 0, totalFrames, false, 1.0, () => {
+        if (customerMesh && !customerMesh.isDisposed()) {
+          customerMesh.dispose()
+        }
+        this.spawnedCustomers.delete(chairId)
+      })
     } else {
-      this.spawnedCustomers.delete(chairId);
+      this.spawnedCustomers.delete(chairId)
     }
 
-    this.removeCustomerOrderUI_3D(chairId);
-    this.customerOrderData.delete(chairId);
+    this.removeCustomerOrderUI_3D(chairId)
+    this.customerOrderData.delete(chairId)
   }
 
   private createPortalSpawnEffect(position: Vector3): void {
-    const capacity = 150; // Slightly more particles for a denser effect
-    const ps = new ParticleSystem(`portalSpawn_${position.x}_${position.z}`, capacity, this.scene);
+    const capacity = 150 // Slightly more particles for a denser effect
+    const ps = new ParticleSystem(`portalSpawn_${position.x}_${position.z}`, capacity, this.scene)
 
     // Use the loaded portal texture, or the fallback
     if (this.portalParticleTexture) {
-      ps.particleTexture = this.portalParticleTexture;
+      ps.particleTexture = this.portalParticleTexture
     } else if (this.poufParticleTexture) {
-      console.warn("Using fallback pouf texture for portal effect.");
-      ps.particleTexture = this.poufParticleTexture;
+      console.warn('Using fallback pouf texture for portal effect.')
+      ps.particleTexture = this.poufParticleTexture
     } else {
-      console.error("No particle texture available for portal effect.");
-      return; // Don't create the system if no texture is available
+      console.error('No particle texture available for portal effect.')
+      return // Don't create the system if no texture is available
     }
 
     // Emit from a small sphere slightly above the target position for a rising effect
-    ps.emitter = position.clone().addInPlace(new Vector3(0, 0.1, 0)); // Slightly elevated
+    ps.emitter = position.clone().addInPlace(new Vector3(0, 0.1, 0)) // Slightly elevated
     // Emit from the surface of a sphere to give an initial shape
-    ps.particleEmitterType = ps.createSphereEmitter(0.15); // Radius of the emission sphere
+    ps.particleEmitterType = ps.createSphereEmitter(0.15) // Radius of the emission sphere
 
     // Colors - Magical Blue/Cyan/Purple theme
-    ps.color1 = new Color4(0.5, 0.8, 1.0, 1.0); // Light Cyan
-    ps.color2 = new Color4(0.7, 0.5, 1.0, 1.0); // Light Purple
-    ps.colorDead = new Color4(0.1, 0.1, 0.2, 0.0); // Fade to dark transparent
+    ps.color1 = new Color4(0.5, 0.8, 1.0, 1.0) // Light Cyan
+    ps.color2 = new Color4(0.7, 0.5, 1.0, 1.0) // Light Purple
+    ps.colorDead = new Color4(0.1, 0.1, 0.2, 0.0) // Fade to dark transparent
 
     // Color gradient for a more dynamic effect
-    ps.addColorGradient(0.0, new Color4(0.8, 0.9, 1.0, 1.0)); // Almost white/cyan at start
-    ps.addColorGradient(0.6, new Color4(0.6, 0.5, 1.0, 0.7)); // Transition to purple, reduced alpha
-    ps.addColorGradient(1.0, ps.colorDead.clone());          // Transparent end
+    ps.addColorGradient(0.0, new Color4(0.8, 0.9, 1.0, 1.0)) // Almost white/cyan at start
+    ps.addColorGradient(0.6, new Color4(0.6, 0.5, 1.0, 0.7)) // Transition to purple, reduced alpha
+    ps.addColorGradient(1.0, ps.colorDead.clone()) // Transparent end
 
     // Size - Start small, grow, then shrink
-    ps.minSize = 0.03;
-    ps.maxSize = 0.15;
-    ps.addSizeGradient(0, 0.02);   // Start very small
-    ps.addSizeGradient(0.4, 0.15);  // Grow quickly
-    ps.addSizeGradient(1.0, 0.01);  // Shrink at the end
+    ps.minSize = 0.03
+    ps.maxSize = 0.15
+    ps.addSizeGradient(0, 0.02) // Start very small
+    ps.addSizeGradient(0.4, 0.15) // Grow quickly
+    ps.addSizeGradient(1.0, 0.01) // Shrink at the end
 
     // Short lifetime for a quick effect
-    ps.minLifeTime = 0.4;
-    ps.maxLifeTime = 0.8;
+    ps.minLifeTime = 0.4
+    ps.maxLifeTime = 0.8
 
     // Emit in a quick burst
-    ps.emitRate = capacity / ps.minLifeTime; // Emit all particles during the minimum lifetime
-    ps.manualEmitCount = capacity; // Ensure all are emitted
+    ps.emitRate = capacity / ps.minLifeTime // Emit all particles during the minimum lifetime
+    ps.manualEmitCount = capacity // Ensure all are emitted
 
     // Emission Speed/Power
-    ps.minEmitPower = 1.5;
-    ps.maxEmitPower = 3.0; // Faster than the pouf
-    ps.updateSpeed = 0.008; // Update speed
+    ps.minEmitPower = 1.5
+    ps.maxEmitPower = 3.0 // Faster than the pouf
+    ps.updateSpeed = 0.008 // Update speed
 
     // Gravity - Slight initial rise then gentle fall
-    ps.gravity = new Vector3(0, -1.5, 0); // Slight downward gravity
+    ps.gravity = new Vector3(0, -1.5, 0) // Slight downward gravity
 
     // Direction - Outward expansion with a slight upward component
-    ps.direction1 = new Vector3(-0.8, 0.5, -0.8); // Horizontal expansion and a bit upwards
-    ps.direction2 = new Vector3(0.8, 1.0, 0.8);
+    ps.direction1 = new Vector3(-0.8, 0.5, -0.8) // Horizontal expansion and a bit upwards
+    ps.direction2 = new Vector3(0.8, 1.0, 0.8)
 
     // Rotation/Swirl - Key element for the portal effect
-    ps.minAngularSpeed = -Math.PI * 3;
-    ps.maxAngularSpeed = Math.PI * 3; // High rotation speed
+    ps.minAngularSpeed = -Math.PI * 3
+    ps.maxAngularSpeed = Math.PI * 3 // High rotation speed
 
     // Additive blending for a bright/magical effect
-    ps.blendMode = ParticleSystem.BLENDMODE_ADD;
+    ps.blendMode = ParticleSystem.BLENDMODE_ADD
 
-    ps.disposeOnStop = true; // Clean up after stopping
+    ps.disposeOnStop = true // Clean up after stopping
 
     // Start the effect and schedule stop
-    ps.start();
-    setTimeout(() => {
-        ps.stop();
-    }, ps.maxLifeTime * 1000 + 100); // Stop slightly after max lifetime
+    ps.start()
+    setTimeout(
+      () => {
+        ps.stop()
+      },
+      ps.maxLifeTime * 1000 + 100,
+    ) // Stop slightly after max lifetime
   }
 
   private stopTimerTickingSound(): void {
@@ -1314,7 +1285,7 @@ export class GameEngine {
    * Called every frame.
    * Updates the local player, sends movement messages, updates remote players, and updates GUI.
    */
-      // Maximum distance to check for interactable objects
+  // Maximum distance to check for interactable objects
   private readonly MAX_INTERACTION_DISTANCE: number = 5
   // Track the nearest interactable for optimization
   private _nearestInteractable: InteractableObject | null = null
@@ -1384,8 +1355,8 @@ export class GameEngine {
       const animationStateChanged = this.lastSentAnimationState !== animationState
 
       if (
-          timeSinceLastUpdate >= this.MAX_NETWORK_UPDATE_INTERVAL ||
-          (timeSinceLastUpdate >= this.NETWORK_UPDATE_INTERVAL && (positionChanged || rotationChanged || animationStateChanged))
+        timeSinceLastUpdate >= this.MAX_NETWORK_UPDATE_INTERVAL ||
+        (timeSinceLastUpdate >= this.NETWORK_UPDATE_INTERVAL && (positionChanged || rotationChanged || animationStateChanged))
       ) {
         // Send position update to server
         this.room.send('move', {
@@ -1418,8 +1389,8 @@ export class GameEngine {
   public tryInteract(characterController: LocalCharacterController): void {
     // Use the cached nearest interactable if available and in range
     if (
-        this._nearestInteractable &&
-        Vector3.Distance(this._nearestInteractable.mesh.position, characterController.position) <= this._nearestInteractable.interactionDistance
+      this._nearestInteractable &&
+      Vector3.Distance(this._nearestInteractable.mesh.position, characterController.position) <= this._nearestInteractable.interactionDistance
     ) {
       // Trigger interaction with the cached nearest
       this._nearestInteractable.interact()
@@ -1472,12 +1443,12 @@ export class GameEngine {
     mesh.scaling = new Vector3(0.9, 0.9, 0.9)
     mesh.rotation = new Vector3(0, 0, 0)
     this.localController = new LocalCharacterController(
-        this,
-        mesh,
-        this.ingredientLoader,
-        localInstance.animationGroups,
-        this.scene,
-        this.audioManager,
+      this,
+      mesh,
+      this.ingredientLoader,
+      localInstance.animationGroups,
+      this.scene,
+      this.audioManager,
     )
     this.localController.model.receiveShadows = true
     this.shadowGenerator.addShadowCaster(this.localController.model)
@@ -1517,11 +1488,11 @@ export class GameEngine {
       remoteMesh.scaling = new Vector3(0.9, 0.9, 0.9)
       remoteMesh.rotation = new Vector3(0, 0, 0)
       const remoteController = new RemoteCharacterController(
-          remoteMesh,
-          this.scene,
-          this.ingredientLoader,
-          remoteInstance.animationGroups,
-          this.audioManager,
+        remoteMesh,
+        this.scene,
+        this.ingredientLoader,
+        remoteInstance.animationGroups,
+        this.audioManager,
       )
       remoteController.setPosition(new Vector3(player.x, player.y, player.z))
       remoteController.setRotationY(player.rot)

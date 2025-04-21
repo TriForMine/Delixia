@@ -12,20 +12,16 @@ export class InteractableObjectState extends Schema {
   @type('boolean')
   isActive: boolean = false
 
-  // Timestamp when the current state started (e.g., when cooking began)
-  @type('number')
-  activeSince: number = 0
-
   // For Stock stations: the ingredient they provide
   @type('number')
   ingredient: Ingredient = Ingredient.None
 
   // For Crafting stations: ingredients placed on them
-  @type({ array: "number" })
+  @type({ array: 'number' })
   ingredientsOnBoard: ArraySchema<number> = new ArraySchema<number>()
 
   @type('boolean')
-  hasDirtyPlate: boolean = false;
+  hasDirtyPlate: boolean = false
 
   // If the station is temporarily unusable
   @type('boolean')
@@ -33,9 +29,12 @@ export class InteractableObjectState extends Schema {
 
   // ID of the recipe currently being processed (null if none)
   @type('string')
-  processingRecipeId: string | null = null;
+  processingRecipeId: string | null = null
 
   // Timestamp (server time) when the current processing will end (0 if not processing)
   @type('number')
-  processingEndTime: number = 0;
+  processingTimeLeft: number = 0
+
+  @type('number')
+  totalProcessingDuration: number = 0
 }

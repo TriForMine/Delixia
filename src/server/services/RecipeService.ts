@@ -6,12 +6,11 @@ import { countIngredientsMap, countRecipeRequirements } from '@shared/ingredient
 import { logger } from 'colyseus'
 
 export class RecipeService {
-  public updateProcessingStations(_deltaTime: number, state: GameRoomState): void {
-    const now = Date.now()
+  public updateProcessingStations(deltaTime: number, state: GameRoomState): void {
     state.interactableObjects.forEach((obj) => {
-      // Check only active stations with a processing recipe
-      if (obj.isActive && obj.processingRecipeId && obj.processingEndTime > 0) {
-        if (now >= obj.processingEndTime) {
+      if (obj.isActive && obj.processingRecipeId && obj.processingTimeLeft > 0) {
+        obj.processingTimeLeft = Math.max(0, obj.processingTimeLeft - deltaTime) // Use passed deltaTime
+        if (obj.processingTimeLeft <= 0) {
           this.completeProcessing(obj, state)
         }
       }
@@ -28,13 +27,12 @@ export class RecipeService {
         // Start timed processing
         obj.isActive = true
         obj.processingRecipeId = completedRecipe.id
-        obj.activeSince = Date.now()
-        obj.processingEndTime = obj.activeSince + completedRecipe.processingTime
+        obj.processingTimeLeft = completedRecipe.processingTime
+        obj.totalProcessingDuration = completedRecipe.processingTime
         logger.info(`Starting processing for ${completedRecipe.name} on station ${obj.id} for ${completedRecipe.processingTime}ms.`)
       } else {
         // Instant recipe completion
         obj.ingredientsOnBoard.push(completedRecipe.result.ingredient)
-        obj.activeSince = Date.now()
         logger.info(`Instantly created ${completedRecipe.name} on station ${obj.id}`)
       }
     }
@@ -53,8 +51,8 @@ export class RecipeService {
     // Reset processing state
     obj.isActive = false
     obj.processingRecipeId = null
-    obj.processingEndTime = 0
-    obj.activeSince = Date.now() // Update timestamp
+    obj.processingTimeLeft = 0
+    obj.totalProcessingDuration = 0
   }
 
   /**
