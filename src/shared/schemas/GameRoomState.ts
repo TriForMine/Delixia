@@ -12,6 +12,9 @@ export class GameRoomState extends Schema {
   @type('string')
   hostId: string = ''
 
+  @type('number')
+  maxClients: number = 4
+
   @type({ map: Player })
   players = new MapSchema<Player>()
 
