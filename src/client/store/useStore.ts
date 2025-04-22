@@ -1,3 +1,4 @@
+import { settingsStore } from '@client/utils/settingsStore'
 import { create } from 'zustand'
 
 type AppMode = 'menu' | 'game' | 'roomList' | 'settings'
@@ -15,6 +16,8 @@ interface AppState {
   setInGameSettingsVisible: (visible: boolean) => void
   setMode: (mode: AppMode) => void
   setRoomToJoin: (room: RoomToJoin | undefined) => void
+  username: string
+  setUsername: (newUsername: string) => void
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -24,4 +27,15 @@ export const useStore = create<AppState>((set) => ({
   setRoomToJoin: (room) => set({ roomToJoin: room }),
   inGameSettingsVisible: false,
   setInGameSettingsVisible: (visible) => set({ inGameSettingsVisible: visible }),
+  username: settingsStore.getUsername(),
+  setUsername: (newUsername) => {
+    const trimmedUsername = newUsername.trim().slice(0, 16)
+    if (trimmedUsername) {
+      settingsStore.setUsername(trimmedUsername)
+      set({ username: trimmedUsername })
+    } else {
+      console.warn('Attempted to set an empty username.')
+      set({ username: settingsStore.getUsername() })
+    }
+  },
 }))

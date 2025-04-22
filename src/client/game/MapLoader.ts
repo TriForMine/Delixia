@@ -11,6 +11,7 @@ import type { MapModelConfig } from '@shared/utils/mapUtils.ts'
 import { generateMapHash } from '@shared/utils/mapUtils.ts'
 import { InteractableObject } from './InteractableObject'
 import type { IngredientLoader } from './IngredientLoader'
+import { toast } from 'react-hot-toast'
 
 export class MapLoader {
   private readonly scene: Scene
@@ -55,7 +56,7 @@ export class MapLoader {
 
       if (clientMapHash !== serverMapHash) {
         console.error(`Map hash mismatch! Client: ${clientMapHash}, Server: ${serverMapHash}`)
-        alert('Warning: Your game map version differs from the server. This may cause gameplay issues.')
+        toast.error('Warning: Your game map version differs from the server. This may cause gameplay issues.')
       } else {
         console.log(`Map hash verified: ${clientMapHash}`)
       }

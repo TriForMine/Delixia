@@ -39,6 +39,7 @@
     "react": "19.1.0",
     "react-confetti": "^6.4.0",
     "react-dom": "19.1.0",
+    "react-hot-toast": "^2.5.2",
     "react-use-audio-player": "^4.0.2",
     "valtio": "2.1.4",
     "zod": "3.24.3",

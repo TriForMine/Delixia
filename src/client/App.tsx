@@ -4,11 +4,12 @@ import '@babylonjs/loaders/glTF'
 import { RoomList } from '@client/components/RoomList.tsx'
 import { gameConnect, gameDisconnectFromColyseus, lobbyConnect, lobbyDisconnectFromColyseus } from '@client/hooks/colyseus.ts'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { settingsStore } from './utils/settingsStore.ts'
 import Settings from './components/UI/Settings.tsx'
 import { AnimatePresence, motion } from 'motion/react'
 import { Cake, CookingPot, Ghost } from 'lucide-react'
 import type { GameEngine } from '@client/game/GameEngine.ts'
+import { toast } from 'react-hot-toast'
+import { ToasterWithMax } from '@client/components/UI/ToasterWithMax.tsx'
 
 const InitialPseudoSetup: React.FC<{ onPseudoSet: (pseudo: string) => void }> = ({ onPseudoSet }) => {
   const [tempPseudo, setTempPseudo] = useState('')
@@ -17,7 +18,7 @@ const InitialPseudoSetup: React.FC<{ onPseudoSet: (pseudo: string) => void }> = 
     if (finalPseudo && finalPseudo.length >= 3) {
       onPseudoSet(finalPseudo)
     } else {
-      alert('Your nickname must be at least 3 characters long ! 😅')
+      toast.error('Your nickname must be at least 3 characters long! 😅')
     }
   }
 
@@ -68,8 +69,9 @@ const App: React.FC = () => {
   const setMode = useStore((state) => state.setMode)
   const roomToJoin = useStore((state) => state.roomToJoin)
   const setRoomToJoin = useStore((state) => state.setRoomToJoin)
+  const username = useStore((state) => state.username)
+  const setUsername = useStore((state) => state.setUsername)
   const [showInitialSetup, setShowInitialSetup] = useState(false)
-  const [playerPseudo, setPlayerPseudo] = useState('')
   const gameEngineRef = useRef<GameEngine | null>(null)
 
   // Callback to be passed to Game component to get the GameEngine instance
@@ -83,17 +85,11 @@ const App: React.FC = () => {
   }, [])
 
   useEffect(() => {
-    const savedPseudo = settingsStore.getUsername()
-    if (!savedPseudo) {
-      setShowInitialSetup(true) // Show setup screen if no pseudo exists
-    } else {
-      setPlayerPseudo(savedPseudo) // Load existing pseudo
-    }
-  }, [])
+    setShowInitialSetup(!username)
+  }, [username])
 
-  const handlePseudoSet = (pseudo: string) => {
-    settingsStore.setUsername(pseudo)
-    setPlayerPseudo(pseudo)
+  const handleInitialPseudoSubmit = (pseudo: string) => {
+    setUsername(pseudo) // Use the store action
     setShowInitialSetup(false)
     setMode('menu')
   }
@@ -106,10 +102,14 @@ const App: React.FC = () => {
   }, [showInitialSetup, applySettingsChanges]) // Re-apply if user finishes setup
 
   useEffect(() => {
+    if (!username && mode !== 'menu') {
+      return
+    }
+
     if (mode === 'game') {
       ;(async () => {
         const connectOptions = {
-          clientPseudo: playerPseudo,
+          clientPseudo: username,
         }
 
         await gameConnect({
@@ -133,7 +133,7 @@ const App: React.FC = () => {
         lobbyDisconnectFromColyseus().catch(console.error)
       }
     }
-  }, [mode, roomToJoin, playerPseudo]) // Add playerPseudo dependency if it affects connection options
+  }, [mode, roomToJoin, username])
 
   const handlePlayGame = () => {
     setRoomToJoin({
@@ -156,6 +156,30 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen h-screen flex flex-col bg-base-200 overflow-hidden relative">
+      <ToasterWithMax
+        position="bottom-center"
+        reverseOrder={false}
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#333',
+            color: '#fff',
+          },
+          success: {
+            iconTheme: {
+              primary: '#10B981',
+              secondary: 'white',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#EF4444',
+              secondary: 'white',
+            },
+          },
+        }}
+      />
+
       <AnimatePresence>
         {!showInitialSetup && mode === 'menu' && (
           <motion.div
@@ -210,7 +234,7 @@ const App: React.FC = () => {
 
       <AnimatePresence mode="wait">
         {showInitialSetup ? (
-          <InitialPseudoSetup key="initial-setup" onPseudoSet={handlePseudoSet} />
+          <InitialPseudoSetup key="initial-setup" onPseudoSet={handleInitialPseudoSubmit} />
         ) : (
           mode === 'menu' && (
             <motion.div
@@ -221,14 +245,14 @@ const App: React.FC = () => {
               transition={{ duration: 0.5, ease: 'easeInOut', delay: 0.1 }} // Légère attente pour enchaîner
               className="flex flex-col items-center justify-center flex-1"
             >
-              {playerPseudo && (
+              {username && (
                 <motion.h2
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3, duration: 0.4 }}
                   className="text-2xl mb-4 text-base-content/90"
                 >
-                  Ready to cook, <span className="font-bold text-primary drop-shadow">{playerPseudo}</span>? 🍳
+                  Ready to cook, <span className="font-bold text-primary drop-shadow">{username}</span>? 🍳
                 </motion.h2>
               )}
               <motion.h1

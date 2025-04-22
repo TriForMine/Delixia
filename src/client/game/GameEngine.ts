@@ -44,6 +44,7 @@ import { BackEase, EasingFunction, Animation, QuadraticEase } from '@babylonjs/c
 import { settingsStore } from '@client/utils/settingsStore.ts'
 import { useStore } from '@client/store/useStore.ts'
 import { mapConfigs } from '@shared/maps/japan.ts'
+import { toast } from 'react-hot-toast'
 
 export class GameEngine {
   public interactables: InteractableObject[] = []
@@ -1008,32 +1009,39 @@ export class GameEngine {
       }
     })
 
+    const onError = (error: {
+      message: string
+    }) => {
+      toast.error(error.message)
+      this.playSfx('error')
+    }
+
     // Listen for changes
     $(this.room.state).listen('timeLeft', handleTimeLeftChange)
 
     // --- Listen for Server Messages (Errors, etc.) ---
-    this.room.onMessage('alreadyCarrying', () => this.playSfx('error'))
-    this.room.onMessage('noIngredient', () => this.playSfx('error'))
-    this.room.onMessage('invalidIngredient', () => this.playSfx('error'))
-    this.room.onMessage('noMatchingOrder', () => this.playSfx('error'))
-    this.room.onMessage('needPlate', () => this.playSfx('error'))
-    this.room.onMessage('wrongIngredient', () => this.playSfx('error'))
-    this.room.onMessage('wrongOrder', () => this.playSfx('error'))
+    this.room.onMessage('alreadyCarrying', onError)
+    this.room.onMessage('noIngredient', onError)
+    this.room.onMessage('invalidIngredient', onError)
+    this.room.onMessage('noMatchingOrder', onError)
+    this.room.onMessage('needPlate', onError)
+    this.room.onMessage('wrongIngredient', onError)
+    this.room.onMessage('wrongOrder', onError)
     this.room.onMessage('orderCompleted', () => this.playSfx('orderComplete'))
 
-    this.room.onMessage('invalidServe', () => this.playSfx('error'))
-    this.room.onMessage('stationBusy', () => this.playSfx('error'))
-    this.room.onMessage('cannotPickup', () => this.playSfx('error'))
-    this.room.onMessage('invalidPickup', () => this.playSfx('error'))
-    this.room.onMessage('boardFull', () => this.playSfx('error'))
-    this.room.onMessage('invalidCombination', () => this.playSfx('error'))
-    this.room.onMessage('boardNotEmpty', () => this.playSfx('error'))
-    this.room.onMessage('boardEmpty', () => this.playSfx('error'))
-    this.room.onMessage('cannotPlaceRaw', () => this.playSfx('error'))
+    this.room.onMessage('invalidServe', onError)
+    this.room.onMessage('stationBusy', onError)
+    this.room.onMessage('cannotPickup', onError)
+    this.room.onMessage('invalidPickup', onError)
+    this.room.onMessage('boardFull', onError)
+    this.room.onMessage('invalidCombination', onError)
+    this.room.onMessage('boardNotEmpty', onError)
+    this.room.onMessage('boardEmpty', onError)
+    this.room.onMessage('cannotPlaceRaw', onError)
     this.room.onMessage('error', (payload) => {
       // Generic error handler
       console.warn('Received error from server:', payload?.message || 'Unknown error')
-      this.playSfx('error')
+      onError(payload)
     })
 
     this.room.onMessage('gameOver', (payload: { finalScore: number }) => {

@@ -28,7 +28,7 @@ export class GameRoom extends Room<GameRoomState> {
   onCreate(_options: any) {
     this.recipeService = new RecipeService()
     this.orderService = new OrderService()
-    this.interactionService = new InteractionService(this.recipeService, this.orderService) // Inject dependencies
+    this.interactionService = new InteractionService(this.recipeService, this.orderService)
     this.gameTimerService = new GameTimerService()
 
     const mapHash = generateMapHash(mapConfigs)
@@ -41,7 +41,7 @@ export class GameRoom extends Room<GameRoomState> {
 
     this.setSimulationInterval((deltaTime) => this.update(deltaTime))
 
-    logger.info(`GameRoom ${this.roomId} created in WAITING phase.`)
+    logger.info(`GameRoom ${this.roomId} created with ID: ${this.roomId}`)
 
     this.onMessage('startGame', (client) => {
       if (client.sessionId !== this.state.hostId) {
@@ -91,10 +91,6 @@ export class GameRoom extends Room<GameRoomState> {
   }
 
   onJoin(client: Client, options?: any) {
-    if (this.state.gamePhase !== GamePhase.WAITING) {
-      throw new Error('Game has already started.') // Reject connection
-    }
-
     // --- Assign host ID if not already set or current host id is not connected to the server anymore ---
     if (!this.state.hostId || !this.clients.find((c) => c.sessionId === this.state.hostId)) {
       this.state.hostId = client.sessionId

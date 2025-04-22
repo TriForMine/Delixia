@@ -5,6 +5,7 @@ import { useStore } from '@client/store/useStore'
 import { ChevronLeft, Save, RotateCcw, Gamepad2, UserCircle, AlertTriangle } from 'lucide-react'
 import { defaultKeyBindings, type GameAction, settingsStore } from '@client/utils/settingsStore'
 import SharedSettingsPanel from './SharedSettingsPanel'
+import toast from 'react-hot-toast'
 
 // Labels for game actions (for display)
 const actionLabels: Record<GameAction, string> = {
@@ -55,9 +56,11 @@ interface SettingsProps {
 
 const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
   const setMode = useStore((state) => state.setMode)
+  const storeUsername = useStore((state) => state.username)
+  const setStoreUsername = useStore((state) => state.setUsername)
 
   // --- States specific to this full settings screen ---
-  const [username, setUsername] = useState(settingsStore.getUsername())
+  const [inputUsername, setInputUsername] = useState(settingsStore.getUsername())
   const [keyBindings, setKeyBindings] = useState(settingsStore.getKeyBindings())
   const [listeningAction, setListeningAction] = useState<GameAction | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -65,18 +68,22 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
 
   // --- Handlers specific to this screen ---
   const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setUsername(e.target.value.slice(0, 16))
+    setInputUsername(e.target.value.slice(0, 16))
   }
   const saveUsername = useCallback(() => {
-    const trimmedUsername = username.trim()
-    if (trimmedUsername) {
-      settingsStore.setUsername(trimmedUsername)
-      alert('Nickname saved!')
+    const trimmedUsername = inputUsername.trim()
+    if (trimmedUsername && trimmedUsername.length >= 3) {
+      setStoreUsername(trimmedUsername)
+      toast.success('Nickname saved!')
     } else {
-      alert('Nickname cannot be empty.')
-      setUsername(settingsStore.getUsername())
+      if (!trimmedUsername) {
+        toast.error('Nickname cannot be empty.')
+      } else {
+        toast.error('Nickname must be at least 3 characters.')
+      }
+      setInputUsername(storeUsername)
     }
-  }, [username])
+  }, [inputUsername])
 
   const handleListen = useCallback((action: GameAction) => {
     setListeningAction(action)
@@ -88,8 +95,8 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
     setKeyBindings(defaultBindingsCopy)
     settingsStore.setKeyBindings(defaultBindingsCopy)
     setErrorMessage(null)
-    applySettingsChanges() // Apply sensitivity changes etc. from defaults
-    alert('Keys reset to default.')
+    applySettingsChanges()
+    toast.success('Keys reset to default.')
   }, [applySettingsChanges])
 
   const handleResetAll = () => {
@@ -167,7 +174,7 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
             <div className="flex flex-col sm:flex-row items-center gap-4">
               <div className="avatar placeholder flex-shrink-0">
                 <div className="bg-gradient-to-br from-primary to-secondary text-neutral-content rounded-full w-16 h-16 ring-2 ring-primary ring-offset-base-100 ring-offset-2 shadow-md flex items-center justify-center text-3xl font-semibold">
-                  {(username || '?').charAt(0).toUpperCase()}
+                  {(inputUsername || '?').charAt(0).toUpperCase()}
                 </div>
               </div>
               <div className="flex-grow w-full sm:w-auto">
@@ -178,7 +185,7 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
                   <input
                     type="text"
                     id="username"
-                    value={username}
+                    value={inputUsername}
                     onChange={handleUsernameChange}
                     maxLength={16}
                     className="input input-bordered input-primary input-sm flex-grow"
