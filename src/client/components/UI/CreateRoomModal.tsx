@@ -138,7 +138,6 @@ const CreateRoomModal: React.FC<CreateRoomModalProps> = ({ isOpen, onClose, onCr
                     animate={{ height: 'auto', opacity: 1, marginTop: '1rem' }}
                     exit={{ height: 0, opacity: 0, marginTop: 0 }}
                     transition={{ duration: 0.2, ease: 'easeInOut' }}
-                    className="overflow-hidden"
                   >
                     <label htmlFor="password" className="block text-sm font-medium mb-1 opacity-80">
                       Password
