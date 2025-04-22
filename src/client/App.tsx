@@ -6,7 +6,7 @@ import { gameConnect, gameDisconnectFromColyseus, lobbyConnect, lobbyDisconnectF
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { settingsStore } from './utils/settingsStore.ts'
 import Settings from './components/UI/Settings.tsx'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'motion/react'
 import { Cake, CookingPot, Ghost } from 'lucide-react'
 import type { GameEngine } from '@client/game/GameEngine.ts'
 
@@ -83,7 +83,7 @@ const App: React.FC = () => {
   }, [])
 
   useEffect(() => {
-    const savedPseudo = settingsStore.getPseudo()
+    const savedPseudo = settingsStore.getUsername()
     if (!savedPseudo) {
       setShowInitialSetup(true) // Show setup screen if no pseudo exists
     } else {
@@ -92,7 +92,7 @@ const App: React.FC = () => {
   }, [])
 
   const handlePseudoSet = (pseudo: string) => {
-    settingsStore.setPseudo(pseudo)
+    settingsStore.setUsername(pseudo)
     setPlayerPseudo(pseudo)
     setShowInitialSetup(false)
     setMode('menu')
@@ -210,87 +210,87 @@ const App: React.FC = () => {
 
       <AnimatePresence mode="wait">
         {showInitialSetup ? (
-            <InitialPseudoSetup key="initial-setup" onPseudoSet={handlePseudoSet} />
+          <InitialPseudoSetup key="initial-setup" onPseudoSet={handlePseudoSet} />
         ) : (
-            mode === 'menu' && (
-                <motion.div
-                    key="menu"
-                    initial={{ opacity: 0, y: 20, scale: 0.98 }} // Entrée depuis le bas avec un léger zoom
-                    animate={{ opacity: 1, y: 0, scale: 1 }} // Position finale
-                    exit={{ opacity: 0, y: -20 }} // Sortie vers le haut
-                    transition={{ duration: 0.5, ease: 'easeInOut', delay: 0.1 }} // Légère attente pour enchaîner
-                    className="flex flex-col items-center justify-center flex-1"
+          mode === 'menu' && (
+            <motion.div
+              key="menu"
+              initial={{ opacity: 0, y: 20, scale: 0.98 }} // Entrée depuis le bas avec un léger zoom
+              animate={{ opacity: 1, y: 0, scale: 1 }} // Position finale
+              exit={{ opacity: 0, y: -20 }} // Sortie vers le haut
+              transition={{ duration: 0.5, ease: 'easeInOut', delay: 0.1 }} // Légère attente pour enchaîner
+              className="flex flex-col items-center justify-center flex-1"
+            >
+              {playerPseudo && (
+                <motion.h2
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3, duration: 0.4 }}
+                  className="text-2xl mb-4 text-base-content/90"
                 >
-                  {playerPseudo && (
-                      <motion.h2
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.3, duration: 0.4 }}
-                          className="text-2xl mb-4 text-base-content/90"
-                      >
-                        Ready to cook, <span className="font-bold text-primary drop-shadow">{playerPseudo}</span>? 🍳
-                      </motion.h2>
-                  )}
-                  <motion.h1
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.4, duration: 0.4 }}
-                      className="text-6xl font-bold mb-2 bg-gradient-to-br from-purple-300 via-pink-200 to-yellow-100 bg-clip-text text-transparent"
-                  >
-                    Delixia
-                  </motion.h1>
-                  <motion.p
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.5, duration: 0.4 }}
-                      className="text-lg md:text-xl mb-8 text-base-content opacity-80 font-semibold"
-                  >
-                    The cutest & most fun <span className="text-secondary font-bold">kitchen</span> on the web! 🎉
-                  </motion.p>
-                  <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.6, duration: 0.4 }}
-                      className="flex flex-col gap-4 w-64"
-                  >
-                    <button onClick={handlePlayGame} className="btn-dream">
-                      Quick Play
-                    </button>
-                    <button onClick={handleRoomList} className="btn-dream">
-                      Join Room
-                    </button>
-                    <button onClick={handleOpenSettings} className="btn-dream">
-                      Settings
-                    </button>
-                    <button
-                        onClick={() => {
-                          window.open('https://github.com/TriForMine/delixia', '_blank')
-                        }}
-                        className="btn-dream"
-                    >
-                      GitHub
-                    </button>
-                  </motion.div>
-                  <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.7, duration: 0.4 }}
-                      className="fixed bottom-4 text-sm opacity-70 text-white"
-                  >
-                    Version {import.meta.env.PUBLIC_APP_VERSION || '0.0.0'}
-                  </motion.div>
-                </motion.div>
-            )
+                  Ready to cook, <span className="font-bold text-primary drop-shadow">{playerPseudo}</span>? 🍳
+                </motion.h2>
+              )}
+              <motion.h1
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4, duration: 0.4 }}
+                className="text-6xl font-bold mb-2 bg-gradient-to-br from-purple-300 via-pink-200 to-yellow-100 bg-clip-text text-transparent"
+              >
+                Delixia
+              </motion.h1>
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5, duration: 0.4 }}
+                className="text-lg md:text-xl mb-8 text-base-content opacity-80 font-semibold"
+              >
+                The cutest & most fun <span className="text-secondary font-bold">kitchen</span> on the web! 🎉
+              </motion.p>
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6, duration: 0.4 }}
+                className="flex flex-col gap-4 w-64"
+              >
+                <button onClick={handlePlayGame} className="btn-dream">
+                  Quick Play
+                </button>
+                <button onClick={handleRoomList} className="btn-dream">
+                  Join Room
+                </button>
+                <button onClick={handleOpenSettings} className="btn-dream">
+                  Settings
+                </button>
+                <button
+                  onClick={() => {
+                    window.open('https://github.com/TriForMine/delixia', '_blank')
+                  }}
+                  className="btn-dream"
+                >
+                  GitHub
+                </button>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.7, duration: 0.4 }}
+                className="fixed bottom-4 text-sm opacity-70 text-white"
+              >
+                Version {import.meta.env.PUBLIC_APP_VERSION || '0.0.0'}
+              </motion.div>
+            </motion.div>
+          )
         )}
       </AnimatePresence>
 
       {!showInitialSetup && mode === 'settings' && <Settings applySettingsChanges={applySettingsChanges} />}
       {!showInitialSetup && mode === 'game' && (
-          <div className="flex flex-1 h-full">
-            <div className="flex-1 bg-base-100">
-              <Game onBackToMenu={handleBackToMenu} setGameEngineInstance={setGameEngineInstance} applySettingsChanges={applySettingsChanges} />
-            </div>
+        <div className="flex flex-1 h-full">
+          <div className="flex-1 bg-base-100">
+            <Game onBackToMenu={handleBackToMenu} setGameEngineInstance={setGameEngineInstance} applySettingsChanges={applySettingsChanges} />
           </div>
+        </div>
       )}
       {!showInitialSetup && mode === 'roomList' && <RoomList />}
     </div>

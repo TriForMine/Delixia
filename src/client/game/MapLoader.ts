@@ -175,15 +175,7 @@ export class MapLoader {
             const offset = modelConfig.billboardOffset
               ? new Vector3(modelConfig.billboardOffset.x, modelConfig.billboardOffset.y, modelConfig.billboardOffset.z)
               : undefined
-            const interactableObj = new InteractableObject(
-              root,
-              this.scene,
-              interaction.interactType,
-              interaction.id,
-              offset,
-              'E',
-              this.ingredientLoader,
-            )
+            const interactableObj = new InteractableObject(root, this.scene, interaction.interactType, interaction.id, offset, this.ingredientLoader)
             interactableObj.interactionDistance = 2
             this.interactables.push(interactableObj)
           }

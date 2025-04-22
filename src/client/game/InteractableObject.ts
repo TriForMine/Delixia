@@ -13,6 +13,7 @@ import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
 import { INGREDIENT_VISUAL_CONFIG } from '@shared/visualConfigs'
 import { getItemDefinition } from '@shared/items'
 import { type IParticleSystem, Scalar } from '@babylonjs/core'
+import { getDisplayKey } from '@client/utils/keys.ts'
 
 interface DisplayedIngredientInfo {
   mesh: Mesh
@@ -69,13 +70,15 @@ export class InteractableObject {
   private dirtyPlateSmokeSystem: IParticleSystem | null = null
   private static smokeParticleTexture: Texture | null = null
 
+  // Store the currently displayed key
+  private currentDisplayKey: string = '?'
+
   constructor(
     mesh: Mesh,
     scene: Scene,
     interactType: InteractType,
     interactId: number,
     billboardOffset?: Vector3,
-    keyPrompt: string = 'E',
     ingredientLoader?: IngredientLoader,
   ) {
     this.mesh = mesh
@@ -98,9 +101,7 @@ export class InteractableObject {
     this.promptDisc.isPickable = false
     this.promptDisc.renderingGroupId = 1
     this.promptDisc.setEnabled(false)
-
-    // 2) Setup prompt material
-    this._setupPromptMaterial(keyPrompt)
+    this.promptDisc.rotation.x = Math.PI
 
     // 3) Setup sparkle effect
     this.createSparkleEffect()
@@ -122,6 +123,18 @@ export class InteractableObject {
 
     // 5) Setup render loop for updates
     this._setupRenderObserver()
+  }
+
+  /**
+   * Updates the visual prompt based on the provided key code.
+   * @param interactKeyCode The KeyboardEvent.code for the interact action.
+   */
+  public updateKeyPromptVisuals(interactKeyCode: string): void {
+    const displayKey = getDisplayKey(interactKeyCode)
+    if (displayKey !== this.currentDisplayKey || !this.promptDisc.material) {
+      this._setupPromptMaterial(displayKey)
+      this.currentDisplayKey = displayKey
+    }
   }
 
   public showDirtyPlateVisual(show: boolean): void {
@@ -191,18 +204,16 @@ export class InteractableObject {
       smokeSystem.particleTexture = InteractableObject.smokeParticleTexture
     } else {
       console.warn('Smoke texture not loaded, smoke effect will not display correctly.')
-      // Optionally create a fallback simple particle here
-      return // Exit if no texture
+      return
     }
 
-    smokeSystem.emitter = emitterMesh // Emit from the dirty plate
-    smokeSystem.minEmitBox = new Vector3(-0.05, 0.05, -0.05) // Small area above plate center
-    smokeSystem.maxEmitBox = new Vector3(0.05, 0.1, 0.05)
+    smokeSystem.emitter = emitterMesh
+    smokeSystem.minEmitBox = new Vector3(-0.1, 0.05, -0.1)
+    smokeSystem.maxEmitBox = new Vector3(0.1, 0.1, 0.1)
 
-    // Colors (Greyish smoke)
-    smokeSystem.color1 = new Color4(0.7, 0.7, 0.7, 0.1)
-    smokeSystem.color2 = new Color4(0.8, 0.8, 0.8, 0.05)
-    smokeSystem.colorDead = new Color4(0.9, 0.9, 0.9, 0)
+    smokeSystem.color1 = new Color4(0.4, 0.6, 0.4, 0.15)
+    smokeSystem.color2 = new Color4(0.5, 0.65, 0.3, 0.1)
+    smokeSystem.colorDead = new Color4(0.1, 0.2, 0.1, 0.0)
 
     // Size (Small and wispy)
     smokeSystem.minSize = 0.1
@@ -324,32 +335,38 @@ export class InteractableObject {
     this.progressBarTexture.update()
   }
 
-  private _setupPromptMaterial(keyPrompt: string): void {
+  private _setupPromptMaterial(displayKey: string): void {
     let dynamicTexture: DynamicTexture
-    const textureKey = `prompt_${keyPrompt}`
+    const textureKey = `prompt_${displayKey}`
     if (InteractableObject.promptTextures.has(textureKey)) {
       dynamicTexture = InteractableObject.promptTextures.get(textureKey)!
     } else {
-      dynamicTexture = new DynamicTexture(textureKey, { width: 64, height: 64 }, this.scene, false) // Generate MipMaps = false for sharp text
+      dynamicTexture = new DynamicTexture(textureKey, { width: 64, height: 64 }, this.scene, false)
+
       const ctx = dynamicTexture.getContext() as CanvasRenderingContext2D
-      // Transparent black
-      ctx.fillStyle = Color4.FromHexString('#00000066').toHexString()
-      ctx.fillRect(0, 0, 64, 64)
-      ctx.fillStyle = '#FF9999' // Dark text
-      ctx.font = 'bold 32px "Patrick Hand"' // Simple, clear font
+      ctx.fillStyle = Color4.FromHexString('#00000099').toHexString()
+      ctx.beginPath()
+      ctx.arc(32, 32, 30, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = '#FF9999'
+      const fontSize = displayKey.length > 3 ? 20 : displayKey.length > 1 ? 24 : 30
+      ctx.font = `bold ${fontSize}px "Patrick Hand"`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText(keyPrompt.toUpperCase(), 32, 34) // Adjust baseline slightly
+      ctx.fillText(displayKey.toUpperCase(), 32, 34)
+
       dynamicTexture.update(true) // Update texture
       InteractableObject.promptTextures.set(textureKey, dynamicTexture)
     }
 
-    const mat = new StandardMaterial('promptMat', this.scene)
+    const mat = new StandardMaterial(`promptMat_${displayKey}_${this.id}`, this.scene) // Unique material name
     mat.diffuseTexture = dynamicTexture
-    mat.opacityTexture = dynamicTexture // Use texture for alpha
-    mat.useAlphaFromDiffuseTexture = false // We use opacityTexture
-    mat.emissiveColor = Color3.White() // Make it glow slightly ignoring light
+    mat.opacityTexture = dynamicTexture
+    mat.useAlphaFromDiffuseTexture = false
+    mat.emissiveColor = Color3.White()
     mat.disableLighting = true
+    mat.backFaceCulling = false
+    mat.alpha = 0.85
     this.promptDisc.material = mat
   }
 

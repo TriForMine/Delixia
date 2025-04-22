@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence } from 'motion/react'
 import { Users, Play, LogOut, Copy, Check } from 'lucide-react'
 import { useGameColyseusState, useGameColyseusRoom } from '@client/hooks/colyseus'
 import type { Player } from '@shared/schemas/Player'

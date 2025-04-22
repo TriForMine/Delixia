@@ -27,11 +27,12 @@ export class AudioManager {
   private assetsManager: AssetsManager
   private staticSounds: Map<string, StaticSound> = new Map()
   private soundsConfig: Map<string, SoundConfig> = new Map()
+  private masterVolume: number = settingsStore.getMasterVolume()
   private musicVolume: number = settingsStore.getMusicVolume()
   private sfxVolume: number = settingsStore.getSfxVolume()
-  private isReady: boolean = false // Indicates sounds are loaded
-  private isUnlocked: boolean = false // Indicates engine is ready to play
-  private audioEngine: AudioEngineV2 | null = null // Store the AudioEngine instance
+  private isReady: boolean = false
+  private isUnlocked: boolean = false
+  private audioEngine: AudioEngineV2 | null = null
 
   constructor(scene: Scene) {
     this.assetsManager = new AssetsManager(scene)
@@ -149,26 +150,39 @@ export class AudioManager {
   }
 
   /**
-   * Applies the current category volume (music/sfx) to a specific sound.
+   * Applies the current category and master volume to a specific sound.
    * @param sound The StaticSound instance.
    * @param config The SoundConfig for the sound.
    */
   private applyVolumeToSound(sound: StaticSound, config: SoundConfig): void {
     const baseVolume = config.options?.volume ?? 1.0
     const categoryVolume = config.isMusic ? this.musicVolume : this.sfxVolume
-    sound.volume = baseVolume * categoryVolume
+    sound.volume = baseVolume * categoryVolume * this.masterVolume
   }
 
   /**
-   * Applies the current category volumes to all loaded sounds.
+   * Applies the current category and master volumes to all loaded sounds.
+   * Call this when master volume or category volumes change.
    */
-  private applyVolumesToLoadedSounds(): void {
+  public applyVolumesToLoadedSounds(): void {
+    // Update internal master volume state first, in case it changed
+    this.masterVolume = settingsStore.getMasterVolume()
+
     this.staticSounds.forEach((sound, name) => {
       const config = this.soundsConfig.get(name)
       if (config) {
         this.applyVolumeToSound(sound, config)
       }
     })
+  }
+
+  /**
+   * Sets the master volume level.
+   * @param volume Volume level (0.0 to 1.0).
+   */
+  public setMasterVolume(volume: number): void {
+    this.masterVolume = Math.max(0, Math.min(volume, 1))
+    this.applyVolumesToLoadedSounds()
   }
 
   /**
@@ -230,8 +244,8 @@ export class AudioManager {
     // Calculate final volume: base * category * multiplier
     const baseVolume = soundConfig.options?.volume ?? 1.0
     const categoryVolume = soundConfig.isMusic ? this.musicVolume : this.sfxVolume
-    const finalVolume = baseVolume * categoryVolume * volumeMultiplier
-    sound.volume = finalVolume // Apply the final calculated volume for this playback
+    const finalVolume = baseVolume * categoryVolume * this.masterVolume * volumeMultiplier
+    sound.volume = finalVolume
 
     // Override loop setting if provided
     if (loop !== undefined) {

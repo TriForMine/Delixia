@@ -133,7 +133,7 @@ export class GameEngine {
 
   // --- Pause State ---
   public isPaused: boolean = false
-  private _boundPointerLockChangeListener: () => void
+  private readonly _boundPointerLockChangeListener: () => void
 
   constructor(scene: Scene, room: any, onGameOver: (score: number) => void) {
     this.scene = scene
@@ -222,7 +222,6 @@ export class GameEngine {
     this.performanceManager?.dispose()
     InteractableObject.reset()
     this.ingredientLoader?.dispose() // Dispose ingredient loader
-    this.scene.dispose()
 
     if (this.uiRenderObserver) {
       this.scene.onBeforeRenderObservable.remove(this.uiRenderObserver)
@@ -248,6 +247,12 @@ export class GameEngine {
 
     document.removeEventListener('pointerlockchange', this._boundPointerLockChangeListener, false)
 
+    this.interactables.forEach((interactable) => {
+      interactable.dispose()
+    })
+
+    this.scene.dispose()
+
     console.log('GameEngine disposed')
   }
 
@@ -268,6 +273,29 @@ export class GameEngine {
    */
   public stopSfx(name: string): void {
     this.audioManager.stopSound(name)
+  }
+
+  /**
+   * Updates the key prompt visuals on all interactable objects
+   * based on the current 'interact' keybind setting.
+   */
+  public updateAllInteractablePrompts(): void {
+    try {
+      const interactKeyCode = settingsStore.getKeyBindings()?.interact
+      if (!interactKeyCode) {
+        console.warn("Interact keybind not found in settings. Prompts will use '?'.")
+        this.interactables.forEach((interactable) => {
+          interactable.updateKeyPromptVisuals('?')
+        })
+        return
+      }
+
+      this.interactables.forEach((interactable) => {
+        interactable.updateKeyPromptVisuals(interactKeyCode)
+      })
+    } catch (error) {
+      console.error('Error updating interactable key prompts:', error)
+    }
   }
 
   /**
@@ -608,6 +636,8 @@ export class GameEngine {
 
         this.setupGameEventListeners()
 
+        this.updateAllInteractablePrompts()
+
         checkLoadingComplete()
       },
       (progress) => {
@@ -702,11 +732,13 @@ export class GameEngine {
     this.applyAudioSettings()
     this.applyPerformanceSettings()
     this.applyControllerSettings()
-    this.checkAndPlayMusic() // Ensure music state reflects settings immediately
+    this.checkAndPlayMusic()
+    this.updateAllInteractablePrompts()
   }
 
   /** Applies only audio-related settings */
   private applyAudioSettings(): void {
+    this.audioManager.setMasterVolume(settingsStore.getMasterVolume())
     this.audioManager.setMusicVolume(settingsStore.getMusicVolume())
     this.audioManager.setSfxVolume(settingsStore.getSfxVolume())
   }
@@ -718,8 +750,8 @@ export class GameEngine {
 
   /** Applies settings relevant to the local character controller */
   private applyControllerSettings(): void {
-    this.localController?.applySensitivitySettings()
-    this.localController?.loadKeyBindings() // Reload keybindings if they could change in-game
+    this.localController?.applyCameraSettings()
+    this.localController?.applyKeybindings() // Reload keybindings if they could change in-game
   }
 
   public checkAndPlayMusic(): void {

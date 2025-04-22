@@ -71,11 +71,14 @@ function mergeBindings(saved: any): Record<GameAction, string> {
 
 // Export functions and define parameter keys
 export const settingsKeys = {
-  PLAYER_PSEUDO: 'delixia_playerPseudo',
+  PLAYER_USERNAME: 'delixia_playerUsername',
   SENSITIVITY_X: 'delixia_sensitivityX',
   SENSITIVITY_Y: 'delixia_sensitivityY',
   WHEEL_PRECISION: 'delixia_wheelPrecision',
+  INVERT_Y: 'delixia_invertY',
+  FOV: 'delixia_fov',
   SHOW_FPS: 'delixia_showFps',
+  MASTER_VOLUME: 'delixia_masterVolume',
   MUSIC_ENABLED: 'delixia_musicEnabled',
   MUSIC_VOLUME: 'delixia_musicVolume',
   SFX_VOLUME: 'delixia_sfxVolume',
@@ -84,28 +87,37 @@ export const settingsKeys = {
 }
 
 export const settingsStore = {
-  // --- Pseudo ---
-  getPseudo: () => getSetting<string>(settingsKeys.PLAYER_PSEUDO, ''),
-  setPseudo: (value: string) => setSetting<string>(settingsKeys.PLAYER_PSEUDO, value.trim()), // Trim when saving
+  // --- Username ---
+  getUsername: () => getSetting<string>(settingsKeys.PLAYER_USERNAME, ''),
+  setUsername: (value: string) => setSetting<string>(settingsKeys.PLAYER_USERNAME, value.trim()), // Trim when saving
 
   // --- Mouse Controls ---
   getSensitivityX: () => getSetting<number>(settingsKeys.SENSITIVITY_X, 1.0),
-  setSensitivityX: (value: number) => setSetting<number>(settingsKeys.SENSITIVITY_X, Math.max(0.1, Math.min(value, 3))), // Clamp value
+  setSensitivityX: (value: number) => setSetting<number>(settingsKeys.SENSITIVITY_X, Math.max(0.1, Math.min(value, 5))), // Increased max sensitivity range
 
   getSensitivityY: () => getSetting<number>(settingsKeys.SENSITIVITY_Y, 1.0),
-  setSensitivityY: (value: number) => setSetting<number>(settingsKeys.SENSITIVITY_Y, Math.max(0.1, Math.min(value, 3))), // Clamp value
+  setSensitivityY: (value: number) => setSetting<number>(settingsKeys.SENSITIVITY_Y, Math.max(0.1, Math.min(value, 5))), // Increased max sensitivity range
 
   getWheelPrecision: () => getSetting<number>(settingsKeys.WHEEL_PRECISION, 12),
   setWheelPrecision: (value: number) => setSetting<number>(settingsKeys.WHEEL_PRECISION, Math.max(1, Math.min(value, 100))), // Clamp value
 
+  getInvertY: () => getSetting<boolean>(settingsKeys.INVERT_Y, false), // New Setting
+  setInvertY: (value: boolean) => setSetting<boolean>(settingsKeys.INVERT_Y, value), // New Setting
+
   // --- Display ---
+  getFov: () => getSetting<number>(settingsKeys.FOV, 0.8),
+  setFov: (value: number) => setSetting<number>(settingsKeys.FOV, Math.max(0.5, Math.min(value, 1.4))), // New Setting (Clamped range in radians, approx 28-80 degrees)
+
   getShowFps: () => getSetting<boolean>(settingsKeys.SHOW_FPS, false),
   setShowFps: (value: boolean) => setSetting<boolean>(settingsKeys.SHOW_FPS, value),
 
-  getGraphicsQuality: () => getSetting<GraphicsQuality>(settingsKeys.GRAPHICS_QUALITY, 'medium'), // Medium by default
+  getGraphicsQuality: () => getSetting<GraphicsQuality>(settingsKeys.GRAPHICS_QUALITY, 'high'), // High by default
   setGraphicsQuality: (value: GraphicsQuality) => setSetting<GraphicsQuality>(settingsKeys.GRAPHICS_QUALITY, value),
 
   // --- Audio ---
+  getMasterVolume: () => getSetting<number>(settingsKeys.MASTER_VOLUME, 1.0), // New Setting
+  setMasterVolume: (value: number) => setSetting<number>(settingsKeys.MASTER_VOLUME, Math.max(0, Math.min(value, 1))), // New Setting (Clamp 0-1)
+
   getMusicEnabled: () => getSetting<boolean>(settingsKeys.MUSIC_ENABLED, true), // Music ON by default
   setMusicEnabled: (value: boolean) => setSetting<boolean>(settingsKeys.MUSIC_ENABLED, value),
 
@@ -140,5 +152,7 @@ export const settingsStore = {
       localStorage.removeItem(key)
     })
     console.log('All settings reset to default.')
+    // Consider reloading the page or applying defaults immediately
+    window.location.reload() // Simple way to apply defaults
   },
 }

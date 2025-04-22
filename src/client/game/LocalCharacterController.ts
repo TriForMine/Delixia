@@ -70,7 +70,6 @@ export class LocalCharacterController extends CharacterController {
 
     this.gameEngine = gameEngine
     this.inputMap = new Map()
-    this.loadKeyBindings() // Load initial bindings
 
     // Setup keyboard events
     scene.actionManager = new ActionManager(scene)
@@ -94,6 +93,10 @@ export class LocalCharacterController extends CharacterController {
 
     // Create the ArcRotateCamera
     const camera = new ArcRotateCamera('thirdPersonCamera', -Math.PI / 2, Math.PI / 3, 5, this.cameraAttachPoint.getAbsolutePosition(), scene)
+    camera.inputs.clear()
+    camera.inputs.addPointers()
+    camera.inputs.addGamepad()
+    camera.inputs.addMouseWheel()
     camera.attachControl(scene.getEngine().getRenderingCanvas(), true)
 
     // Configure camera angles/zoom
@@ -108,7 +111,8 @@ export class LocalCharacterController extends CharacterController {
     this.thirdPersonCamera = camera
 
     // Apply saved settings initially
-    this.applySensitivitySettings()
+    this.applyCameraSettings()
+    this.applyKeybindings()
 
     // Initialize collectors for shape casting
     const hk = scene.getPhysicsEngine()!.getPhysicsPlugin() as HavokPlugin
@@ -118,21 +122,28 @@ export class LocalCharacterController extends CharacterController {
   }
 
   // Method to load key bindings from settingsStore
-  public loadKeyBindings(): void {
+  public applyKeybindings(): void {
     this.keyBindings = settingsStore.getKeyBindings()
   }
 
   // Method to apply sensitivity settings from settingsStore
-  public applySensitivitySettings(): void {
+  public applyCameraSettings(): void {
     const savedSensX = settingsStore.getSensitivityX()
     const savedSensY = settingsStore.getSensitivityY()
     const savedWheelPrec = settingsStore.getWheelPrecision()
+    const savedInvertY = settingsStore.getInvertY()
+    const savedFov = settingsStore.getFov()
 
-    // Camera might not be initialized yet when constructor calls this first time
     if (this.thirdPersonCamera) {
-      this.thirdPersonCamera.angularSensibilityX = savedSensX * 1000
-      this.thirdPersonCamera.angularSensibilityY = savedSensY * 1000
+      const sensitivityConstant = 2500
+
+      this.thirdPersonCamera.angularSensibilityX = sensitivityConstant / savedSensX
+
+      const yMultiplier = savedInvertY ? -1 : 1
+      this.thirdPersonCamera.angularSensibilityY = (sensitivityConstant / savedSensY) * yMultiplier
+
       this.thirdPersonCamera.wheelPrecision = savedWheelPrec
+      this.thirdPersonCamera.fov = savedFov
     }
   }
 

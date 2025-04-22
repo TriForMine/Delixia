@@ -1,14 +1,14 @@
 import type React from 'react'
 import { useState, useCallback, useEffect } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'motion/react'
 import { useStore } from '@client/store/useStore'
-
-import { ChevronLeft, Save, RotateCcw, Gamepad2, Image as ImageIcon, Volume2, UserCircle, MousePointer2 } from 'lucide-react'
-import { defaultKeyBindings, type GameAction, type GraphicsQuality, settingsStore } from '@client/utils/settingsStore'
+import { ChevronLeft, Save, RotateCcw, Gamepad2, UserCircle, AlertTriangle } from 'lucide-react'
+import { defaultKeyBindings, type GameAction, settingsStore } from '@client/utils/settingsStore'
+import SharedSettingsPanel from './SharedSettingsPanel'
 
 // Labels for game actions (for display)
 const actionLabels: Record<GameAction, string> = {
-  forward: 'Move Forward ',
+  forward: 'Move Forward',
   backward: 'Move Backward',
   left: 'Move Left',
   right: 'Move Right',
@@ -49,90 +49,35 @@ const forbiddenKeys = [
   'Tab',
 ]
 
-// Props expected by the component
 interface SettingsProps {
-  applySettingsChanges: () => void // Function to notify GameEngine to apply changes live
+  applySettingsChanges: () => void
 }
 
 const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
   const setMode = useStore((state) => state.setMode)
 
-  // --- Local states for each setting ---
-  // Initialized with saved or default values
-  const [pseudo, setPseudo] = useState(settingsStore.getPseudo())
-  const [sensitivityX, setSensitivityX] = useState(settingsStore.getSensitivityX())
-  const [sensitivityY, setSensitivityY] = useState(settingsStore.getSensitivityY())
-  const [wheelPrecision, setWheelPrecision] = useState(settingsStore.getWheelPrecision())
-  const [graphicsQuality, setGraphicsQuality] = useState(settingsStore.getGraphicsQuality())
-  const [showFps, setShowFps] = useState(settingsStore.getShowFps())
-  const [musicEnabled, setMusicEnabled] = useState(settingsStore.getMusicEnabled())
-  const [musicVolume, setMusicVolume] = useState(settingsStore.getMusicVolume())
-  const [sfxVolume, setSfxVolume] = useState(settingsStore.getSfxVolume())
+  // --- States specific to this full settings screen ---
+  const [username, setUsername] = useState(settingsStore.getUsername())
   const [keyBindings, setKeyBindings] = useState(settingsStore.getKeyBindings())
-  const [listeningAction, setListeningAction] = useState<GameAction | null>(null) // For remapping
-  const [errorMessage, setErrorMessage] = useState<string | null>(null) // For key errors
+  const [listeningAction, setListeningAction] = useState<GameAction | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
 
-  // --- Handlers for changes ---
-
-  // Nickname
-  const handlePseudoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPseudo(e.target.value.slice(0, 16)) // Limit to 16 characters
+  // --- Handlers specific to this screen ---
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUsername(e.target.value.slice(0, 16))
   }
-  const savePseudo = useCallback(() => {
-    const trimmedPseudo = pseudo.trim()
-    if (trimmedPseudo) {
-      settingsStore.setPseudo(trimmedPseudo)
+  const saveUsername = useCallback(() => {
+    const trimmedUsername = username.trim()
+    if (trimmedUsername) {
+      settingsStore.setUsername(trimmedUsername)
       alert('Nickname saved!')
     } else {
       alert('Nickname cannot be empty.')
-      setPseudo(settingsStore.getPseudo()) // Reset to the old one if empty
+      setUsername(settingsStore.getUsername())
     }
-  }, [pseudo])
+  }, [username])
 
-  // Generic function for sliders and selects that apply directly
-  const handleChangeAndApply = useCallback(
-    <T,>(stateSetter: React.Dispatch<React.SetStateAction<T>>, storeSetter: (value: T) => void, value: T) => {
-      stateSetter(value)
-      storeSetter(value)
-      applySettingsChanges() // Notify GameEngine
-    },
-    [applySettingsChanges],
-  )
-
-  // Graphics
-  const handleGraphicsQualityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    handleChangeAndApply(setGraphicsQuality, settingsStore.setGraphicsQuality, e.target.value as GraphicsQuality)
-  }
-  const handleShowFpsToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleChangeAndApply(setShowFps, settingsStore.setShowFps, e.target.checked)
-  }
-
-  // Sensitivity
-  const handleSensitivityXChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleChangeAndApply(setSensitivityX, settingsStore.setSensitivityX, parseFloat(e.target.value))
-  }
-  const handleSensitivityYChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleChangeAndApply(setSensitivityY, settingsStore.setSensitivityY, parseFloat(e.target.value))
-  }
-  const handleWheelPrecisionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleChangeAndApply(setWheelPrecision, settingsStore.setWheelPrecision, parseFloat(e.target.value))
-  }
-
-  // Audio
-  const handleMusicToggleInternal = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      handleChangeAndApply(setMusicEnabled, settingsStore.setMusicEnabled, e.target.checked)
-    },
-    [handleChangeAndApply], // Use the generic handler
-  )
-  const handleMusicVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleChangeAndApply(setMusicVolume, settingsStore.setMusicVolume, parseFloat(e.target.value))
-  }
-  const handleSfxVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleChangeAndApply(setSfxVolume, settingsStore.setSfxVolume, parseFloat(e.target.value))
-  }
-
-  // Key Remapping
   const handleListen = useCallback((action: GameAction) => {
     setListeningAction(action)
     setErrorMessage(null)
@@ -143,11 +88,14 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
     setKeyBindings(defaultBindingsCopy)
     settingsStore.setKeyBindings(defaultBindingsCopy)
     setErrorMessage(null)
-    applySettingsChanges() // Reload in the controller if necessary
+    applySettingsChanges() // Apply sensitivity changes etc. from defaults
     alert('Keys reset to default.')
   }, [applySettingsChanges])
 
-  // UseEffect for key listening
+  const handleResetAll = () => {
+    settingsStore.resetAllSettings()
+  }
+
   useEffect(() => {
     if (!listeningAction) return
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -167,7 +115,7 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
         }
       }
       if (conflictAction) {
-        setErrorMessage(`Key already used by "${actionLabels[conflictAction]}"`)
+        setErrorMessage(`Key "${newKeyCode}" already used by "${actionLabels[conflictAction]}"`)
         setListeningAction(null)
         return
       }
@@ -176,14 +124,12 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
       settingsStore.setKeyBindings(updatedBindings)
       setListeningAction(null)
       setErrorMessage(null)
-      // No need for applySettingsChanges here, LocalController reads the new config as needed
     }
     window.addEventListener('keydown', handleKeyDown, true)
     return () => window.removeEventListener('keydown', handleKeyDown, true)
-  }, [listeningAction, keyBindings]) // Keep keyBindings dependency
+  }, [listeningAction, keyBindings])
 
   return (
-    // --- Main Container & Background ---
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -191,14 +137,12 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
       transition={{ duration: 0.2 }}
       className="absolute inset-0 bg-gradient-to-br from-purple-900/70 via-pink-900/70 to-yellow-900/70 backdrop-blur-md flex flex-col items-center justify-center p-4 z-20 pointer-events-auto"
     >
-      {/* --- Central Panel --- */}
       <motion.div
         initial={{ y: -30, opacity: 0, scale: 0.95 }}
         animate={{ y: 0, opacity: 1, scale: 1 }}
         transition={{ delay: 0.1, duration: 0.3, ease: 'easeOut' }}
-        className="bg-base-100 p-6 md:p-8 rounded-2xl shadow-xl w-full max-w-3xl text-base-content relative border border-secondary/20" // Subtle pink theme border
+        className="bg-base-100 p-6 md:p-8 rounded-2xl shadow-xl w-full max-w-3xl text-base-content relative border border-secondary/20"
       >
-        {/* Back Button (Improved Style) */}
         <button
           onClick={() => setMode('menu')}
           className="absolute top-3 left-3 btn btn-ghost btn-sm btn-circle z-10 hover:bg-base-content/10"
@@ -206,48 +150,59 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
         >
           <ChevronLeft className="text-primary" size={24} strokeWidth={2.5} />
         </button>
-        {/* Main Title - Added w-full for robust centering */}
         <h2 className="w-full text-4xl font-extrabold mb-6 text-center bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent flex items-center justify-center gap-3">
           Settings
         </h2>
-        {/* --- Scrollable Area for Options --- */}
         <div className="max-h-[60vh] lg:max-h-[65vh] overflow-y-auto pr-3 space-y-6 custom-scrollbar">
-          {/* Added scrollbar class */}
           {/* --- Player Profile Section --- */}
-          <section className="p-4 bg-base-200/40 rounded-lg border border-base-300">
+          <motion.section
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0 }}
+            className="p-4 bg-base-200/40 rounded-lg border border-base-300"
+          >
             <h3 className="text-lg font-bold mb-4 border-b border-primary/30 pb-1 text-primary flex items-center gap-2">
               <UserCircle size={18} /> Player Profile
             </h3>
             <div className="flex flex-col sm:flex-row items-center gap-4">
               <div className="avatar placeholder flex-shrink-0">
                 <div className="bg-gradient-to-br from-primary to-secondary text-neutral-content rounded-full w-16 h-16 ring-2 ring-primary ring-offset-base-100 ring-offset-2 shadow-md flex items-center justify-center text-3xl font-semibold">
-                  {(pseudo || '?').charAt(0).toUpperCase()}
+                  {(username || '?').charAt(0).toUpperCase()}
                 </div>
               </div>
               <div className="flex-grow w-full sm:w-auto">
-                <label htmlFor="pseudo" className="block text-sm font-medium mb-1 opacity-80">
+                <label htmlFor="username" className="block text-sm font-medium mb-1 opacity-80">
                   In-game Nickname
                 </label>
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
-                    id="pseudo"
-                    value={pseudo}
-                    onChange={handlePseudoChange}
+                    id="username"
+                    value={username}
+                    onChange={handleUsernameChange}
                     maxLength={16}
                     className="input input-bordered input-primary input-sm flex-grow"
                     placeholder="Your name..."
                   />
-                  <button onClick={savePseudo} className="btn btn-primary btn-sm btn-outline btn-square" aria-label="Save">
-                    {' '}
-                    <Save size={16} />{' '}
+                  <button onClick={saveUsername} className="btn btn-primary btn-sm btn-outline btn-square" aria-label="Save">
+                    <Save size={16} />
                   </button>
                 </div>
                 <p className="text-xs text-base-content/60 mt-1">Visible to other players.</p>
               </div>
             </div>
-          </section>
-          <section className="p-4 bg-base-200/40 rounded-lg border border-base-300">
+          </motion.section>
+
+          {/* --- Shared Settings Panel --- */}
+          <SharedSettingsPanel applySettingsChanges={applySettingsChanges} size="large" />
+
+          {/* --- Keyboard Controls Section (Specific to this screen) --- */}
+          <motion.section
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="p-4 bg-base-200/40 rounded-lg border border-base-300"
+          >
             <h3 className="text-lg font-bold mb-3 border-b border-accent/30 pb-1 text-accent flex items-center gap-2">
               <Gamepad2 size={18} /> Keyboard Controls
             </h3>
@@ -275,11 +230,11 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2.5">
               {Object.entries(actionLabels).map(([action, label]) => (
                 <div key={action} className="flex justify-between items-center gap-3 py-1">
-                  <span className="text-sm font-medium w-28 flex-shrink-0 opacity-90">{label}</span> {/* Increased width for longer labels */}
+                  <span className="text-sm font-medium w-28 flex-shrink-0 opacity-90">{label}</span>
                   <kbd className="kbd kbd-sm min-w-[80px] text-center border-secondary/50">{keyBindings[action as GameAction] || 'N/A'}</kbd>
                   <button
                     onClick={() => handleListen(action as GameAction)}
-                    className={`btn btn-xs w-20 font-semibold ${listeningAction === action ? 'btn-secondary' : 'btn-outline btn-secondary'}`}
+                    className={`btn btn-xs w-20 font-semibold ${listeningAction === action ? 'btn-secondary loading' : 'btn-outline btn-secondary'}`} // Added loading state
                     disabled={listeningAction !== null && listeningAction !== action}
                   >
                     {listeningAction === action ? '...' : 'Edit'}
@@ -288,153 +243,64 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
               ))}
             </div>
             <button onClick={resetKeyBindings} className="btn btn-sm btn-outline btn-warning mt-4 flex items-center gap-1">
-              {' '}
-              <RotateCcw size={14} /> Reset{' '}
+              <RotateCcw size={14} /> Reset Keys
             </button>
-          </section>
-          <section className="p-4 bg-base-200/40 rounded-lg border border-base-300">
-            <h3 className="text-lg font-bold mb-3 border-b border-secondary/30 pb-1 text-secondary flex items-center gap-2">
-              <MousePointer2 size={18} /> Mouse Controls
+          </motion.section>
+
+          {/* --- Reset All Settings Section --- */}
+          <motion.section
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="p-4 bg-error/10 rounded-lg border border-error/30"
+          >
+            <h3 className="text-lg font-bold mb-3 border-b border-error/30 pb-1 text-error flex items-center gap-2">
+              <AlertTriangle size={18} /> Danger Zone
             </h3>
-            <div className="space-y-3">
-              <div>
-                <label htmlFor="sensX" className="block text-sm font-medium mb-1 opacity-80">
-                  Horizontal Sensitivity
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    id="sensX"
-                    min="0.1"
-                    max="3"
-                    step="0.1"
-                    value={sensitivityX}
-                    onChange={handleSensitivityXChange}
-                    className="range range-xs range-primary flex-grow"
-                  />
-                  <span className="text-sm font-mono w-10 text-right opacity-70">{sensitivityX.toFixed(1)}</span>
-                </div>
-              </div>
-              <div>
-                <label htmlFor="sensY" className="block text-sm font-medium mb-1 opacity-80">
-                  Vertical Sensitivity
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    id="sensY"
-                    min="0.1"
-                    max="3"
-                    step="0.1"
-                    value={sensitivityY}
-                    onChange={handleSensitivityYChange}
-                    className="range range-xs range-accent flex-grow"
-                  />
-                  <span className="text-sm font-mono w-10 text-right opacity-70">{sensitivityY.toFixed(1)}</span>
-                </div>
-              </div>
-              <div>
-                <label htmlFor="wheelPrec" className="block text-sm font-medium mb-1 opacity-80">
-                  Zoom Precision (Wheel)
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    id="wheelPrec"
-                    min="1"
-                    max="100"
-                    step="1"
-                    value={wheelPrecision}
-                    onChange={handleWheelPrecisionChange}
-                    className="range range-xs range-secondary flex-grow"
-                  />
-                  <span className="text-sm font-mono w-10 text-right opacity-70">{wheelPrecision}</span>
-                </div>
-              </div>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-error/80">Reset all settings to their defaults?</p>
+              <button onClick={() => setShowResetConfirm(true)} className="btn btn-sm btn-outline btn-error">
+                Reset All
+              </button>
             </div>
-          </section>
-          <section className="p-4 bg-base-200/40 rounded-lg border border-base-300">
-            <h3 className="text-lg font-bold mb-3 border-b border-info/30 pb-1 text-info flex items-center gap-2">
-              <ImageIcon size={18} /> Graphics
-            </h3>
-            <div className="flex flex-col md:flex-row md:items-end gap-4">
-              <div className="flex-1">
-                <label htmlFor="graphicsQuality" className="block text-sm font-medium mb-1 opacity-80">
-                  Overall Quality
-                </label>
-                <select
-                  id="graphicsQuality"
-                  className="select select-bordered select-info select-sm w-full"
-                  value={graphicsQuality}
-                  onChange={handleGraphicsQualityChange}
-                >
-                  <option value="low">Low (Performance ++)</option>
-                  <option value="medium">Medium (Balanced)</option>
-                  <option value="high">High (Quality ++)</option>
-                </select>
-              </div>
-              <div className="form-control w-auto mb-1">
-                {' '}
-                <label className="cursor-pointer label py-0">
-                  <span className="label-text text-sm mr-2 opacity-80">Show FPS</span>
-                  <input type="checkbox" className="toggle toggle-sm toggle-info" checked={showFps} onChange={handleShowFpsToggle} />
-                </label>
-              </div>
-            </div>
-          </section>
-          <section className="p-4 bg-base-200/40 rounded-lg border border-base-300">
-            <h3 className="text-lg font-bold mb-3 border-b border-warning/30 pb-1 text-warning flex items-center gap-2">
-              <Volume2 size={18} /> Audio
-            </h3>
-            <div className="flex flex-col md:flex-row md:items-center gap-4">
-              <div className="form-control w-auto">
-                <label className="cursor-pointer label">
-                  <span className="label-text text-sm mr-2 opacity-80">Music</span>
-                  <input type="checkbox" className="toggle toggle-sm toggle-warning" checked={musicEnabled} onChange={handleMusicToggleInternal} />
-                </label>
-              </div>
-              <div className="flex-1 space-y-2">
-                <div>
-                  <label htmlFor="musicVol" className="block text-sm font-medium mb-1 opacity-80">
-                    Music Volume
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="range"
-                      id="musicVol"
-                      min="0"
-                      max="1"
-                      step="0.05"
-                      value={musicVolume}
-                      onChange={handleMusicVolumeChange}
-                      className="range range-xs range-warning flex-grow"
-                    />
-                    <span className="text-sm font-mono w-10 text-right opacity-70">{Math.round(musicVolume * 100)}%</span>
-                  </div>
-                </div>
-                <div>
-                  <label htmlFor="sfxVol" className="block text-sm font-medium mb-1 opacity-80">
-                    Effects Volume
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="range"
-                      id="sfxVol"
-                      min="0"
-                      max="1"
-                      step="0.05"
-                      value={sfxVolume}
-                      onChange={handleSfxVolumeChange}
-                      className="range range-xs range-error flex-grow"
-                    />
-                    <span className="text-sm font-mono w-10 text-right opacity-70">{Math.round(sfxVolume * 100)}%</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>{' '}
+          </motion.section>
+        </div>
       </motion.div>
+
+      {/* Reset Confirmation Modal */}
+      <AnimatePresence>
+        {showResetConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
+            onClick={() => setShowResetConfirm(false)} // Close on backdrop click
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+              className="bg-base-100 p-6 rounded-lg shadow-xl max-w-sm w-full border border-error"
+              onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
+            >
+              <h4 className="text-xl font-bold text-error mb-3 flex items-center gap-2">
+                <AlertTriangle /> Confirm Reset
+              </h4>
+              <p className="mb-5 text-base-content/80">Are you sure you want to reset all settings to default? This action cannot be undone.</p>
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setShowResetConfirm(false)} className="btn btn-sm btn-ghost">
+                  Cancel
+                </button>
+                <button onClick={handleResetAll} className="btn btn-sm btn-error">
+                  Yes, Reset All
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }

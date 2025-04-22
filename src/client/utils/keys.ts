@@ -115,3 +115,106 @@ export const enum KBCode {
   MetaRight = 'MetaRight',
   ContextMenu = 'ContextMenu',
 }
+
+/**
+ * Converts a KeyboardEvent.code string into a shorter, display-friendly string.
+ * @param keyCode The KeyboardEvent.code value (e.g., "KeyE", "Space", "Digit1").
+ * @returns A display-friendly string (e.g., "E", "SPACE", "1").
+ */
+export function getDisplayKey(keyCode: string): string {
+  if (!keyCode) return '?'
+
+  if (keyCode.startsWith('Key')) {
+    return keyCode.substring(3)
+  }
+  if (keyCode.startsWith('Digit')) {
+    return keyCode.substring(5)
+  }
+  if (keyCode.startsWith('Numpad')) {
+    const numPart = keyCode.substring(6)
+    switch (numPart) {
+      case 'Decimal':
+        return 'NUM .'
+      case 'Divide':
+        return 'NUM /'
+      case 'Multiply':
+        return 'NUM *'
+      case 'Subtract':
+        return 'NUM -'
+      case 'Add':
+        return 'NUM +'
+      case 'Enter':
+        return 'NUM ↵'
+      default:
+        return `NUM ${numPart}`
+    }
+  }
+  switch (keyCode) {
+    case 'Space':
+      return 'SPACE'
+    case 'ArrowUp':
+      return '↑'
+    case 'ArrowDown':
+      return '↓'
+    case 'ArrowLeft':
+      return '←'
+    case 'ArrowRight':
+      return '→'
+    case 'Backquote':
+      return '`'
+    case 'Minus':
+      return '-'
+    case 'Equal':
+      return '='
+    case 'BracketLeft':
+      return '['
+    case 'BracketRight':
+      return ']'
+    case 'Backslash':
+      return '\\'
+    case 'Semicolon':
+      return ';'
+    case 'Quote':
+      return "'"
+    case 'Comma':
+      return ','
+    case 'Period':
+      return '.'
+    case 'Slash':
+      return '/'
+    case 'Enter':
+      return '↵'
+    case 'Escape':
+      return 'ESC'
+    case 'Tab':
+      return 'TAB'
+    case 'CapsLock':
+      return 'CAPS'
+    case 'ShiftLeft':
+    case 'ShiftRight':
+      return 'SHIFT'
+    case 'ControlLeft':
+    case 'ControlRight':
+      return 'CTRL'
+    case 'AltLeft':
+    case 'AltRight':
+      return 'ALT'
+    case 'MetaLeft':
+    case 'MetaRight':
+      return 'WIN'
+    case 'ContextMenu':
+      return 'MENU'
+    case 'Delete':
+      return 'DEL'
+    case 'Home':
+      return 'HOME'
+    case 'End':
+      return 'END'
+    case 'PageUp':
+      return 'PG UP'
+    case 'PageDown':
+      return 'PG DN'
+    default:
+      return keyCode.length > 7 ? keyCode.substring(0, 5) + '…' : keyCode
+  }
+}
