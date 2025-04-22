@@ -37,6 +37,7 @@ export class AudioManager {
   constructor(scene: Scene) {
     this.assetsManager = new AssetsManager(scene)
     this.assetsManager.useDefaultLoadingScreen = false
+    this.assetsManager.autoHideLoadingUI = false
   }
 
   /**
