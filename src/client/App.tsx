@@ -370,7 +370,6 @@ const App: React.FC = () => {
           </motion.div>
         ) : mode === 'settings' ? (
           <Settings key="settings" applySettingsChanges={applySettingsChanges} />
-          /* AJOUT: Rendu pour le mode tutoriel */
         ) : mode === 'tutorial' ? (
           <TutorialPage key="tutorial" />
         ) : mode === 'game' ? (
