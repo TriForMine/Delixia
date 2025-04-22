@@ -168,21 +168,21 @@ const rawMapConfigs: MapModelConfig[] = [
     instances: [
       // Chaise Coin Gauche Devant
       {
-        position: { x: 8, y: 0.4, z: -7 },
+        position: { x: 8, y: 0.4, z: -6.8 },
         rotation: { y: Math.PI },
       },
       {
-        position: { x: 7, y: 0.4, z: -8 },
+        position: { x: 6.8, y: 0.4, z: -8 },
         rotation: { y: Math.PI / 2 },
       },
 
       // Chaise Coin Droite Devant
       {
-        position: { x: -7, y: 0.4, z: -8 },
+        position: { x: -6.8, y: 0.4, z: -8 },
         rotation: { y: -Math.PI / 2 },
       },
       {
-        position: { x: -8, y: 0.4, z: -7 },
+        position: { x: -8, y: 0.4, z: -6.8 },
         rotation: { y: Math.PI },
       },
 
@@ -245,20 +245,20 @@ const rawMapConfigs: MapModelConfig[] = [
 
       // Chaise Coin Gauche
       {
-        position: { x: 8, y: 0.4, z: 7 },
+        position: { x: 8, y: 0.4, z: 6.8 },
       },
       {
-        position: { x: 7, y: 0.4, z: 8 },
+        position: { x: 6.8, y: 0.4, z: 8 },
         rotation: { y: Math.PI / 2 },
       },
 
       // Chaise Coin Droite
       {
-        position: { x: -7, y: 0.4, z: 8 },
+        position: { x: -6.8, y: 0.4, z: 8 },
         rotation: { y: -Math.PI / 2 },
       },
       {
-        position: { x: -8, y: 0.4, z: 7 },
+        position: { x: -8, y: 0.4, z: 6.8 },
       },
 
       // Chaise Sortie Droite
