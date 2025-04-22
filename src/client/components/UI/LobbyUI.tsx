@@ -12,10 +12,10 @@ interface LobbyUIProps {
 const LobbyUI: React.FC<LobbyUIProps> = ({ onLeaveLobby, onStartGame }) => {
   const hostId = useGameColyseusState((state) => state.hostId)
   const playersMap = useGameColyseusState((state) => state.players)
+  const maxClients = useGameColyseusState((state) => state.maxClients)
   const room = useGameColyseusRoom()
   const mySessionId = room?.sessionId
   const roomId = room?.roomId
-  const maxClients = 4
 
   const [isCopied, setIsCopied] = useState(false)
   const copyTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)

@@ -34,6 +34,7 @@ export class GameRoom extends Room<GameRoomState> {
     this.gameTimerService = new GameTimerService()
 
     this.maxClients = options?.maxClients || DEFAULT_MAX_CLIENTS
+    this.state.maxClients = this.maxClients
     const customRoomName = options?.roomName || `${DEFAULT_ROOM_NAME_PREFIX} #${this.roomId.substring(0, 4)}`
     const isPrivate = options?.isPrivate || false
     const password = options?.password
