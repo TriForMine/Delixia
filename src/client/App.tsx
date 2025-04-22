@@ -153,9 +153,17 @@ const App: React.FC = () => {
   const handleOpenSettings = () => {
     setMode('settings')
   }
-  const handleBackToMenu = () => {
-    setMode('menu')
-  }
+
+  const handleBackToMenu = useCallback(async () => {
+    try {
+      await gameDisconnectFromColyseus()
+    } catch (error) {
+      console.error('Error disconnecting from game room:', error)
+      toast.error("Couldn't cleanly leave the room, returning to menu.")
+    } finally {
+      setMode('menu')
+    }
+  }, [setMode])
 
   return (
     <div className="min-h-screen h-screen flex flex-col bg-base-200 overflow-hidden relative">

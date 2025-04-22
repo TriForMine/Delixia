@@ -1,6 +1,7 @@
 import type { Scene } from '@babylonjs/core/scene'
 import {
   ConnectionStatus,
+  gameDisconnectFromColyseus,
   useGameColyseusRoom,
   useGameColyseusState,
   useGameConnectionError,
@@ -14,6 +15,8 @@ import GameEndScreen from './UI/GameEndScreen'
 import LobbyUI from './UI/LobbyUI'
 import { GamePhase } from '@shared/types/enums'
 import InGameSettingsMenu from '@client/components/UI/InGameSettingsMenu.tsx'
+import { toast } from 'react-hot-toast'
+import { useStore } from '@client/store/useStore.ts'
 
 const ConnectionStatusComponent = ({
   onBackToMenu,
@@ -53,6 +56,7 @@ export const Game: React.FC<GameProps> = ({ onBackToMenu, setGameEngineInstance,
   const gameEngineRef = useRef<GameEngine | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
   const [finalScore, setFinalScore] = useState<number | null>(null)
+  const setMode = useStore((state) => state.setMode)
 
   const gamePhase = useGameColyseusState((state) => state.gamePhase) ?? GamePhase.WAITING
 
@@ -116,9 +120,20 @@ export const Game: React.FC<GameProps> = ({ onBackToMenu, setGameEngineInstance,
     }
   }, [setGameEngineInstance])
 
+  const handleLeaveLobby = useCallback(async () => {
+    try {
+      await gameDisconnectFromColyseus() // Disconnect from the game room
+    } catch (error) {
+      console.error('Error disconnecting from lobby room:', error)
+      toast.error("Couldn't cleanly leave the lobby, returning to list.")
+    } finally {
+      setMode('roomList') // Set mode specifically to roomList
+    }
+  }, [setMode])
+
   return (
     <div className="relative w-full h-full">
-      {gamePhase === GamePhase.WAITING && <LobbyUI onLeaveLobby={onBackToMenu} onStartGame={handleStartGame} />}
+      {gamePhase === GamePhase.WAITING && <LobbyUI onLeaveLobby={handleLeaveLobby} onStartGame={handleStartGame} />}
 
       {gamePhase === GamePhase.PLAYING && (
         <BabylonScene antialias onDispose={onDispose} onSceneReady={onSceneReady} onRender={onRender} id="my-canvas" className="w-full h-full" />
