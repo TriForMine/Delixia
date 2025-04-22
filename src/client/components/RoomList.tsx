@@ -6,7 +6,6 @@ import { useStore } from '@client/store/useStore.ts'
 import { motion, AnimatePresence } from 'motion/react'
 import { ArrowLeft, PlusSquare, Users, Clock, Ghost, Hash, Gamepad2, Play, Search, Lock } from 'lucide-react'
 import { formatRelativeTime } from '@client/utils/utils.ts'
-import CreateRoomModal from './UI/CreateRoomModal'
 import JoinPrivateRoomModal from './UI/JoinPrivateRoomModal'
 import toast from 'react-hot-toast'
 
@@ -100,7 +99,6 @@ const RoomList = () => {
   const setMode = useStore((state) => state.setMode)
   const setRoomToJoin = useStore((state) => state.setRoomToJoin)
   const [searchTerm, setSearchTerm] = useState('')
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
   const [targetRoomId, setTargetRoomId] = useState<string | null>(null)
   const [targetRoomName, setTargetRoomName] = useState<string | null>(null)
@@ -119,8 +117,7 @@ const RoomList = () => {
   }, [rawRooms, searchTerm])
 
   const handleBackToMenu = useCallback(() => setMode('menu'), [setMode])
-  const handleOpenCreateModal = useCallback(() => setIsCreateModalOpen(true), [])
-  const handleCloseCreateModal = useCallback(() => setIsCreateModalOpen(false), [])
+  const handleOpenCreateModal = useCallback(() => setMode('createRoom'), [setMode])
   const handleClosePasswordModal = useCallback(() => setIsPasswordModalOpen(false), [])
 
   const handleJoinClick = useCallback(
@@ -146,18 +143,16 @@ const RoomList = () => {
       console.log(`Attempting to join private room ${roomId} with password.`)
       setRoomToJoin({ roomId: roomId, options: { password: password } })
       setMode('game')
+      setIsPasswordModalOpen(false)
     },
     [setRoomToJoin, setMode],
   )
 
   useEffect(() => {
-    if (isPasswordModalOpen && connectionStatus !== ConnectionStatus.CONNECTING) {
-      if (connectionStatus !== ConnectionStatus.CONNECTED) {
-      } else {
-        setIsPasswordModalOpen(false)
-        setTargetRoomId(null)
-        setTargetRoomName(null)
-      }
+    if (isPasswordModalOpen && (connectionStatus === ConnectionStatus.CONNECTED || connectionStatus === ConnectionStatus.ERROR)) {
+      setIsPasswordModalOpen(false)
+      setTargetRoomId(null)
+      setTargetRoomName(null)
     }
 
     if (!isPasswordModalOpen && targetRoomId) {
@@ -174,19 +169,11 @@ const RoomList = () => {
       setMode('game')
     } else {
       console.log('Quick Play: No suitable public room found, creating new one...')
-      setRoomToJoin({ roomName: 'game', forceCreate: true, options: {} })
+      const defaultRoomName = `Quick Kitchen #${Math.floor(Math.random() * 1000)}`
+      setRoomToJoin({ roomName: 'game', forceCreate: true, options: { roomName: defaultRoomName, maxClients: 4 } })
       setMode('game')
     }
   }, [filteredRooms, setRoomToJoin, setMode])
-
-  const handleCreateRoom = useCallback(
-    (options: Record<string, any>) => {
-      setRoomToJoin({ roomName: 'game', forceCreate: true, options: options })
-      setMode('game')
-      setIsCreateModalOpen(false)
-    },
-    [setRoomToJoin, setMode],
-  )
 
   return (
     <motion.div
@@ -233,7 +220,6 @@ const RoomList = () => {
       </div>
 
       <div className="w-full max-w-4xl flex-1 overflow-y-auto pb-6 custom-scrollbar">
-        {' '}
         <motion.h1
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -274,8 +260,6 @@ const RoomList = () => {
           )}
         </AnimatePresence>
       </div>
-
-      <CreateRoomModal isOpen={isCreateModalOpen} onClose={handleCloseCreateModal} onCreate={handleCreateRoom} />
 
       <JoinPrivateRoomModal
         isOpen={isPasswordModalOpen}
