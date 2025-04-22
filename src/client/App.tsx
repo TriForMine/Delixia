@@ -40,7 +40,6 @@ const InitialPseudoSetup: React.FC<{ onPseudoSet: (pseudo: string) => void }> = 
       exit={{ opacity: 0 }}
       className="fixed inset-0 backdrop-blur-md flex flex-col items-center justify-center z-50 p-4"
     >
-      {/* ... (Decorations inchangées) ... */}
       <AnimatePresence>
         <span className="float-element" style={{ top: '18%', left: '24%', animationDelay: '0s', fontSize: '2.5rem' }}>
           🌸
@@ -258,7 +257,6 @@ const App: React.FC = () => {
             className="floating-decorations-container"
             aria-hidden="true"
           >
-            {/* ... (Decorations inchangées) ... */}
             <span className="float-element" style={{ top: '18%', left: '24%', animationDelay: '0s', fontSize: '2.5rem' }}>
               🌸
             </span>
@@ -343,11 +341,9 @@ const App: React.FC = () => {
               transition={{ delay: 0.25, duration: 0.3 }}
               className="flex flex-col gap-4 w-64"
             >
-              {/* MODIFIÉ: Ce bouton va maintenant au tutoriel */}
               <button onClick={handlePlay} className="btn-dream flex items-center justify-center gap-2">
                 <Play size={24} /> Play
               </button>
-              {/* AJOUT: Bouton pour voir le tutoriel */}
               <button onClick={handleOpenTutorial} className="btn-dream flex items-center justify-center gap-2">
                 <BookOpen size={22} /> How to Play
               </button>
