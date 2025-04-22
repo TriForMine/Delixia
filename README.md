@@ -80,7 +80,7 @@ graph LR
         PerfMgr[Performance Manager]
         InputMgr[Input Manager]
         SpatialGrid[Spatial Grid]
-        SettingsStore[Settings Store (LocalStorage)]
+        SettingsStore["Settings Store (LocalStorage)"]
 
         UI -- interacts --> Engine & LocalChar & SettingsStore
         LocalChar -- controls --> Engine & Physics
