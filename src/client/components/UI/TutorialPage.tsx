@@ -35,6 +35,10 @@ const tutorialItems: TutorialItem[] = [
     imageSrc: '/tuto/sink-min.png',
     description: 'Dispose of unwanted items or dirty plates in the Trash [E]. Keep your kitchen tidy!',
   },
+  {
+    imageSrc: '/tuto/held-item-min.png',
+    description: "See what you're carrying! The bottom-center UI shows your held Plate (left slot) and Item/Ingredient (right slot).",
+  },
 ]
 
 const TutorialPage: React.FC = () => {
