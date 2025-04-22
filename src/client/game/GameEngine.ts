@@ -1038,6 +1038,7 @@ export class GameEngine {
     this.room.onMessage('boardNotEmpty', onError)
     this.room.onMessage('boardEmpty', onError)
     this.room.onMessage('cannotPlaceRaw', onError)
+    this.room.onMessage('invalidPlacement', onError)
     this.room.onMessage('error', (payload) => {
       // Generic error handler
       console.warn('Received error from server:', payload?.message || 'Unknown error')
