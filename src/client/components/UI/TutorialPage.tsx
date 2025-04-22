@@ -72,7 +72,7 @@ const TutorialPage: React.FC = () => {
           className="absolute top-3 left-3 btn btn-ghost btn-sm btn-circle z-10 hover:bg-base-content/10"
           aria-label="Back to Menu"
         >
-          <ArrowLeft className="text-secondary" size={24} strokeWidth={2.5} />
+          <ArrowLeft className="text-rose-200" size={24} strokeWidth={2.5} />
         </button>
 
         <h2 className="text-3xl md:text-4xl font-bold mb-6 text-center bg-gradient-to-br from-purple-300 via-pink-200 to-yellow-100 bg-clip-text text-transparent">
