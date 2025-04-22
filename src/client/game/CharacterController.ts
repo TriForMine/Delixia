@@ -350,8 +350,9 @@ export class CharacterController {
   private _createOrUpdateUsernameDisplay(username: string): void {
     const textureWidth = 512
     const textureHeight = 128 // Rectangular for names
-    const planeWidth = 1.5 // Adjust size as needed
+    const planeWidth = 1 // Adjust size as needed
     const planeHeight = (textureHeight / textureWidth) * planeWidth
+    const cornerRadius = textureHeight * 0.2
 
     // --- Dispose existing resources if they exist ---
     this._removeUsernameDisplay()
@@ -372,11 +373,13 @@ export class CharacterController {
 
     // Background (optional, for readability)
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)' // Semi-transparent black
-    ctx.fillRect(0, 0, textureWidth, textureHeight)
+    ctx.beginPath()
+    ctx.roundRect(0, 0, textureWidth, textureHeight, cornerRadius)
+    ctx.fill()
 
     // Text Style
     ctx.font = `bold ${textureHeight * 0.6}px Arial` // Adjust font size based on texture height
-    ctx.fillStyle = 'white'
+    ctx.fillStyle = '#ffe4e6'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
 
