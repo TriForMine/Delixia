@@ -33,6 +33,12 @@
     hover:scale-105 transition-all duration-300 cursor-pointer;
 }
 
+.btn-reset {
+  @apply bg-red-400
+  text-gray-700 font-bold py-3 px-6 rounded-lg shadow-lg
+  hover:scale-105 transition-all duration-300 cursor-pointer;
+}
+
 .floating-decorations-container {
   position: absolute; /* Positioned relative to App.tsx (which must be relative) */
   top: 0;

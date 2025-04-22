@@ -151,7 +151,7 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="absolute inset-0 bg-gradient-to-br from-purple-900/70 via-pink-900/70 to-yellow-900/70 backdrop-blur-md flex flex-col items-center justify-center p-4 z-20 pointer-events-auto"
+      className="absolute inset-0  backdrop-blur-md flex flex-col items-center justify-center p-4 z-20 pointer-events-auto"
     >
       <motion.div
         initial={{ y: -30, opacity: 0, scale: 0.95 }}
@@ -164,9 +164,9 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
           className="absolute top-3 left-3 btn btn-ghost btn-sm btn-circle z-10 hover:bg-base-content/10"
           aria-label="Back"
         >
-          <ChevronLeft className="text-primary" size={24} strokeWidth={2.5} />
+          <ChevronLeft className="text-rose-100" size={24} strokeWidth={2.5} />
         </button>
-        <h2 className="w-full text-4xl font-extrabold mb-6 text-center bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent flex items-center justify-center gap-3">
+        <h2 className="w-full text-4xl font-extrabold mb-6 text-center bg-gradient-to-br from-purple-300 via-pink-200 to-yellow-100 bg-clip-text text-transparent flex items-center justify-center gap-3">
           Settings
         </h2>
         <div className="max-h-[60vh] lg:max-h-[65vh] overflow-y-auto pr-3 space-y-6 custom-scrollbar">
@@ -181,13 +181,8 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
               <UserCircle size={18} /> Player Profile
             </h3>
             <div className="flex flex-col sm:flex-row items-center gap-4">
-              <div className="avatar placeholder flex-shrink-0">
-                <div className="bg-gradient-to-br from-primary to-secondary text-neutral-content rounded-full w-16 h-16 ring-2 ring-primary ring-offset-base-100 ring-offset-2 shadow-md flex items-center justify-center text-3xl font-semibold">
-                  {(inputUsername || '?').charAt(0).toUpperCase()}
-                </div>
-              </div>
               <div className="flex-grow w-full sm:w-auto">
-                <label htmlFor="username" className="block text-sm font-medium mb-1 opacity-80">
+                <label htmlFor="username" className="block text-md font-medium mb-1 opacity-80">
                   In-game Nickname
                 </label>
                 <form onSubmit={saveUsername} className="flex items-center gap-2">
@@ -198,14 +193,14 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
                     value={inputUsername}
                     onChange={handleUsernameChange}
                     maxLength={16}
-                    className="input input-bordered input-primary input-sm flex-grow"
+                    className="input input-bordered input-primary input-md flex-grow"
                     placeholder="Your name..."
                   />
                   <button type="submit" className="btn btn-primary btn-sm btn-outline btn-square" aria-label="Save">
                     <Save size={16} />
                   </button>
                 </form>
-                <p className="text-xs text-base-content/60 mt-1">Visible to other players.</p>
+                <p className="text-sm text-base-content/60 mt-1">Visible to other players.</p>
               </div>
             </div>
           </motion.section>
@@ -247,11 +242,11 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2.5">
               {Object.entries(actionLabels).map(([action, label]) => (
                 <div key={action} className="flex justify-between items-center gap-3 py-1">
-                  <span className="text-sm font-medium w-28 flex-shrink-0 opacity-90">{label}</span>
-                  <kbd className="kbd kbd-sm min-w-[80px] text-center border-secondary/50">{keyBindings[action as GameAction] || 'N/A'}</kbd>
+                  <span className="text-md font-medium w-28 flex-shrink-0 opacity-90">{label}</span>
+                  <kbd className="kbd kbd-lg min-w-[80px] text-center border-secondary/50">{keyBindings[action as GameAction] || 'N/A'}</kbd>
                   <button
                     onClick={() => handleListen(action as GameAction)}
-                    className={`btn btn-xs w-20 font-semibold ${listeningAction === action ? 'btn-secondary loading' : 'btn-outline btn-secondary'}`} // Added loading state
+                    className={`btn btn-md w-20 font-semibold ${listeningAction === action ? 'btn-secondary loading' : 'btn-outline btn-secondary'}`} // Added loading state
                     disabled={listeningAction !== null && listeningAction !== action}
                   >
                     {listeningAction === action ? '...' : 'Edit'}
@@ -259,7 +254,7 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
                 </div>
               ))}
             </div>
-            <button onClick={resetKeyBindings} className="btn btn-sm btn-outline btn-warning mt-4 flex items-center gap-1">
+            <button onClick={resetKeyBindings} className="btn btn-md btn-outline btn-warning mt-4 flex items-center gap-1">
               <RotateCcw size={14} /> Reset Keys
             </button>
           </motion.section>
@@ -275,8 +270,8 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
               <AlertTriangle size={18} /> Danger Zone
             </h3>
             <div className="flex items-center justify-between">
-              <p className="text-sm text-error/80">Reset all settings to their defaults?</p>
-              <button onClick={() => setShowResetConfirm(true)} className="btn btn-sm btn-outline btn-error">
+              <p className="text-md text-error/80">Reset all settings to their defaults ?</p>
+              <button onClick={() => setShowResetConfirm(true)} className="btn btn-md btn-outline btn-error">
                 Reset All
               </button>
             </div>
@@ -307,10 +302,10 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
               </h4>
               <p className="mb-5 text-base-content/80">Are you sure you want to reset all settings to default? This action cannot be undone.</p>
               <div className="flex justify-end gap-3">
-                <button onClick={() => setShowResetConfirm(false)} className="btn btn-sm btn-ghost">
+                <button onClick={() => setShowResetConfirm(false)} className="btn-dream btn-md">
                   Cancel
                 </button>
-                <button onClick={handleResetAll} className="btn btn-sm btn-error">
+                <button onClick={handleResetAll} className="btn-md btn-reset">
                   Yes, Reset All
                 </button>
               </div>
