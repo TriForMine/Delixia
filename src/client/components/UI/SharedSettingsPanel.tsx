@@ -194,7 +194,7 @@ const SharedSettingsPanel: React.FC<SharedSettingsPanelProps> = ({ applySettings
           </div>
           <div className={`form-control ${isSmall ? '' : 'w-auto mb-1'}`}>
             <label className={`cursor-pointer label ${isSmall ? 'justify-start gap-2 p-0 mt-1' : 'py-0'}`}>
-              <span className={`label-text ${isSmall ? 'text-[10px]' : 'text-md mr-2 opacity-80'}`}>Show FPS {isSmall ? '⏱️' : ''}</span>
+              <span className={`label-text ${isSmall ? 'text-[14px]' : 'text-md mr-2 opacity-80'}`}>Show FPS {isSmall ? '⏱️' : ''}</span>
               <input type="checkbox" className={`${toggleClass} toggle-info`} checked={showFps} onChange={handleShowFpsToggle} />
             </label>
           </div>
