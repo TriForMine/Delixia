@@ -112,13 +112,13 @@ const LobbyUI: React.FC<LobbyUIProps> = ({ onLeaveLobby, onStartGame }) => {
           <h3 className="text-xl font-semibold mb-3 text-base-content opacity-90 flex items-center justify-center gap-2">
             <Users size={20} /> Players ({playerList.length} / {maxClients})
           </h3>
-          <ul className="space-y-2 max-h-40 overflow-y-auto bg-base-200 p-3 rounded-lg">
+          <ul className="space-y-2 max-h-40 overflow-y-auto bg-base-200 p-3 rounded-lg border">
             {playerList.length > 0 ? (
               playerList.map(({ sessionId, player }) => (
                 <li
                   key={sessionId}
                   className={`text-lg p-2 rounded ${
-                    sessionId === mySessionId ? 'bg-primary text-primary-content font-semibold' : 'bg-base-100 text-base-content'
+                    sessionId === mySessionId ? 'bg-gradient-to-br from-purple-300 via-pink-200 to-yellow-100 text-primary-content font-semibold' : 'bg-base-100 text-base-content'
                   }`}
                 >
                   {player.name} {sessionId === mySessionId && '(You)'}
@@ -132,13 +132,13 @@ const LobbyUI: React.FC<LobbyUIProps> = ({ onLeaveLobby, onStartGame }) => {
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <button onClick={onStartGame} className="btn-dream flex-1 flex items-center justify-center gap-2 disabled:opacity-50" disabled={!isHost}>
-            <Play size={20} /> Start Game
+            <Play size={20} strokeWidth={3} /> Start Game
           </button>
           <button
             onClick={onLeaveLobby}
-            className="btn-dream-small bg-error/80 hover:bg-error text-error-content flex items-center justify-center gap-1.5"
+            className="btn-dream bg-error/80 hover:bg-error text-error-content flex items-center justify-center gap-1.5"
           >
-            <LogOut size={18} strokeWidth={3} /> Leave
+            <LogOut size={18} strokeWidth={2.5} /> Leave
           </button>
         </div>
       </div>

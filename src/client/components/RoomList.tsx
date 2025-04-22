@@ -200,19 +200,19 @@ const RoomList = () => {
         <div className="flex flex-col md:flex-row justify-between items-center gap-3 md:gap-4">
           <div className="flex items-center gap-2 w-full md:w-auto">
             <button
-              className="btn-dream-small flex-grow md:flex-grow-0 flex items-center justify-center gap-1 !py-1.5 !px-3 !text-sm"
+              className="btn-dream flex-grow md:flex-grow-0 flex items-center justify-center gap-1 !py-2 !px-5 !text-md"
               onClick={handleBackToMenu}
             >
-              <ArrowLeft size={16} strokeWidth={3} /> Menu
+              <ArrowLeft size={18} strokeWidth={3} /> Menu
             </button>
             <button
-              className="btn-dream-small flex-grow md:flex-grow-0 flex items-center justify-center gap-1 !py-1.5 !px-3 !text-sm"
+              className="btn-dream flex-grow md:flex-grow-0 flex items-center justify-center gap-1 !py-2 !px-5 !text-md"
               onClick={handleQuickPlay}
             >
-              <Play size={16} strokeWidth={3} /> Quick Play
+              <Play size={18} strokeWidth={3} /> Quick Play
             </button>
             <button
-              className="btn-dream-small flex-grow md:flex-grow-0 flex items-center justify-center gap-1 !py-1.5 !px-3 !text-sm !bg-accent hover:!bg-accent/90 !text-accent-content"
+              className="btn-dream flex-grow md:flex-grow-0 flex items-center justify-center gap-1 !py-2 !px-5 !text-md"
               onClick={handleOpenCreateModal}
             >
               <PlusSquare size={16} strokeWidth={3} /> Create
@@ -225,7 +225,7 @@ const RoomList = () => {
               placeholder="Search rooms..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="input input-bordered input-sm w-full pr-8"
+              className="input input-bordered input-md w-full pr-8"
             />
             <Search size={16} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-base-content/50" />
           </div>
@@ -238,7 +238,7 @@ const RoomList = () => {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1, duration: 0.3 }}
-          className="text-4xl font-bold mb-6 text-center bg-gradient-to-br from-purple-300 via-pink-200 to-yellow-100 bg-clip-text text-transparent drop-shadow-sm"
+          className="text-3xl font-bold mb-6 text-center bg-gradient-to-br from-purple-300 via-pink-200 to-yellow-100 bg-clip-text text-transparent drop-shadow-sm"
         >
           Join a Game
         </motion.h1>
