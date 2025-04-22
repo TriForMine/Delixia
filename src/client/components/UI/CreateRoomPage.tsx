@@ -71,22 +71,26 @@ const CreateRoomPage: React.FC<CreateRoomPageProps> = ({ onBack, onCreate }) => 
   return (
     <motion.div
       key="create-room-page"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.3, ease: 'easeInOut' }}
-      className="flex flex-col items-center justify-center flex-1 bg-base-200 p-4 pt-6 md:pt-10 overflow-y-auto h-full"
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={{ duration: 0.3 }}
+      className="absolute inset-0 bg-base-200 bg-opacity-95 flex flex-col items-center justify-center z-10 pointer-events-auto p-6"
     >
-      <div className="bg-base-100 p-6 rounded-2xl shadow-xl w-full max-w-md border border-base-content/20 relative">
-        <button onClick={onBack} className="absolute top-3 left-3 btn btn-ghost btn-sm btn-circle z-10 hover:bg-base-content/10" aria-label="Back">
-          <ArrowLeft className="text-primary" size={24} strokeWidth={2.5} />
+      <div className="bg-base-100 p-8 rounded-xl shadow-2xl w-full max-w-md text-center relative">
+        <button
+          onClick={onBack}
+          className="absolute top-4 left-4 btn btn-ghost btn-xs btn-circle z-10 text-base-content/70 hover:bg-base-content/10"
+          aria-label="Back"
+        >
+          <ArrowLeft className="text-primary" size={20} strokeWidth={3} />
         </button>
 
-        <h3 className="text-2xl font-bold mb-6 text-center text-base-content/90 flex items-center justify-center gap-2 pt-2">
-          <PlusSquare size={24} /> Create New Kitchen
+        <h3 className="text-4xl font-bold mb-4 bg-gradient-to-br from-purple-300 via-pink-200 to-yellow-100 bg-clip-text text-transparent flex items-center justify-center gap-3">
+          Create Kitchen
         </h3>
 
-        <form onSubmit={handleFormSubmit} className="space-y-4">
+        <form onSubmit={handleFormSubmit} className="space-y-5 text-left mt-6">
           <div>
             <label htmlFor="roomName" className="block text-sm font-medium mb-1 opacity-80">
               Room Name
@@ -123,7 +127,7 @@ const CreateRoomPage: React.FC<CreateRoomPageProps> = ({ onBack, onCreate }) => 
                 step="1"
                 value={maxPlayers}
                 onChange={(e) => setMaxPlayers(parseInt(e.target.value, 10))}
-                className="range range-sm flex-grow"
+                className="range range-sm range-primary flex-grow"
               />
             </div>
           </div>
@@ -143,7 +147,7 @@ const CreateRoomPage: React.FC<CreateRoomPageProps> = ({ onBack, onCreate }) => 
               <motion.div
                 key="password-input"
                 initial={{ height: 0, opacity: 0, marginTop: 0 }}
-                animate={{ height: 'auto', opacity: 1, marginTop: '1rem' }}
+                animate={{ height: 'auto', opacity: 1, marginTop: '1.25rem' }}
                 exit={{ height: 0, opacity: 0, marginTop: 0 }}
                 transition={{ duration: 0.2, ease: 'easeInOut' }}
               >
@@ -166,18 +170,13 @@ const CreateRoomPage: React.FC<CreateRoomPageProps> = ({ onBack, onCreate }) => 
             )}
           </AnimatePresence>
 
-          <div className="flex justify-end gap-3 pt-4">
-            <button type="button" onClick={onBack} className="btn btn-ghost">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-6">
+            <button type="submit" className="btn-dream flex-1 flex items-center justify-center gap-2">
+              <PlusSquare size={20} strokeWidth={2.5} /> Create Room
+            </button>
+            <button type="button" onClick={onBack} className="btn-dream flex-1">
               Cancel
             </button>
-            <motion.button
-              type="submit"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="btn btn-neutral flex items-center gap-1.5"
-            >
-              <PlusSquare size={18} /> Create Room
-            </motion.button>
           </div>
         </form>
       </div>
