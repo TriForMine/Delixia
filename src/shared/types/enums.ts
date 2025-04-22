@@ -26,3 +26,9 @@ export enum Ingredient {
   SeaUrchinOpen,
   SeaUrchinRoll,
 }
+
+export enum GamePhase {
+  WAITING,
+  PLAYING,
+  FINISHED,
+}

@@ -1,4 +1,5 @@
 import type { GameRoomState } from '@shared/schemas/GameRoomState'
+import { GamePhase } from '@shared/types/enums'
 import type { Room } from 'colyseus' // Import base Room type
 import { logger } from 'colyseus'
 
@@ -27,18 +28,13 @@ export class GameTimerService {
   private async endGame(state: GameRoomState, room: Room<GameRoomState>): Promise<void> {
     if (this.gameEnded) return // Prevent multiple calls
 
+    state.gamePhase = GamePhase.FINISHED
     this.gameEnded = true
     logger.info(`Game time ended! Final Score: ${state.score}`)
 
     // Lock the room, broadcast score, and disconnect
     await room.lock()
     room.broadcast('gameOver', { finalScore: state.score })
-
-    // Optional: Delay disconnect slightly to ensure message delivery
-    setTimeout(async () => {
-      logger.info(`Disconnecting room ${room.roomId} after game over.`)
-      await room.disconnect()
-    }, 1000) // 1 second delay
   }
 
   public reset(): void {

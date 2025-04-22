@@ -1,16 +1,11 @@
-import type {Schema} from '@colyseus/schema'
-import {Client, getStateCallbacks, type Room, type RoomAvailable} from 'colyseus.js'
+import type { Schema } from '@colyseus/schema'
+import { Client, getStateCallbacks, type Room, type RoomAvailable } from 'colyseus.js'
 import { useSyncExternalStore } from 'react'
-import {GameRoomState} from "@shared/schemas/GameRoomState.ts";
 
-// Recoverable error codes that should trigger reconnection
 const RECOVERABLE_ERROR_CODES = [1000, 1001, 1005, 1006]
-// Maximum number of reconnection attempts
 const MAX_RECONNECT_ATTEMPTS = 5
-// Initial reconnection delay in ms (will be increased with backoff)
 const INITIAL_RECONNECT_DELAY = 1000
 
-// Connection status enum
 export enum ConnectionStatus {
   DISCONNECTED = 'disconnected',
   CONNECTING = 'connecting',
@@ -44,7 +39,7 @@ export const colyseus = <S extends Schema>(endpoint: string, schema?: new (...ar
 
   let connecting = false
   let reconnectAttempts = 0
-  let reconnectionToken: string | undefined // Store the reconnection token
+  let reconnectionToken: string | undefined
   let lastConnectionOptions: ConnectionOptions | null = null
 
   interface ConnectionOptions {
@@ -57,8 +52,9 @@ export const colyseus = <S extends Schema>(endpoint: string, schema?: new (...ar
 
   /** Initialize room handlers and state after connection or reconnection */
   const initializeRoom = (room: Room<S>, isLobby: boolean) => {
+    roomStore.set(undefined)
     roomStore.set(room)
-    reconnectionToken = room.reconnectionToken // Store the token
+    reconnectionToken = room.reconnectionToken
     connectionStatusStore.set(ConnectionStatus.CONNECTED)
     reconnectAttempts = 0
 
@@ -82,7 +78,8 @@ export const colyseus = <S extends Schema>(endpoint: string, schema?: new (...ar
         stateStore.set(undefined)
         lobbyRoomsStore.set([])
         connectionStatusStore.set(ConnectionStatus.DISCONNECTED)
-        reconnectionToken = undefined // Clear token on final disconnect
+        reconnectionToken = undefined
+        lastConnectionOptions = null
       }
     })
 
@@ -116,7 +113,7 @@ export const colyseus = <S extends Schema>(endpoint: string, schema?: new (...ar
           const value = $(state)[key]
 
           // @ts-ignore
-          if (typeof state[key] !== "object") {
+          if (typeof state[key] !== 'object') {
             continue
           }
 
@@ -132,8 +129,9 @@ export const colyseus = <S extends Schema>(endpoint: string, schema?: new (...ar
             updatedCollectionsMap[key as keyof S] = true
           })
         }
-      })
 
+        stateStore.set(state)
+      })
 
       room.onStateChange((state) => {
         if (!state) return
@@ -148,6 +146,7 @@ export const colyseus = <S extends Schema>(endpoint: string, schema?: new (...ar
             copy[key as keyof S] = (value as Schema).clone()
           }
         }
+
         stateStore.set(copy)
       })
     }
@@ -156,7 +155,9 @@ export const colyseus = <S extends Schema>(endpoint: string, schema?: new (...ar
   const connect = async ({ roomName, roomId, forceCreate = false, isLobby = false, options = {} }: ConnectionOptions) => {
     if (connecting || roomStore.get()) return
 
-    lastConnectionOptions = { roomName, roomId, forceCreate, isLobby, options }
+    const finalOptions = options || {}
+
+    lastConnectionOptions = { roomName, roomId, forceCreate, isLobby, options: finalOptions }
     connectionStatusStore.set(ConnectionStatus.CONNECTING)
     connectionErrorStore.set(null)
     connecting = true
@@ -165,12 +166,12 @@ export const colyseus = <S extends Schema>(endpoint: string, schema?: new (...ar
       let room: Room<S>
       if (roomName) {
         if (forceCreate) {
-          room = await client.create<S>(roomName, options)
+          room = await client.create<S>(roomName, finalOptions)
         } else {
-          room = await client.joinOrCreate<S>(roomName, options)
+          room = await client.joinOrCreate<S>(roomName, finalOptions)
         }
       } else if (roomId) {
-        room = await client.joinById<S>(roomId, options, schema)
+        room = await client.joinById<S>(roomId, finalOptions, schema)
       } else {
         throw new Error('Must provide either roomName or roomId')
       }
@@ -183,7 +184,6 @@ export const colyseus = <S extends Schema>(endpoint: string, schema?: new (...ar
       })
       connectionStatusStore.set(ConnectionStatus.ERROR)
       if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-        handleReconnection()
       }
     } finally {
       connecting = false
@@ -191,13 +191,12 @@ export const colyseus = <S extends Schema>(endpoint: string, schema?: new (...ar
   }
 
   const handleReconnection = async () => {
-    // Stop if max attempts are reached
     if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
       console.error('Max reconnection attempts reached')
       connectionStatusStore.set(ConnectionStatus.ERROR)
       return
     }
-    reconnectAttempts++ // Increment attempts for both cases
+    reconnectAttempts++
     connectionStatusStore.set(ConnectionStatus.RECONNECTING)
 
     if (reconnectionToken && process.env.NODE_ENV !== 'development') {
@@ -209,7 +208,6 @@ export const colyseus = <S extends Schema>(endpoint: string, schema?: new (...ar
         setTimeout(handleReconnection, delay)
       }
     } else if (lastConnectionOptions) {
-      // Development mode (or no token): attempt a new connection
       connecting = false
       connect(lastConnectionOptions)
     } else {
@@ -220,7 +218,7 @@ export const colyseus = <S extends Schema>(endpoint: string, schema?: new (...ar
   const disconnectFromColyseus = async () => {
     reconnectAttempts = 0
     lastConnectionOptions = null
-    reconnectionToken = undefined // Clear token on manual disconnect
+    reconnectionToken = undefined
 
     const room = roomStore.get()
     if (!room) return
@@ -231,7 +229,7 @@ export const colyseus = <S extends Schema>(endpoint: string, schema?: new (...ar
     connectionStatusStore.set(ConnectionStatus.DISCONNECTED)
 
     try {
-      await room.leave()
+      await room.leave(true)
     } catch (e) {
       console.error('Error during disconnection:', e)
     }
