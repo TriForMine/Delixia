@@ -46,11 +46,11 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onJoin }) => {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
-      className="bg-base-100 rounded-xl shadow-lg border border-primary/20 overflow-hidden transition-all duration-200 ease-out"
+      className="bg-base-100 rounded-xl shadow-lg border border-rose-200 overflow-hidden transition-all duration-200 ease-out"
     >
       <div className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex-grow space-y-2">
-          <div className="flex items-center gap-2 text-lg font-semibold text-primary">
+          <div className="flex items-center gap-2 text-xl font-semibold">
             <Gamepad2 size={20} strokeWidth={2.5} />
             <span>{displayName}</span>
             {room.metadata?.isPrivate && (
@@ -59,11 +59,11 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onJoin }) => {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2 text-sm text-base-content/80 font-mono">
+          <div className="flex items-center gap-2 text-lg text-base-content/80 font-mono">
             <Hash size={14} strokeWidth={2.5} />
             <span>{room.roomId}</span>
           </div>
-          <div className="flex flex-col sm:flex-row sm:items-center text-xs text-base-content/60 gap-x-4 gap-y-1">
+          <div className="flex flex-col sm:flex-row sm:items-center text-s text-base-content/60 gap-x-4 gap-y-1">
             <div className="flex items-center gap-1">
               <Clock size={12} />
               <span>Created {relativeTime}</span>
@@ -244,7 +244,7 @@ const RoomList = () => {
               transition={{ delay: 0.2 }}
               className="text-center mt-10 p-6 bg-base-100 rounded-xl border border-base-300 shadow"
             >
-              <Ghost size={48} className="mx-auto mb-4 text-primary opacity-60" />
+              <Ghost size={48} className="mx-auto mb-4 opacity-60" />
               {searchTerm ? (
                 <>
                   <p className="text-xl font-semibold text-base-content opacity-80">No kitchens match your search!</p>
@@ -252,8 +252,8 @@ const RoomList = () => {
                 </>
               ) : (
                 <>
-                  <p className="text-xl font-semibold text-base-content opacity-80">No public kitchens open right now!</p>
-                  <p className="text-base-content/60 mt-2">Try 'Quick Play' or 'Create' one above!</p>
+                  <p className="text-xl font-semibold text-base-content opacity-80">No public kitchens open right now !</p>
+                  <p className="text-base-content/60 mt-2">Try 'Quick Play' or 'Create' one above !</p>
                 </>
               )}
             </motion.div>

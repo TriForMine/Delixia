@@ -1,7 +1,7 @@
 import type React from 'react'
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { X, KeyRound, LogIn } from 'lucide-react'
+import {X, KeyRound, LogIn} from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface JoinPrivateRoomModalProps {
@@ -58,7 +58,7 @@ const JoinPrivateRoomModal: React.FC<JoinPrivateRoomModalProps> = ({ isOpen, onC
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.8, opacity: 0, y: -10 }}
             transition={{ type: 'spring', stiffness: 150, damping: 15 }}
-            className="bg-base-100 p-6 md:p-8 rounded-xl shadow-xl w-full max-w-sm border border-primary/20 relative"
+            className="bg-base-100 p-6 md:p-8 rounded-xl shadow-xl w-full max-w-sm border border-rose-200 relative"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -72,13 +72,13 @@ const JoinPrivateRoomModal: React.FC<JoinPrivateRoomModalProps> = ({ isOpen, onC
             <h3 className="text-3xl font-bold mb-4 text-center bg-gradient-to-br from-purple-300 via-pink-200 to-yellow-100 bg-clip-text text-transparent flex items-center justify-center gap-2">
               <KeyRound size={26} /> Enter Password
             </h3>
-            <p className="text-center mb-6 text-base-content/80">
-              Joining room: <span className="font-semibold">{roomName}</span>
+            <p className="text-center mb-6 text-base-content/100 text-lg">
+              Joining room: <span className="font-semibold text-rose-200">{roomName}</span>
             </p>
 
             <form onSubmit={handleFormSubmit} className="space-y-4">
               <div>
-                <label htmlFor="joinPassword" className="block text-sm font-medium mb-1 opacity-80">
+                <label htmlFor="joinPassword" className="block text-md font-medium mb-1 opacity-80">
                   Room Password
                 </label>
                 <div className="relative">
@@ -92,19 +92,19 @@ const JoinPrivateRoomModal: React.FC<JoinPrivateRoomModalProps> = ({ isOpen, onC
                     value={password}
                     onChange={(e) => setPassword(e.target.value.slice(0, 20))}
                     maxLength={20}
-                    className="input input-bordered input-primary w-full pl-8"
+                    className="input input-bordered input-rose-50 w-full pl-8"
                     placeholder="Enter room password..."
                   />
                 </div>
               </div>
 
               <div className="flex justify-end gap-3 pt-4">
-                <button type="button" onClick={onClose} className="btn btn-ghost">
+                <button type="submit" className="btn-dream flex-1 flex items-center justify-center gap-2">
+                  <LogIn size={20} strokeWidth={2.5} /> Join Room
+                </button>
+                <button type="button" onClick={onClose} className="btn-dream flex">
                   Cancel
                 </button>
-                <motion.button type="submit" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="btn-dream flex items-center gap-1.5">
-                  <LogIn size={18} /> Join Room
-                </motion.button>
               </div>
             </form>
           </motion.div>
