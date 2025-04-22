@@ -168,31 +168,31 @@ const App: React.FC = () => {
             aria-hidden="true"
           >
             {/* Emojis variés */}
-            <span className="float-element" style={{ top: '10%', left: '15%', animationDelay: '0s', fontSize: '2.5rem' }}>
+            <span className="float-element" style={{ top: '18%', left: '24%', animationDelay: '0s', fontSize: '2.5rem' }}>
               🌸
             </span>
             <span className="float-element" style={{ top: '75%', left: '5%', animationDelay: '2.2s', fontSize: '1.8rem' }}>
               🍰
             </span>
-            <span className="float-element" style={{ top: '20%', left: '80%', animationDelay: '1.1s', fontSize: '3rem' }}>
+            <span className="float-element" style={{ top: '20%', left: '86%', animationDelay: '1.1s', fontSize: '2.8rem' }}>
               ✨
             </span>
-            <span className="float-element" style={{ top: '85%', left: '90%', animationDelay: '3.5s', fontSize: '1.5rem' }}>
+            <span className="float-element" style={{ top: '82%', left: '85%', animationDelay: '3.5s', fontSize: '1.7rem' }}>
               🌟
             </span>
-            <span className="float-element" style={{ top: '50%', left: '10%', animationDelay: '0.5s', fontSize: '2rem' }}>
+            <span className="float-element" style={{ top: '50%', left: '16%', animationDelay: '0.5s', fontSize: '2rem' }}>
               💖
             </span>
             <span className="float-element" style={{ top: '5%', left: '40%', animationDelay: '4.0s', fontSize: '1.4rem' }}>
               ☁️
             </span>
-            <span className="float-element" style={{ top: '60%', left: '70%', animationDelay: '1.8s', fontSize: '2.8rem' }}>
+            <span className="float-element" style={{ top: '50%', left: '70%', animationDelay: '1.8s', fontSize: '2.8rem' }}>
               🍓
             </span>
             <span className="float-element" style={{ top: '90%', left: '30%', animationDelay: '0.8s', fontSize: '2.2rem' }}>
               🍭
             </span>
-            <span className="float-element" style={{ top: '35%', left: '55%', animationDelay: '5.0s', fontSize: '1.6rem' }}>
+            <span className="float-element" style={{ top: '87%', left: '66%', animationDelay: '5.0s', fontSize: '1.9rem' }}>
               🍙
             </span>
             <span className="float-element" style={{ top: '5%', left: '5%', animationDelay: '3.0s', fontSize: '2.1rem' }}>
@@ -201,7 +201,7 @@ const App: React.FC = () => {
             <span className="float-element" style={{ top: '45%', left: '95%', animationDelay: '2.8s', fontSize: '1.9rem' }}>
               🍩
             </span>
-            <span className="float-element" style={{ top: '70%', left: '50%', animationDelay: '0.2s', fontSize: '2.4rem' }}>
+            <span className="float-element" style={{ top: '13%', left: '70%', animationDelay: '0.2s', fontSize: '2.4rem' }}>
               🎐
             </span>
           </motion.div>
