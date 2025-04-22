@@ -1,12 +1,12 @@
 import { Game } from './components/Game.tsx'
 import { useStore } from './store/useStore'
 import '@babylonjs/loaders/glTF'
-import { RoomList } from '@client/components/RoomList.tsx'
+import RoomList from '@client/components/RoomList.tsx'
 import { gameConnect, gameDisconnectFromColyseus, lobbyConnect, lobbyDisconnectFromColyseus } from '@client/hooks/colyseus.ts'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Settings from './components/UI/Settings.tsx'
 import { AnimatePresence, motion } from 'motion/react'
-import { Cake, CookingPot, Ghost } from 'lucide-react'
+import { Cake, CookingPot, Ghost, Settings as SettingsIcon, Play } from 'lucide-react'
 import type { GameEngine } from '@client/game/GameEngine.ts'
 import { toast } from 'react-hot-toast'
 import { ToasterWithMax } from '@client/components/UI/ToasterWithMax.tsx'
@@ -117,9 +117,12 @@ const App: React.FC = () => {
 
     if (mode === 'game') {
       ;(async () => {
-        const connectOptions = { clientPseudo: username }
+        const connectOptions = {
+          ...(roomToJoin?.options || {}),
+          clientPseudo: username,
+        }
         await gameConnect({
-          roomName: roomToJoin?.roomName,
+          roomName: roomToJoin?.roomName || 'game',
           roomId: roomToJoin?.roomId,
           forceCreate: roomToJoin?.forceCreate,
           options: connectOptions,
@@ -127,6 +130,7 @@ const App: React.FC = () => {
       })()
       return () => {
         gameDisconnectFromColyseus().catch(console.error)
+        setRoomToJoin(undefined)
       }
     } else if (mode === 'roomList') {
       ;(async () => {
@@ -136,11 +140,14 @@ const App: React.FC = () => {
         lobbyDisconnectFromColyseus().catch(console.error)
       }
     }
-  }, [mode, roomToJoin, username, setMode]) // Added setMode dependency
+  }, [mode, roomToJoin, setRoomToJoin, username, setMode])
 
-  const handlePlayGame = () => {
-    setRoomToJoin({ roomName: 'game' })
-    setMode('game')
+  const handlePlay = () => {
+    if (!username) {
+      setShowInitialSetup(true)
+      return
+    }
+    setMode('roomList')
   }
 
   const handleOpenSettings = () => {
@@ -148,9 +155,6 @@ const App: React.FC = () => {
   }
   const handleBackToMenu = () => {
     setMode('menu')
-  }
-  const handleRoomList = () => {
-    setMode('roomList')
   }
 
   return (
@@ -177,7 +181,6 @@ const App: React.FC = () => {
             className="floating-decorations-container"
             aria-hidden="true"
           >
-            {/* ... decoration spans ... */}
             <span className="float-element" style={{ top: '18%', left: '24%', animationDelay: '0s', fontSize: '2.5rem' }}>
               🌸
             </span>
@@ -262,20 +265,17 @@ const App: React.FC = () => {
               transition={{ delay: 0.25, duration: 0.3 }}
               className="flex flex-col gap-4 w-64"
             >
-              <button onClick={handlePlayGame} className="btn-dream">
-                Quick Play
+              <button onClick={handlePlay} className="btn-dream flex items-center justify-center gap-2">
+                <Play size={24} /> Play
               </button>
-              <button onClick={handleRoomList} className="btn-dream">
-                Join Room
-              </button>
-              <button onClick={handleOpenSettings} className="btn-dream">
-                Settings
+              <button onClick={handleOpenSettings} className="btn-dream flex items-center justify-center gap-2">
+                <SettingsIcon size={22} /> Settings
               </button>
               <button
                 onClick={() => {
                   window.open('https://github.com/TriForMine/delixia', '_blank')
                 }}
-                className="btn-dream"
+                className="btn btn-outline btn-sm text-base-content/70 hover:bg-base-content/10 border-base-content/30"
               >
                 GitHub
               </button>
@@ -284,7 +284,7 @@ const App: React.FC = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3, duration: 0.3 }}
-              className="absolute bottom-4 text-sm opacity-70 text-white"
+              className="absolute bottom-4 text-sm opacity-70 text-base-content/70"
             >
               Version {import.meta.env.PUBLIC_APP_VERSION || '0.0.0'}
             </motion.div>

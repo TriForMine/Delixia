@@ -7,6 +7,7 @@ interface RoomToJoin {
   roomName?: string // For joining or creating a room by name
   roomId?: string // For joining a specific room by ID
   forceCreate?: boolean // To force creating a new room
+  options?: Record<string, any>
 }
 
 interface AppState {
