@@ -35,12 +35,6 @@ export class GameTimerService {
     // Lock the room, broadcast score, and disconnect
     await room.lock()
     room.broadcast('gameOver', { finalScore: state.score })
-
-    // Optional: Delay disconnect slightly to ensure message delivery
-    setTimeout(async () => {
-      logger.info(`Disconnecting room ${room.roomId} after game over.`)
-      await room.disconnect()
-    }, 1000) // 1 second delay
   }
 
   public reset(): void {

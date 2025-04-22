@@ -47,7 +47,7 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onJoin }) => {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
-      className="bg-base-100 rounded-xl shadow-lg border border-primary/20 overflow-hidden hover:shadow-primary/20 hover:scale-[1.02] transition-all duration-200 ease-out"
+      className="bg-base-100 rounded-xl shadow-lg border border-primary/20 overflow-hidden transition-all duration-200 ease-out"
     >
       <div className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex-grow space-y-2">
