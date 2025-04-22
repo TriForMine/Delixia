@@ -3,14 +3,16 @@ import { useStore } from './store/useStore'
 import '@babylonjs/loaders/glTF'
 import RoomList from '@client/components/RoomList.tsx'
 import { gameConnect, gameDisconnectFromColyseus, lobbyConnect, lobbyDisconnectFromColyseus } from '@client/hooks/colyseus.ts'
+import type React from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Settings from './components/UI/Settings.tsx'
 import { AnimatePresence, motion } from 'motion/react'
-import { Cake, CookingPot, Ghost, Settings as SettingsIcon, Play } from 'lucide-react'
+import { Cake, CookingPot, Ghost, Settings as SettingsIcon, Play, BookOpen } from 'lucide-react'
 import type { GameEngine } from '@client/game/GameEngine.ts'
 import { toast } from 'react-hot-toast'
 import { ToasterWithMax } from '@client/components/UI/ToasterWithMax.tsx'
 import CreateRoomPage from './components/UI/CreateRoomPage.tsx'
+import TutorialPage from './components/UI/TutorialPage.tsx'
 
 const InitialPseudoSetup: React.FC<{ onPseudoSet: (pseudo: string) => void }> = ({ onPseudoSet }) => {
   const [tempPseudo, setTempPseudo] = useState('')
@@ -38,6 +40,7 @@ const InitialPseudoSetup: React.FC<{ onPseudoSet: (pseudo: string) => void }> = 
       exit={{ opacity: 0 }}
       className="fixed inset-0 backdrop-blur-md flex flex-col items-center justify-center z-50 p-4"
     >
+      {/* ... (Decorations inchangées) ... */}
       <AnimatePresence>
         <span className="float-element" style={{ top: '18%', left: '24%', animationDelay: '0s', fontSize: '2.5rem' }}>
           🌸
@@ -76,7 +79,6 @@ const InitialPseudoSetup: React.FC<{ onPseudoSet: (pseudo: string) => void }> = 
           🎐
         </span>
       </AnimatePresence>
-
       <motion.div
         initial={{ scale: 0.7, opacity: 0, rotate: -5 }}
         animate={{ scale: 1, opacity: 1, rotate: 0 }}
@@ -155,55 +157,69 @@ const App: React.FC = () => {
       return
     }
 
-    if (mode === 'game') {
-      ;(async () => {
-        const connectOptions = {
-          ...(roomToJoin?.options || {}),
-          clientPseudo: username,
-        }
-        await gameConnect({
-          roomName: roomToJoin?.roomName || 'game',
-          roomId: roomToJoin?.roomId,
-          forceCreate: roomToJoin?.forceCreate,
-          options: connectOptions,
-        })
-      })()
+    if (mode === 'game' && roomToJoin) {
+      const connectOptions = {
+        ...(roomToJoin.options || {}),
+        clientPseudo: username,
+      }
+      gameConnect({
+        roomName: roomToJoin.roomName || 'game',
+        roomId: roomToJoin.roomId,
+        forceCreate: roomToJoin.forceCreate,
+        options: connectOptions,
+      }).catch((err) => {
+        console.error('Game Connect Error:', err)
+        toast.error('Failed to join room: ' + (err.message || 'Server error'))
+        setMode('roomList')
+      })
+      lobbyDisconnectFromColyseus().catch(console.error)
       return () => {
         gameDisconnectFromColyseus().catch(console.error)
         setRoomToJoin(undefined)
       }
     } else if (mode === 'roomList') {
-      ;(async () => {
-        await lobbyConnect({ roomName: 'lobby', isLobby: true })
-      })()
+      lobbyConnect({ roomName: 'lobby', isLobby: true }).catch((err) => {
+        console.error('Lobby Connect Error:', err)
+        toast.error('Failed to connect to lobby: ' + (err.message || 'Server error'))
+        setMode('menu')
+      })
+      gameDisconnectFromColyseus().catch(console.error)
       return () => {
         lobbyDisconnectFromColyseus().catch(console.error)
       }
+    } else {
+      gameDisconnectFromColyseus().catch(console.error)
+      lobbyDisconnectFromColyseus().catch(console.error)
     }
   }, [mode, roomToJoin, setRoomToJoin, username, setMode])
 
-  const handlePlay = () => {
+  const handlePlay = useCallback(() => {
     if (!username) {
       setShowInitialSetup(true)
       return
     }
     setMode('roomList')
-  }
+  }, [username, setMode])
 
-  const handleOpenSettings = () => {
+  const handleOpenSettings = useCallback(() => {
     setMode('settings')
-  }
+  }, [setMode])
+
+  const handleOpenTutorial = useCallback(() => {
+    setMode('tutorial')
+  }, [setMode])
 
   const handleBackToMenu = useCallback(async () => {
     try {
       await gameDisconnectFromColyseus()
+      await lobbyDisconnectFromColyseus()
     } catch (error) {
-      console.error('Error disconnecting from game room:', error)
-      toast.error("Couldn't cleanly leave the room, returning to menu.")
+      console.error('Error disconnecting:', error)
     } finally {
       setMode('menu')
+      setRoomToJoin(undefined)
     }
-  }, [setMode])
+  }, [setMode, setRoomToJoin])
 
   const handleCreateRoomSubmit = useCallback(
     (options: Record<string, any>) => {
@@ -242,6 +258,7 @@ const App: React.FC = () => {
             className="floating-decorations-container"
             aria-hidden="true"
           >
+            {/* ... (Decorations inchangées) ... */}
             <span className="float-element" style={{ top: '18%', left: '24%', animationDelay: '0s', fontSize: '2.5rem' }}>
               🌸
             </span>
@@ -326,8 +343,13 @@ const App: React.FC = () => {
               transition={{ delay: 0.25, duration: 0.3 }}
               className="flex flex-col gap-4 w-64"
             >
+              {/* MODIFIÉ: Ce bouton va maintenant au tutoriel */}
               <button onClick={handlePlay} className="btn-dream flex items-center justify-center gap-2">
                 <Play size={24} /> Play
+              </button>
+              {/* AJOUT: Bouton pour voir le tutoriel */}
+              <button onClick={handleOpenTutorial} className="btn-dream flex items-center justify-center gap-2">
+                <BookOpen size={22} /> How to Play
               </button>
               <button onClick={handleOpenSettings} className="btn-dream flex items-center justify-center gap-2">
                 <SettingsIcon size={22} /> Settings
@@ -352,19 +374,16 @@ const App: React.FC = () => {
           </motion.div>
         ) : mode === 'settings' ? (
           <Settings key="settings" applySettingsChanges={applySettingsChanges} />
+          /* AJOUT: Rendu pour le mode tutoriel */
+        ) : mode === 'tutorial' ? (
+          <TutorialPage key="tutorial" />
         ) : mode === 'game' ? (
-          <motion.div
+          <Game
             key="game"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="flex flex-1 h-full w-full"
-          >
-            <div className="flex-1 bg-base-100 w-full h-full">
-              <Game onBackToMenu={handleBackToMenu} setGameEngineInstance={setGameEngineInstance} applySettingsChanges={applySettingsChanges} />
-            </div>
-          </motion.div>
+            onBackToMenu={handleBackToMenu}
+            setGameEngineInstance={setGameEngineInstance}
+            applySettingsChanges={applySettingsChanges}
+          />
         ) : mode === 'roomList' ? (
           <RoomList key="roomList" />
         ) : mode === 'createRoom' ? (

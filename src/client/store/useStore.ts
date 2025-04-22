@@ -1,7 +1,7 @@
 import { settingsStore } from '@client/utils/settingsStore'
 import { create } from 'zustand'
 
-type AppMode = 'menu' | 'game' | 'roomList' | 'settings' | 'createRoom'
+type AppMode = 'menu' | 'game' | 'roomList' | 'settings' | 'createRoom' | 'tutorial'
 
 interface RoomToJoin {
   roomName?: string // For joining or creating a room by name
