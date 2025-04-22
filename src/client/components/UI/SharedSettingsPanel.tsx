@@ -74,7 +74,7 @@ const SharedSettingsPanel: React.FC<SharedSettingsPanelProps> = ({ applySettings
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className={`${sectionPadding} ${sectionBg} rounded-lg ${sectionBorder}`}
+        className={`${sectionPadding} ${sectionBg} rounded-lg ${sectionBorder} z-50`}
       >
         <h3 className={`${headingClass} text-secondary border-secondary/30`}>
           <MousePointer2 size={isSmall ? 12 : 18} /> {isSmall ? 'Sensitivity' : 'Mouse & Camera'}

@@ -23,7 +23,7 @@ const InGameSettingsMenu: React.FC<InGameSettingsMenuProps> = ({ applySettingsCh
           className="fixed inset-0 flex items-center justify-center z-30 backdrop-blur-sm bg-black/30 pointer-events-none"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="bg-base-100/90 backdrop-blur-md p-4 rounded-xl shadow-lg border border-primary/30 text-base-content">
+          <div className="bg-base-100/90 backdrop-blur-md p-4 rounded-xl shadow-lg border border-primary/30 text-base-content z-50 pointer-events-auto">
             <button
               onClick={() => setInGameSettingsVisible(false)}
               className="absolute top-1.5 right-1.5 btn btn-ghost btn-xs btn-circle text-primary/70 hover:bg-error/20 hover:text-error"

@@ -287,7 +287,7 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
-            onClick={() => setShowResetConfirm(false)} // Close on backdrop click
+            onClick={() => setShowResetConfirm(false)}
           >
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
@@ -295,7 +295,7 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
               exit={{ scale: 0.8, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 200, damping: 15 }}
               className="bg-base-100 p-6 rounded-lg shadow-xl max-w-sm w-full border border-error"
-              onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
+              onClick={(e) => e.stopPropagation()}
             >
               <h4 className="text-xl font-bold text-error mb-3 flex items-center gap-2">
                 <AlertTriangle /> Confirm Reset
