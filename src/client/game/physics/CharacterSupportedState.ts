@@ -5,10 +5,10 @@
 export enum CharacterSupportedState {
   /** Character has no ground support and is in the air */
   UNSUPPORTED,
-  
+
   /** Character is on a slope that is too steep to stand on but can slide down */
   SLIDING,
-  
+
   /** Character is fully supported by the ground and can move normally */
   SUPPORTED,
 }

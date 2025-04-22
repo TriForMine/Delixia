@@ -1,4 +1,4 @@
-import {InteractionConfig, MapModelConfig} from "@shared/utils/mapUtils"
+import type { InteractionConfig, MapModelConfig } from '@shared/utils/mapUtils'
 
 export class ServerMapLoader {
   private readonly configs: MapModelConfig[]

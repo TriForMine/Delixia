@@ -346,58 +346,58 @@ export class CharacterController {
    * @param deltaTime Time elapsed since the last frame.
    */
   protected updateAnimations(deltaTime: number): void {
-    let targetAnim: AnimationGroup = this.idleAnim;
+    let targetAnim: AnimationGroup = this.idleAnim
     switch (this.currentState) {
       case CharacterState.IDLE:
-        targetAnim = this.idleAnim;
-        break;
+        targetAnim = this.idleAnim
+        break
       case CharacterState.WALKING:
-        targetAnim = this.walkAnim;
-        break;
+        targetAnim = this.walkAnim
+        break
       case CharacterState.JUMPING:
-        targetAnim = this.jumpAnim;
-        break;
+        targetAnim = this.jumpAnim
+        break
       case CharacterState.FALLING:
-        targetAnim = this.fallingAnim;
-        break;
+        targetAnim = this.fallingAnim
+        break
       case CharacterState.LANDING:
-        targetAnim = this.landingAnim;
-        break;
+        targetAnim = this.landingAnim
+        break
       case CharacterState.DANCING:
-        targetAnim = this.sambaDanceAnim;
-        break;
+        targetAnim = this.sambaDanceAnim
+        break
     }
 
-    this.targetAnim = targetAnim;
+    this.targetAnim = targetAnim
 
-    let weightSum = 0;
+    let weightSum = 0
     for (const anim of this.nonIdleAnimations) {
-      const targetWeight = anim === targetAnim ? 1.0 : 0.0;
-      anim.weight = moveTowards(anim.weight, targetWeight, this.animationBlendSpeed * deltaTime);
+      const targetWeight = anim === targetAnim ? 1.0 : 0.0
+      anim.weight = moveTowards(anim.weight, targetWeight, this.animationBlendSpeed * deltaTime)
 
       if (anim === targetAnim && anim.weight > 0.01 && !anim.isPlaying) {
-        const shouldLoop = anim === this.fallingAnim || anim === this.walkAnim || anim === this.sambaDanceAnim;
+        const shouldLoop = anim === this.fallingAnim || anim === this.walkAnim || anim === this.sambaDanceAnim
         if (!shouldLoop) {
-          anim.goToFrame(0); // Ensure non-looping starts at frame 0
+          anim.goToFrame(0) // Ensure non-looping starts at frame 0
         }
-        anim.play(shouldLoop);
+        anim.play(shouldLoop)
       } else if (anim !== targetAnim && anim.weight < 0.01) {
         if (anim.isPlaying) {
-          anim.pause();
+          anim.pause()
           // Ensure non-looping animations are reset when they fully fade out or are paused
           if (!anim.loopAnimation) {
-            anim.goToFrame(0);
+            anim.goToFrame(0)
           }
         }
       }
-      weightSum += anim.weight;
+      weightSum += anim.weight
     }
 
-    this.idleAnim.weight = moveTowards(this.idleAnim.weight, Math.max(0.0, 1.0 - weightSum), this.animationBlendSpeed * deltaTime);
+    this.idleAnim.weight = moveTowards(this.idleAnim.weight, Math.max(0.0, 1.0 - weightSum), this.animationBlendSpeed * deltaTime)
     if (this.idleAnim.weight > 0.01 && !this.idleAnim.isPlaying) {
-      this.idleAnim.play(true);
+      this.idleAnim.play(true)
     } else if (this.idleAnim.weight < 0.01 && this.idleAnim.isPlaying) {
-      this.idleAnim.pause();
+      this.idleAnim.pause()
     }
   }
 
@@ -406,10 +406,9 @@ export class CharacterController {
     // Considered finished if not playing OR weight is very low
     // For non-looping animations, check isPlaying specifically.
     if (!anim.loopAnimation) {
-      return !anim.isPlaying && anim.weight < 0.1;
+      return !anim.isPlaying && anim.weight < 0.1
     }
     // For looping animations, weight is a better indicator of blend-out
-    return anim.weight < 0.1;
+    return anim.weight < 0.1
   }
-
 }

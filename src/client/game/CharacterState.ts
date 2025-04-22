@@ -5,19 +5,19 @@
 export enum CharacterState {
   /** Character is standing still */
   IDLE = 'IDLE',
-  
+
   /** Character is moving */
   WALKING = 'WALKING',
-  
+
   /** Character is in the jumping phase */
   JUMPING = 'JUMPING',
-  
+
   /** Character is landing after a jump or fall */
   LANDING = 'LANDING',
-  
+
   /** Character is falling */
   FALLING = 'FALLING',
-  
+
   /** Character is performing a dance animation */
   DANCING = 'DANCING',
 }

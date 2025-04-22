@@ -15,7 +15,7 @@ export interface Recipe {
   processingTime?: number // Optional: Time in ms for stations like Oven
   scoreValue?: number // Optional: Score value for the recipe
   forServing?: boolean // Optional: Flag for serving orders
-  upgradesFrom?: string; // Optional: ID of the recipe this one upgrades from
+  upgradesFrom?: string // Optional: ID of the recipe this one upgrades from
 }
 
 // --- Recipe Registry ---
