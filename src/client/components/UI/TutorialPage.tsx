@@ -19,6 +19,11 @@ const tutorialItems: TutorialItem[] = [
     description: 'Combine ingredients on the Chopping Board [E] according to recipes. Some items can be upgraded by adding more ingredients!',
   },
   {
+    imageSrc: '/tuto/order-min.png',
+    description:
+      'The Orders UI (top-right) shows incoming requests. The large icon is the final dish needed. Below it are the steps: Station icons (like Oven🔥, Chopping Board🔪, Stock📦) show where to go, and ingredient icons show what to combine or process there. Keep an eye on the timer bar!',
+  },
+  {
     imageSrc: '/tuto/ingredients-min.png',
     description: 'Grab base ingredients (like Rice, Nori, Fish) from Stock Crates or Fridges [E]. Check recipes to see what you need!',
   },
