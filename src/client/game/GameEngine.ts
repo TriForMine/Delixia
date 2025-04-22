@@ -14,7 +14,6 @@ import { ReflectionProbe } from '@babylonjs/core/Probes/reflectionProbe'
 import { Scene } from '@babylonjs/core/scene'
 import HavokPhysics from '@babylonjs/havok'
 import { CustomLoadingScreen } from '@client/components/BabylonScene.tsx'
-import { mapConfigs } from '@shared/maps/japan.ts'
 import type { GameRoomState } from '@shared/schemas/GameRoomState.ts'
 import type { Player } from '@shared/schemas/Player.ts'
 import { type Room, getStateCallbacks } from 'colyseus.js'
@@ -41,7 +40,10 @@ import type { Observer } from '@babylonjs/core/Misc/observable'
 import { Scalar } from '@babylonjs/core/Maths/math.scalar'
 import { PhysicsAggregate } from '@babylonjs/core/Physics/v2/physicsAggregate'
 import { PhysicsShapeType } from '@babylonjs/core/Physics/v2/IPhysicsEnginePlugin'
-import { BackEase, EasingFunction, Animation, QuadraticEase } from '@babylonjs/core/Animations'
+import { BackEase, EasingFunction, Animation, QuadraticEase } from '@babylonjs/core'
+import { settingsStore } from '@client/utils/settingsStore.ts'
+import { useStore } from '@client/store/useStore.ts'
+import { mapConfigs } from '@shared/maps/japan.ts'
 
 export class GameEngine {
   public interactables: InteractableObject[] = []
@@ -88,7 +90,7 @@ export class GameEngine {
 
   // Network optimization properties
   private lastNetworkUpdateTime: number = 0
-  private readonly NETWORK_UPDATE_INTERVAL: number = 10 // Send updates every 100ms instead of every frame
+  private readonly NETWORK_UPDATE_INTERVAL: number = 10 // Send updates every 10ms (was 100ms) - lower latency
   private readonly MAX_NETWORK_UPDATE_INTERVAL: number = 100 // Maximum interval for network updates
   private readonly POSITION_THRESHOLD: number = 0.01 // Only send position updates if moved more than this distance
   private readonly ROTATION_THRESHOLD: number = 0.05 // Only send rotation updates if rotated more than this angle
@@ -112,11 +114,26 @@ export class GameEngine {
     { name: 'footstep_wood_04', path: 'assets/audio/footstep_wood_004.ogg', options: { volume: 0.7, spatialSound: true, distanceModel: 'linear' } },
     { name: 'jumpLand', path: 'assets/audio/jump_land.ogg', options: { volume: 0.5, spatialSound: true, distanceModel: 'linear' } },
     { name: 'timerTick', path: 'assets/audio/timer_tick.ogg', options: { volume: 0.4 } },
+    {
+      name: 'themeMusic',
+      path: 'assets/music/theme.mp3',
+      isMusic: true,
+      options: {
+        loop: true,
+        volume: 0.05,
+      },
+    },
   ]
+
+  private isMusicPlaying = false
 
   // --- state for timer sound ---
   private isTimerTickingSoundPlaying: boolean = false
   private timerTickIntervalId: number | null = null
+
+  // --- Pause State ---
+  public isPaused: boolean = false
+  private _boundPointerLockChangeListener: () => void
 
   constructor(scene: Scene, room: any, onGameOver: (score: number) => void) {
     this.scene = scene
@@ -125,6 +142,8 @@ export class GameEngine {
 
     this.audioManager = new AudioManager(this.scene)
     this.inputManager = new InputManager(this.scene, this.audioManager)
+
+    this._boundPointerLockChangeListener = this.handlePointerLockChange.bind(this)
 
     // Enable hardware scaling to improve performance
     scene.getEngine().setHardwareScalingLevel(1.0)
@@ -145,6 +164,32 @@ export class GameEngine {
     scene.getPhysicsEngine()?.setTimeStep(1 / 60)
 
     this._setupUIRenderObserver()
+    this.setupPointerLockListener()
+  }
+
+  private setupPointerLockListener(): void {
+    document.addEventListener('pointerlockchange', this._boundPointerLockChangeListener, false)
+  }
+
+  private handlePointerLockChange(): void {
+    const canvas = this.scene.getEngine().getRenderingCanvas()
+    const isMenuVisible = useStore.getState().inGameSettingsVisible
+
+    if (!document.pointerLockElement) {
+      const wasCanvasActive = document.activeElement === canvas || document.activeElement === document.body // Check body too as fallback
+
+      if (!isMenuVisible && wasCanvasActive) {
+        useStore.getState().setInGameSettingsVisible(true)
+        this.setPaused(true)
+      } else if (isMenuVisible && wasCanvasActive) {
+        if (!this.isPaused) this.setPaused(true)
+      }
+    } else if (document.pointerLockElement === canvas) {
+      if (isMenuVisible) {
+        useStore.getState().setInGameSettingsVisible(false)
+        this.setPaused(false)
+      }
+    }
   }
 
   /**
@@ -161,6 +206,8 @@ export class GameEngine {
       this.poufParticleTexture.dispose()
       this.poufParticleTexture = null
     }
+
+    this.stopMusic()
 
     this.spawnedCustomers.forEach((chickMesh) => {
       chickMesh.dispose()
@@ -199,6 +246,8 @@ export class GameEngine {
     })
     this.boundaryWalls = [] // Clear the array
 
+    document.removeEventListener('pointerlockchange', this._boundPointerLockChangeListener, false)
+
     console.log('GameEngine disposed')
   }
 
@@ -234,6 +283,9 @@ export class GameEngine {
     engine.displayLoadingUI()
 
     await this.audioManager.initialize()
+
+    // Apply initial audio settings from store
+    this.applyAudioSettings()
 
     // Toggle the Babylon Inspector with Ctrl+Alt+Shift+I (if in development mode)
     if (import.meta.env.DEV) {
@@ -281,6 +333,7 @@ export class GameEngine {
 
     // Initialize performance manager to handle FPS monitoring and shadow quality adjustments
     this.performanceManager = new PerformanceManager(this.scene, this.shadowGenerator)
+    // PerformanceManager constructor now calls applySettings internally
 
     // Additional lights (if needed)
     const extraHemi = new HemisphericLight('extraHemi', Vector3.Up(), this.scene)
@@ -300,12 +353,11 @@ export class GameEngine {
     rp.renderList?.push(skybox)
     this.scene.environmentTexture = rp.cubeTexture
 
-    // --- AJOUT DU BROUILLARD (Version Ajustée) ---
+    // Fog setup
     this.scene.fogMode = Scene.FOGMODE_EXP2
     this.scene.fogColor = Color3.Lerp(Color3.FromHexString('#FBCFE8'), Color3.White(), 0.2)
-    this.scene.fogDensity = 0.015 // Ajuste pour + ou - de brouillard
+    this.scene.fogDensity = 0.015
     this.scene.fogEnabled = true
-    // --- FIN AJOUT BROUILLARD ---
 
     // When the character model is loaded, store it for later use
     characterTask.onSuccess = (task) => {
@@ -314,8 +366,6 @@ export class GameEngine {
 
     this.assetsManager.onProgress = (remainingCount, totalCount, _) => {
       const percentage = (totalCount - remainingCount) / totalCount
-
-      // If we’re using our CustomLoadingScreen instance
       const engine = this.scene.getEngine()
       if (engine.loadingScreen instanceof CustomLoadingScreen) {
         engine.loadingScreen.updateProgress(percentage * 100)
@@ -325,11 +375,9 @@ export class GameEngine {
     const chickTask = this.assetsManager.addContainerTask('chickTask', '', 'assets/map/japan/', 'Chick.glb') // Adjust path if needed
     chickTask.onSuccess = (task) => {
       this.chickAssetContainer = task.loadedContainer
-      // Find the main mesh within the container (usually the first root node)
       const rootNode = task.loadedContainer.rootNodes[0]
       if (rootNode instanceof AbstractMesh) {
         this.chickTemplateMesh = rootNode
-        // Hide and disable the template itself
         this.chickTemplateMesh.setEnabled(false)
         this.chickTemplateMesh.isVisible = false
         this.chickTemplateMesh.isPickable = false
@@ -349,11 +397,9 @@ export class GameEngine {
     const chickenTask = this.assetsManager.addContainerTask('chickenTask', '', 'assets/map/japan/', 'Chicken.glb')
     chickenTask.onSuccess = (task) => {
       this.chickenAssetContainer = task.loadedContainer
-      // Find the main mesh within the container (usually the first root node)
       const rootNode = task.loadedContainer.rootNodes[0]
       if (rootNode instanceof AbstractMesh) {
         this.chickenTemplateMesh = rootNode
-        // Hide and disable the template itself
         this.chickenTemplateMesh.setEnabled(false)
         this.chickenTemplateMesh.isVisible = false
         this.chickenTemplateMesh.isPickable = false
@@ -382,7 +428,6 @@ export class GameEngine {
     try {
       this.portalParticleTexture = new Texture(portalTexturePath, this.scene)
       this.portalParticleTexture.hasAlpha = true
-      console.log('Portal particle texture loaded successfully.')
     } catch (error) {
       console.error('Failed to load portal particle texture, falling back to pouf:', error)
       // Fallback to the old texture if flare.png doesn't exist
@@ -428,9 +473,8 @@ export class GameEngine {
           engine.loadingScreen.updateProgress(100)
 
           this.createBoundaryWalls()
-
-          // Initialize players now that everything is loaded
           this.initializePlayers()
+          this.checkAndPlayMusic() // Play music based on settings
 
           // Give a moment to show 100% before hiding
           setTimeout(() => {
@@ -468,7 +512,6 @@ export class GameEngine {
       mapConfigs,
       () => {
         this.interactables = kitchenLoader.interactables
-
         mapLoaded = true
         this.loadingState.map.loaded = true
         this.loadingState.map.progress = 100
@@ -585,6 +628,28 @@ export class GameEngine {
     // Request initial pointer lock and focus
     this.inputManager.requestFocusAndPointerLock()
   }
+  public setPaused(paused: boolean): void {
+    if (this.isPaused === paused) return
+
+    this.isPaused = paused
+
+    const canvas = this.scene.getEngine().getRenderingCanvas()
+
+    if (paused) {
+      if (document.pointerLockElement === canvas) {
+        document.exitPointerLock()
+      }
+      this.scene.animationGroups.forEach((ag) => ag.pause())
+    } else {
+      this.scene.animationGroups.forEach((ag) => ag.play())
+
+      const isMenuVisible = useStore.getState().inGameSettingsVisible
+      if (!isMenuVisible && document.pointerLockElement !== canvas) {
+        this.inputManager.requestFocusAndPointerLock()
+      } else if (!isMenuVisible && document.pointerLockElement === canvas) {
+      }
+    }
+  }
 
   private _setupUIRenderObserver(): void {
     if (this.uiRenderObserver) {
@@ -625,6 +690,59 @@ export class GameEngine {
         }
       })
     })
+  }
+
+  public getScene(): Scene {
+    return this.scene
+  }
+
+  // --- Settings Application ---
+  /** Applies all current settings */
+  public applySettings(): void {
+    this.applyAudioSettings()
+    this.applyPerformanceSettings()
+    this.applyControllerSettings()
+    this.checkAndPlayMusic() // Ensure music state reflects settings immediately
+  }
+
+  /** Applies only audio-related settings */
+  private applyAudioSettings(): void {
+    this.audioManager.setMusicVolume(settingsStore.getMusicVolume())
+    this.audioManager.setSfxVolume(settingsStore.getSfxVolume())
+  }
+
+  /** Applies only performance-related settings */
+  private applyPerformanceSettings(): void {
+    this.performanceManager?.applySettings() // Tells perf manager to read from store
+  }
+
+  /** Applies settings relevant to the local character controller */
+  private applyControllerSettings(): void {
+    this.localController?.applySensitivitySettings()
+    this.localController?.loadKeyBindings() // Reload keybindings if they could change in-game
+  }
+
+  public checkAndPlayMusic(): void {
+    const musicEnabled = settingsStore.getMusicEnabled()
+    if (musicEnabled && !this.isMusicPlaying) {
+      // Apply volume before playing
+      this.audioManager.setMusicVolume(settingsStore.getMusicVolume())
+      this.audioManager.playSound('themeMusic')
+      this.isMusicPlaying = true
+    } else if (!musicEnabled && this.isMusicPlaying) {
+      this.audioManager.stopSound('themeMusic')
+      this.isMusicPlaying = false
+    } else if (musicEnabled && this.isMusicPlaying) {
+      // If music is already playing and enabled, just ensure volume is up-to-date
+      this.audioManager.setMusicVolume(settingsStore.getMusicVolume())
+    }
+  }
+
+  public stopMusic(): void {
+    if (this.isMusicPlaying) {
+      this.audioManager.stopSound('themeMusic')
+      this.isMusicPlaying = false
+    }
   }
 
   /**
@@ -686,8 +804,6 @@ export class GameEngine {
       new Vector3(maxX + wallThickness / 2, wallY, (minZ + maxZ) / 2),
       new Vector3(wallThickness, wallHeight, wallLengthZ),
     )
-
-    console.log(`Created ${this.boundaryWalls.length} invisible boundary walls.`)
   }
 
   private setupGameEventListeners(): void {
@@ -757,29 +873,45 @@ export class GameEngine {
         })
       }
 
+      // --- General Interactable State Sync ---
       $(objState).onChange(() => {
-        const interactable = this.interactables.find((obj) => obj.id === Number(objState.id))
-        if (!interactable) return
-        interactable.setDisabled(objState.disabled)
-        if (objState.isActive && interactable.interactType !== InteractType.Oven) {
-          interactable.activate(objState.isActive)
-        } else if (!objState.isActive && interactable.interactType !== InteractType.Oven) {
-          interactable.deactivate()
-        }
+        const currentInteractable = this.interactables.find((obj) => obj.id === Number(objState.id))
+        if (!currentInteractable) return
 
+        currentInteractable.setDisabled(objState.disabled)
+        currentInteractable.updateProcessingProgress(objState.processingTimeLeft, objState.totalProcessingDuration)
+
+        if (currentInteractable.interactType !== InteractType.Oven) {
+          if (objState.isActive) {
+            currentInteractable.activate(objState.isActive)
+          } else {
+            currentInteractable.deactivate()
+          }
+        }
         const ingredients = objState.ingredientsOnBoard.map((i) => i as Ingredient)
-        interactable.updateIngredientsOnBoard(ingredients)
+        currentInteractable.updateIngredientsOnBoard(ingredients)
+
+        if (currentInteractable.interactType === InteractType.ServingOrder) {
+          currentInteractable.showDirtyPlateVisual(objState.hasDirtyPlate)
+        } else {
+          currentInteractable.showDirtyPlateVisual(false) // Ensure non-serving items don't show it
+        }
       })
-      // Initial state check (existing logic)
+
+      // --- Initial State Sync ---
       const initialInteractable = this.interactables.find((obj) => obj.id === Number(objState.id))
       if (initialInteractable) {
         initialInteractable.setDisabled(objState.disabled)
+        initialInteractable.updateProcessingProgress(objState.processingTimeLeft, objState.totalProcessingDuration)
+
         const ingredients = objState.ingredientsOnBoard.map((i) => i as Ingredient)
         initialInteractable.updateIngredientsOnBoard(ingredients)
 
-        // Activate non-oven items initially if needed
-        if (objState.isActive && initialInteractable.interactType !== InteractType.Oven) {
+        if (initialInteractable.interactType !== InteractType.Oven && objState.isActive) {
           initialInteractable.activate(objState.isActive)
+        }
+        if (initialInteractable.interactType === InteractType.ServingOrder) {
+          initialInteractable.showDirtyPlateVisual(objState.hasDirtyPlate)
         }
       }
     })
@@ -872,8 +1004,6 @@ export class GameEngine {
       this.playSfx('error')
     })
 
-    this.room.onMessage('orderCompleted', () => this.playSfx('orderComplete'))
-
     this.room.onMessage('gameOver', (payload: { finalScore: number }) => {
       console.log('Game Over! Final Score:', payload.finalScore)
 
@@ -965,7 +1095,7 @@ export class GameEngine {
 
   private drawOrderUIWithTimer(
     texture: DynamicTexture,
-    orderData: { timeLeft: number; totalDuration: number }, // MODIFIED signature
+    orderData: { timeLeft: number; totalDuration: number },
     iconImage: HTMLImageElement,
     loadError: boolean = false,
   ): void {
@@ -1296,14 +1426,17 @@ export class GameEngine {
     // Update local player
     this.localController?.update(deltaSeconds)
 
+    // Check music state periodically (e.g., every 2 seconds)
+    if (this.scene.getFrameId() % 120 === 0) {
+      this.checkAndPlayMusic()
+    }
+
     if (this.localController) {
       // Get player position using pre-allocated vector
       this._playerPosTemp.copyFrom(this.localController.position)
 
       // Only rebuild spatial grid occasionally or when needed
-      // In a real implementation, you might want to rebuild only when objects move
       if (this.scene.getFrameId() % 60 === 0) {
-        // Rebuild every 60 frames
         this.spatialGrid.rebuild(this.interactables)
       }
 

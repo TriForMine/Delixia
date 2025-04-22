@@ -17,17 +17,13 @@ import type { Contact } from './physics/Contact'
 import { CharacterSupportedState } from './physics/CharacterSupportedState'
 import type { AudioManager } from '@client/game/managers/AudioManager.ts'
 import { Scalar } from '@babylonjs/core'
+import { settingsStore } from '@client/utils/settingsStore.ts'
 
 export class LocalCharacterController extends CharacterController {
-  readonly inputMap: Map<string, boolean>
-  readonly keyForward = KBCode.KeyW
-  readonly keyBackward = KBCode.KeyS
-  readonly keyLeft = KBCode.KeyA
-  readonly keyRight = KBCode.KeyD
-  readonly keyDance = KBCode.KeyB
-  readonly keyJump = KBCode.Space
-  readonly keyInteract = KBCode.KeyE
+  // Reference Key Bindings (read from settingsStore dynamically)
+  private keyBindings: Record<string, string> = {} // Store current bindings
 
+  readonly inputMap: Map<string, boolean>
   private isJumping = false
   private previousJumpKeyState = false
   private previousInteractKeyState = false
@@ -60,7 +56,7 @@ export class LocalCharacterController extends CharacterController {
   private readonly fadeSpeed: number = 20.0 // Speed of the fade effect
   private readonly invisibleVisibilityValue: number = 0.0 // Visibility value when fully faded out (usually 0)
 
-  private isLandingAnimationActive: boolean = false;
+  private isLandingAnimationActive: boolean = false
 
   constructor(
     gameEngine: GameEngine,
@@ -74,6 +70,7 @@ export class LocalCharacterController extends CharacterController {
 
     this.gameEngine = gameEngine
     this.inputMap = new Map()
+    this.loadKeyBindings() // Load initial bindings
 
     // Setup keyboard events
     scene.actionManager = new ActionManager(scene)
@@ -104,18 +101,39 @@ export class LocalCharacterController extends CharacterController {
     camera.upperRadiusLimit = 10
     camera.lowerBetaLimit = 0.1
     camera.upperBetaLimit = Math.PI / 2 + 0.2
-    camera.wheelPrecision = 30
     camera.minZ = 0.02
     camera.maxZ = 1000
 
     camera.setTarget(this.cameraAttachPoint)
     this.thirdPersonCamera = camera
 
+    // Apply saved settings initially
+    this.applySensitivitySettings()
+
     // Initialize collectors for shape casting
     const hk = scene.getPhysicsEngine()!.getPhysicsPlugin() as HavokPlugin
     const hknp = hk._hknp
     this._startCollector = hknp.HP_QueryCollector_Create(16)[1]
     this._castCollector = hknp.HP_QueryCollector_Create(16)[1]
+  }
+
+  // Method to load key bindings from settingsStore
+  public loadKeyBindings(): void {
+    this.keyBindings = settingsStore.getKeyBindings()
+  }
+
+  // Method to apply sensitivity settings from settingsStore
+  public applySensitivitySettings(): void {
+    const savedSensX = settingsStore.getSensitivityX()
+    const savedSensY = settingsStore.getSensitivityY()
+    const savedWheelPrec = settingsStore.getWheelPrecision()
+
+    // Camera might not be initialized yet when constructor calls this first time
+    if (this.thirdPersonCamera) {
+      this.thirdPersonCamera.angularSensibilityX = savedSensX * 1000
+      this.thirdPersonCamera.angularSensibilityY = savedSensY * 1000
+      this.thirdPersonCamera.wheelPrecision = savedWheelPrec
+    }
   }
 
   // Pre-allocated vectors for update method
@@ -135,7 +153,7 @@ export class LocalCharacterController extends CharacterController {
 
     this.isGrounded = this.checkGrounded()
 
-    this.handleInput()
+    this.handleInput() // Handle input before updating state/movement
     this.updateState()
     this.updateMovement()
     this.updateAnimations(deltaSeconds)
@@ -160,7 +178,7 @@ export class LocalCharacterController extends CharacterController {
         this.lastFootstepIndex = randomIndex
 
         // Play the sound spatially attached to the character's transform node
-        this.audioManager.playSound(soundName, 0.55, false) // Play attached to player position implicitly by AudioManager
+        this.audioManager.playSound(soundName, 0.55, false, this.getTransform()) // Play attached to player position
 
         // Reset timer (subtract interval to account for potential frame drops)
         this.timeSinceLastStep -= this.stepInterval
@@ -178,8 +196,12 @@ export class LocalCharacterController extends CharacterController {
   }
 
   private handleInput(): void {
+    // Read keys from the dynamically loaded keyBindings
+    const jumpKey = this.keyBindings['jump'] ?? KBCode.Space
+    const interactKey = this.keyBindings['interact'] ?? KBCode.KeyE
+
     // Handle jump (once on key press)
-    const currentJumpKeyState = this.inputMap.get(this.keyJump) || false
+    const currentJumpKeyState = this.inputMap.get(jumpKey) || false
     if (currentJumpKeyState && !this.previousJumpKeyState && this.isGrounded && !this.isJumping) {
       this.isJumping = true
       this.jumpAnim.reset()
@@ -189,7 +211,7 @@ export class LocalCharacterController extends CharacterController {
     this.previousJumpKeyState = currentJumpKeyState
 
     // Handle interact (once on key press)
-    const currentInteractKeyState = this.inputMap.get(this.keyInteract) || false
+    const currentInteractKeyState = this.inputMap.get(interactKey) || false
     if (currentInteractKeyState && !this.previousInteractKeyState) {
       this.gameEngine.tryInteract(this)
     }
@@ -197,74 +219,76 @@ export class LocalCharacterController extends CharacterController {
   }
 
   private updateState(): void {
-    const supportState = this.checkSupport();
-    const verticalVelocity = this.physicsAggregate.body.getLinearVelocity().y;
-    const isMovingHorizontally = this.isAnyMovementKeyDown();
+    const supportState = this.checkSupport()
+    const verticalVelocity = this.physicsAggregate.body.getLinearVelocity().y
+    const isMovingHorizontally = this.isAnyMovementKeyDown()
+    const danceKey = this.keyBindings['dance'] ?? KBCode.KeyB
 
-    let nextState: CharacterState;
+    let nextState: CharacterState
 
     // --- Check if Landing Animation is Still Active ---
     // Use weight as primary indicator for blending completion.
     // Reset the flag when the animation is no longer visually dominant.
     if (this.isLandingAnimationActive && this.landingAnim.weight < 0.1) {
-      this.isLandingAnimationActive = false;
+      this.isLandingAnimationActive = false
       // Ensure the animation is reset if it was paused mid-way
       if (!this.landingAnim.isPlaying) {
-        this.landingAnim.goToFrame(0);
+        this.landingAnim.goToFrame(0)
       }
     }
 
     // --- State Determination Logic ---
-    if (this.inputMap.get(this.keyDance)) {
-      nextState = CharacterState.DANCING;
-      this.isJumping = false;
-      this.isLandingAnimationActive = false; // Stop landing if dancing
+    if (this.inputMap.get(danceKey)) {
+      nextState = CharacterState.DANCING
+      this.isJumping = false
+      this.isLandingAnimationActive = false // Stop landing if dancing
     } else if (supportState === CharacterSupportedState.SUPPORTED) {
       // Grounded Logic
 
       // Just landed? (Transitioned from aerial state)
       if (this.currentState === CharacterState.FALLING || this.currentState === CharacterState.JUMPING) {
-        nextState = CharacterState.LANDING;
-        this.isJumping = false;
-        this.isLandingAnimationActive = true; // Start landing animation phase
-        this.gameEngine.playSfx('jumpLand', 0.65, false);
+        nextState = CharacterState.LANDING
+        this.isJumping = false
+        this.isLandingAnimationActive = true // Start landing animation phase
+        // Play landing sound using GameEngine helper to ensure correct volume
+        this.gameEngine.playSfx('jumpLand', 0.65, false, this.getTransform())
       }
       // Currently in landing animation phase?
       else if (this.isLandingAnimationActive) {
         // If moving, immediately break out to walking
         if (isMovingHorizontally) {
-          nextState = CharacterState.WALKING;
-          this.isLandingAnimationActive = false; // Exit landing phase
+          nextState = CharacterState.WALKING
+          this.isLandingAnimationActive = false // Exit landing phase
         } else {
           // Stay in LANDING state visually, let animation blend out
-          nextState = CharacterState.LANDING;
+          nextState = CharacterState.LANDING
         }
       }
       // Already grounded and landing animation phase is finished
       else {
-        nextState = isMovingHorizontally ? CharacterState.WALKING : CharacterState.IDLE;
-        this.isJumping = false; // Ensure reset
+        nextState = isMovingHorizontally ? CharacterState.WALKING : CharacterState.IDLE
+        this.isJumping = false // Ensure reset
       }
     } else if (supportState === CharacterSupportedState.SLIDING) {
       // Sliding Logic
-      nextState = CharacterState.FALLING;
-      this.isJumping = false;
-      this.isLandingAnimationActive = false; // Stop landing if sliding
+      nextState = CharacterState.FALLING
+      this.isJumping = false
+      this.isLandingAnimationActive = false // Stop landing if sliding
     } else {
       // Aerial Logic
       if (this.isJumping && verticalVelocity > 0.05) {
-        nextState = CharacterState.JUMPING;
+        nextState = CharacterState.JUMPING
       } else {
-        nextState = CharacterState.FALLING;
+        nextState = CharacterState.FALLING
         if (this.isJumping) {
-          this.isJumping = false;
+          this.isJumping = false
         }
       }
-      this.isLandingAnimationActive = false; // Not landing if aerial
+      this.isLandingAnimationActive = false // Not landing if aerial
     }
 
     // Set the final state for this frame
-    this.currentState = nextState;
+    this.currentState = nextState
   }
 
   // Pre-allocated vectors for movement calculations
@@ -287,12 +311,12 @@ export class LocalCharacterController extends CharacterController {
     this._rightTemp.set(this._forwardTemp.z, 0, -this._forwardTemp.x)
     this._rightTemp.normalize()
 
-    // Calculate move direction based on input
+    // Calculate move direction based on input and dynamic key bindings
     this._moveDirectionTemp.setAll(0)
-    if (this.inputMap.get(this.keyForward)) this._moveDirectionTemp.addInPlace(this._forwardTemp)
-    if (this.inputMap.get(this.keyBackward)) this._moveDirectionTemp.subtractInPlace(this._forwardTemp)
-    if (this.inputMap.get(this.keyLeft)) this._moveDirectionTemp.subtractInPlace(this._rightTemp)
-    if (this.inputMap.get(this.keyRight)) this._moveDirectionTemp.addInPlace(this._rightTemp)
+    if (this.inputMap.get(this.keyBindings['forward'])) this._moveDirectionTemp.addInPlace(this._forwardTemp)
+    if (this.inputMap.get(this.keyBindings['backward'])) this._moveDirectionTemp.subtractInPlace(this._forwardTemp)
+    if (this.inputMap.get(this.keyBindings['left'])) this._moveDirectionTemp.subtractInPlace(this._rightTemp)
+    if (this.inputMap.get(this.keyBindings['right'])) this._moveDirectionTemp.addInPlace(this._rightTemp)
     this._moveDirectionTemp.normalize()
 
     // Handle rotation
@@ -509,21 +533,21 @@ export class LocalCharacterController extends CharacterController {
 
     // Apply smooth transition to the new radius to prevent sudden jumps
     // Using Scalar.Lerp for smoother adjustment
-    const lerpFactor = 1.0 - Math.exp(-15 * this.scene.getEngine().getDeltaTime() / 1000); // Adjust speed (15) as needed
-    camera.radius = Scalar.Lerp(camera.radius, clampedRadius, lerpFactor);
+    const lerpFactor = 1.0 - Math.exp((-15 * this.scene.getEngine().getDeltaTime()) / 1000) // Adjust speed (15) as needed
+    camera.radius = Scalar.Lerp(camera.radius, clampedRadius, lerpFactor)
 
     // Ensure radius doesn't go significantly below the intended clamped value due to lerp overshoot
     if (Math.abs(camera.radius - clampedRadius) < 0.01) {
-      camera.radius = clampedRadius;
+      camera.radius = clampedRadius
     }
   }
 
-  private isAnyMovementKeyDown(): boolean {
+  private isAnyMovementKeyDown(): false | true | undefined {
     return (
-      (this.inputMap.get(this.keyForward) ||
-        this.inputMap.get(this.keyBackward) ||
-        this.inputMap.get(this.keyLeft) ||
-        this.inputMap.get(this.keyRight)) === true
+      this.inputMap.get(this.keyBindings['forward']) ||
+      this.inputMap.get(this.keyBindings['backward']) ||
+      this.inputMap.get(this.keyBindings['left']) ||
+      this.inputMap.get(this.keyBindings['right'])
     )
   }
 
@@ -575,5 +599,13 @@ export class LocalCharacterController extends CharacterController {
     // Setting visibility on the parent mesh automatically affects its children.
     this.model.visibility = this.currentVisibility
     this.model.getChildMeshes().forEach((child) => (child.visibility = this.currentVisibility))
+  }
+
+  // Override dispose to potentially clean up action manager if needed
+  public dispose() {
+    super.dispose()
+    // Note: Scene's action manager might be shared, be careful if disposing here
+    // If ActionManager was created specifically for this controller, dispose it:
+    // this.scene.actionManager?.dispose();
   }
 }

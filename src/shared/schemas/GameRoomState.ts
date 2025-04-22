@@ -1,11 +1,17 @@
 import { ArraySchema, MapSchema, Schema, type } from '@colyseus/schema'
-import { Ingredient, type InteractType } from '../types/enums.ts'
+import { GamePhase, Ingredient, type InteractType } from '../types/enums.ts'
 import { InteractableObjectState } from './InteractableObjectState.ts'
 import { Player } from './Player.ts'
 import { Order } from '@shared/schemas/Order.ts'
 import { getItemDefinition } from '@shared/items.ts'
 
 export class GameRoomState extends Schema {
+  @type('number')
+  gamePhase: number = GamePhase.WAITING
+
+  @type('string')
+  hostId: string = ''
+
   @type({ map: Player })
   players = new MapSchema<Player>()
 
@@ -26,9 +32,9 @@ export class GameRoomState extends Schema {
   @type('number')
   score: number = 0
 
-  createPlayer(id: string) {
+  createPlayer(id: string, name?: string) {
     const player = new Player()
-    player.name = `Player ${id}`
+    player.name = name || `Player_${id.substring(0, 4)}`
     this.players.set(id, player)
   }
 

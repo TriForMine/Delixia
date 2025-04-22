@@ -1,7 +1,6 @@
-import type {Schema} from '@colyseus/schema'
-import {Client, getStateCallbacks, type Room, type RoomAvailable} from 'colyseus.js'
+import type { Schema } from '@colyseus/schema'
+import { Client, getStateCallbacks, type Room, type RoomAvailable } from 'colyseus.js'
 import { useSyncExternalStore } from 'react'
-import {GameRoomState} from "@shared/schemas/GameRoomState.ts";
 
 // Recoverable error codes that should trigger reconnection
 const RECOVERABLE_ERROR_CODES = [1000, 1001, 1005, 1006]
@@ -57,6 +56,7 @@ export const colyseus = <S extends Schema>(endpoint: string, schema?: new (...ar
 
   /** Initialize room handlers and state after connection or reconnection */
   const initializeRoom = (room: Room<S>, isLobby: boolean) => {
+    roomStore.set(undefined)
     roomStore.set(room)
     reconnectionToken = room.reconnectionToken // Store the token
     connectionStatusStore.set(ConnectionStatus.CONNECTED)
@@ -116,7 +116,7 @@ export const colyseus = <S extends Schema>(endpoint: string, schema?: new (...ar
           const value = $(state)[key]
 
           // @ts-ignore
-          if (typeof state[key] !== "object") {
+          if (typeof state[key] !== 'object') {
             continue
           }
 
@@ -132,8 +132,9 @@ export const colyseus = <S extends Schema>(endpoint: string, schema?: new (...ar
             updatedCollectionsMap[key as keyof S] = true
           })
         }
-      })
 
+        stateStore.set(state)
+      })
 
       room.onStateChange((state) => {
         if (!state) return
@@ -148,6 +149,7 @@ export const colyseus = <S extends Schema>(endpoint: string, schema?: new (...ar
             copy[key as keyof S] = (value as Schema).clone()
           }
         }
+
         stateStore.set(copy)
       })
     }
