@@ -55,6 +55,8 @@ export class RemoteCharacterController extends CharacterController {
     // Set the impostor mesh to be enabled
     this.impostorMesh.setEnabled(true)
 
+    this.setUsernameDisplay(newPlayer.name)
+
     // Update plate status first
     if (newPlayer.holdingPlate !== this.isHoldingPlate) {
       if (newPlayer.holdingPlate) this.forcePickupPlate()
@@ -76,10 +78,15 @@ export class RemoteCharacterController extends CharacterController {
   public receiveState(newPlayer: Player): void {
     if (!newPlayer.connected) {
       this.impostorMesh.setEnabled(false)
+      this._removeUsernameDisplay()
       return
     }
 
-    this.impostorMesh.setEnabled(true)
+    if (!this.impostorMesh.isEnabled()) {
+      this.impostorMesh.setEnabled(true)
+    }
+
+    this.setUsernameDisplay(newPlayer.name)
 
     // Store previous position for velocity calculation
     this.previousPosition.copyFrom(this.targetPosition)

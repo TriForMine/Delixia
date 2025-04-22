@@ -9,12 +9,16 @@ import { Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector'
 import { PhysicsShapeType } from '@babylonjs/core/Physics/v2/IPhysicsEnginePlugin'
 import { Ingredient } from '@shared/types/enums.ts'
 import type { IngredientLoader } from '@client/game/IngredientLoader.ts'
-import type { Mesh } from '@babylonjs/core/Meshes'
+import { Mesh } from '@babylonjs/core/Meshes'
 import { CharacterState } from './CharacterState'
 import type { AudioManager } from '@client/game/managers/AudioManager.ts'
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode'
 import { INGREDIENT_VISUAL_CONFIG, type IngredientVisualContextConfig } from '@shared/visualConfigs.ts'
 import { getItemDefinition } from '@shared/items.ts'
+import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture'
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial'
+import { Color3 } from '@babylonjs/core/Maths/math.color'
+import { Texture } from '@babylonjs/core/Materials/Textures/texture'
 
 export class CharacterController {
   protected readonly audioManager: AudioManager
@@ -43,6 +47,12 @@ export class CharacterController {
   protected holdingPlate: boolean = false
   protected readonly holdAttachmentPoint: TransformNode
 
+  protected readonly nameTagAttachmentPoint: TransformNode
+  private usernamePlane: Mesh | null = null
+  private usernameTexture: DynamicTexture | null = null
+  private usernameMaterial: StandardMaterial | null = null
+  private currentDisplayedUsername: string = ''
+
   protected constructor(
     characterMesh: AbstractMesh,
     scene: Scene,
@@ -67,6 +77,10 @@ export class CharacterController {
     this.holdAttachmentPoint.position = new Vector3(0, -0.2, -0.4) // Adjust as needed
     this.holdAttachmentPoint.rotationQuaternion = Quaternion.Identity()
     this.holdAttachmentPoint.scaling = Vector3.One() // Ensure it doesn't scale
+
+    this.nameTagAttachmentPoint = new TransformNode('nameTagAttachmentPoint', scene)
+    this.nameTagAttachmentPoint.parent = this.impostorMesh
+    this.nameTagAttachmentPoint.position = new Vector3(0, 1.0, 0)
 
     this.model = characterMesh
     this.model.parent = this.impostorMesh
@@ -333,12 +347,110 @@ export class CharacterController {
     return
   }
 
+  private _createOrUpdateUsernameDisplay(username: string): void {
+    const textureWidth = 512
+    const textureHeight = 128 // Rectangular for names
+    const planeWidth = 1.5 // Adjust size as needed
+    const planeHeight = (textureHeight / textureWidth) * planeWidth
+
+    // --- Dispose existing resources if they exist ---
+    this._removeUsernameDisplay()
+
+    // --- Create Dynamic Texture ---
+    this.usernameTexture = new DynamicTexture(
+      `usernameTexture_${this.impostorMesh.name}`,
+      { width: textureWidth, height: textureHeight },
+      this.scene,
+      false, // No mipmaps
+      Texture.BILINEAR_SAMPLINGMODE,
+    )
+    this.usernameTexture.hasAlpha = true
+
+    // --- Draw on Texture ---
+    const ctx = this.usernameTexture.getContext() as CanvasRenderingContext2D
+    ctx.clearRect(0, 0, textureWidth, textureHeight)
+
+    // Background (optional, for readability)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)' // Semi-transparent black
+    ctx.fillRect(0, 0, textureWidth, textureHeight)
+
+    // Text Style
+    ctx.font = `bold ${textureHeight * 0.6}px Arial` // Adjust font size based on texture height
+    ctx.fillStyle = 'white'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+
+    // Draw Text
+    ctx.fillText(username, textureWidth / 2, textureHeight / 2)
+
+    // Update Texture
+    this.usernameTexture.update()
+
+    // --- Create Material ---
+    this.usernameMaterial = new StandardMaterial(`usernameMat_${this.impostorMesh.name}`, this.scene)
+    this.usernameMaterial.diffuseTexture = this.usernameTexture
+    this.usernameMaterial.opacityTexture = this.usernameTexture // Use alpha from diffuse
+    this.usernameMaterial.useAlphaFromDiffuseTexture = true
+    this.usernameMaterial.emissiveColor = Color3.White() // Make it glow slightly / ignore lighting
+    this.usernameMaterial.disableLighting = true
+    this.usernameMaterial.backFaceCulling = false // Visible from behind
+
+    // --- Create Plane ---
+    this.usernamePlane = MeshBuilder.CreatePlane(`usernamePlane_${this.impostorMesh.name}`, { width: planeWidth, height: planeHeight }, this.scene)
+    this.usernamePlane.material = this.usernameMaterial
+    this.usernamePlane.billboardMode = Mesh.BILLBOARDMODE_ALL // Always face camera
+    this.usernamePlane.parent = this.nameTagAttachmentPoint // Attach to the point above head
+    this.usernamePlane.position = Vector3.Zero() // Positioned relative to attachment point
+    this.usernamePlane.isPickable = false
+    this.usernamePlane.renderingGroupId = 1 // Render on top
+    this.usernamePlane.setEnabled(true)
+
+    this.currentDisplayedUsername = username
+  }
+
+  // Method to remove the username display
+  protected _removeUsernameDisplay(): void {
+    if (this.usernamePlane) {
+      this.usernamePlane.dispose()
+      this.usernamePlane = null
+    }
+    if (this.usernameMaterial) {
+      this.usernameMaterial.dispose()
+      this.usernameMaterial = null
+    }
+    if (this.usernameTexture) {
+      this.usernameTexture.dispose()
+      this.usernameTexture = null
+    }
+    this.currentDisplayedUsername = ''
+  }
+
+  // Public method to set the displayed username
+  public setUsernameDisplay(username: string | undefined | null): void {
+    const nameToShow = username?.trim() ?? 'Player' // Default to 'Player' if empty/null
+    if (nameToShow && nameToShow !== this.currentDisplayedUsername) {
+      this._createOrUpdateUsernameDisplay(nameToShow)
+    } else if (!nameToShow && this.usernamePlane) {
+      this._removeUsernameDisplay()
+    }
+  }
+
   public dispose() {
+    console.log(`Disposing CharacterController ${this.impostorMesh?.name ?? 'Unknown'}`)
+
+    this._removeUsernameDisplay()
     this.clearHeldItemVisuals()
     this.holdAttachmentPoint.dispose()
+    this.nameTagAttachmentPoint.dispose()
     this.impostorMesh.dispose()
     this.model.dispose()
-    this.physicsAggregate.dispose()
+    if (this.physicsAggregate) {
+      this.physicsAggregate.dispose()
+    }
+
+    this.nonIdleAnimations.forEach((anim) => anim.stop())
+    this.idleAnim.stop()
+    console.log(`CharacterController ${this.impostorMesh?.name ?? 'Unknown'} disposed.`)
   }
 
   /**

@@ -1636,6 +1636,8 @@ export class GameEngine {
         this.localController?.setPosition(new Vector3(player.x, player.y, player.z))
         this.localController?.setRotationY(player.rot)
 
+        this.localController?.setUsernameDisplay(player.name)
+
         $(player).listen('holdingPlate', (value: boolean) => {
           if (!this.localController) return
 
@@ -1650,6 +1652,10 @@ export class GameEngine {
           if (!this.localController) return
 
           this.localController.forceSetIngredient(value)
+        })
+
+        $(player).listen('name', (newName: string) => {
+          this.localController?.setUsernameDisplay(newName)
         })
 
         return
@@ -1687,6 +1693,11 @@ export class GameEngine {
           remoteController.receiveState(player)
           lastStateUpdateTime = now
         }
+      })
+
+      $(player).listen('name', (newName: string) => {
+        const currentRemoteController = this.remoteControllers.get(sessionId)
+        currentRemoteController?.setUsernameDisplay(newName)
       })
     })
 

@@ -152,6 +152,10 @@ export class LocalCharacterController extends CharacterController {
   private _endPosTemp: Vector3 = new Vector3()
   private _velocityTemp: Vector3 = new Vector3()
 
+  public override setUsernameDisplay(_username: string | undefined | null): void {
+    this._removeUsernameDisplay()
+  }
+
   public update(deltaSeconds: number): void {
     // Reuse existing vectors instead of creating new ones
     this._startPosTemp.copyFrom(this.getTransform().position)
