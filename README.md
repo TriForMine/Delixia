@@ -76,7 +76,7 @@ graph LR
         NetworkClient[Colyseus Client Hooks]
         Physics["Havok Physics"]
         MapLoad[Map Loader & Config]
-        AudioMgr[Audio Manager (V2)]
+        AudioMgr["Audio Manager (V2)"]
         PerfMgr[Performance Manager]
         InputMgr[Input Manager]
         SpatialGrid[Spatial Grid]
