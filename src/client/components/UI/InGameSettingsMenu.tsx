@@ -20,7 +20,7 @@ const InGameSettingsMenu: React.FC<InGameSettingsMenuProps> = ({ applySettingsCh
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -10, scale: 0.95 }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
-          className="fixed inset-x-0 top-[10%] sm:top-[15%] mx-auto w-[90%] max-w-xs z-30 pointer-events-auto"
+          className="fixed inset-0 flex items-center justify-center z-30 backdrop-blur-sm bg-black/30 pointer-events-none"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="bg-base-100/90 backdrop-blur-md p-4 rounded-xl shadow-lg border border-primary/30 text-base-content">

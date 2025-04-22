@@ -178,7 +178,7 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
             className="p-4 bg-base-200/40 rounded-lg border border-base-300"
           >
             <h3 className="text-lg font-bold mb-4 border-b border-primary/30 pb-1 text-primary flex items-center gap-2">
-              <UserCircle size={18} /> Player Profile
+              <UserCircle size={20} /> Player Profile
             </h3>
             <div className="flex flex-col sm:flex-row items-center gap-4">
               <div className="flex-grow w-full sm:w-auto">
@@ -196,8 +196,8 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
                     className="input input-bordered input-primary input-md flex-grow"
                     placeholder="Your name..."
                   />
-                  <button type="submit" className="btn btn-primary btn-sm btn-outline btn-square" aria-label="Save">
-                    <Save size={16} />
+                  <button type="submit" className="btn btn-primary btn-md btn-outline btn-square" aria-label="Save">
+                    <Save size={20} />
                   </button>
                 </form>
                 <p className="text-sm text-base-content/60 mt-1">Visible to other players.</p>
