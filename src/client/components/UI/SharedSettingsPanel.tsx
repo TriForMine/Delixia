@@ -59,12 +59,12 @@ const SharedSettingsPanel: React.FC<SharedSettingsPanelProps> = ({ applySettings
   const sectionPadding = isSmall ? 'p-2' : 'p-4'
   const sectionBorder = isSmall ? 'border border-secondary/10' : 'border border-base-300'
   const sectionBg = isSmall ? 'bg-base-200/50' : 'bg-base-200/40'
-  const headingClass = isSmall ? 'text-xs font-semibold mb-1 flex items-center gap-1' : 'text-lg font-bold mb-3 border-b pb-1 flex items-center gap-2'
-  const labelClass = isSmall ? 'block text-[10px] opacity-70' : 'block text-md font-medium mb-1 opacity-80'
+  const headingClass = isSmall ? 'text-md font-semibold mb-1 flex items-center gap-1' : 'text-lg font-bold mb-3 border-b pb-1 flex items-center gap-2'
+  const labelClass = isSmall ? 'block text-[14px] opacity-70' : 'block text-md font-medium mb-1 opacity-80'
   const rangeClass = isSmall ? 'range range-xs' : 'range range-sm' // Use sm for large mode for better control
-  const selectClass = isSmall ? 'select select-bordered select-xs' : 'select select-bordered select-md'
-  const toggleClass = isSmall ? 'toggle toggle-xs' : 'toggle toggle-sm'
-  const valueTextClass = isSmall ? 'text-[10px] font-mono w-8 text-right opacity-70' : 'text-md font-mono w-10 text-right opacity-70'
+  const selectClass = isSmall ? 'select select-bordered select-md' : 'select select-bordered select-md'
+  const toggleClass = isSmall ? 'toggle toggle-sm' : 'toggle toggle-sm'
+  const valueTextClass = isSmall ? 'text-[14px] font-mono w-8 text-right opacity-70' : 'text-md font-mono w-10 text-right opacity-70'
   const fovValueText = `${(fov * (180 / Math.PI)).toFixed(0)}°` // Display FOV in degrees
 
   return (
@@ -122,7 +122,7 @@ const SharedSettingsPanel: React.FC<SharedSettingsPanelProps> = ({ applySettings
           <div className="form-control">
             <label className={`cursor-pointer label justify-start gap-2 p-0 ${isSmall ? 'mt-1' : ''}`}>
               <input type="checkbox" className={`${toggleClass} toggle-secondary`} checked={invertY} onChange={handleInvertYToggle} />
-              <span className={`label-text ${isSmall ? 'text-[10px]' : 'text-md'}`}>Invert Vertical Axis</span>
+              <span className={`label-text ${isSmall ? 'text-[14px]' : 'text-md'}`}>Invert Vertical Axis</span>
             </label>
           </div>
           {/* Zoom Precision */}
@@ -235,7 +235,7 @@ const SharedSettingsPanel: React.FC<SharedSettingsPanelProps> = ({ applySettings
           <div className={isSmall ? 'flex items-center gap-2' : 'flex flex-col md:flex-row md:items-center gap-4'}>
             <div className="form-control w-auto">
               <label className="cursor-pointer label justify-start gap-2 p-0">
-                <span className={`label-text ${isSmall ? 'text-[10px]' : 'text-md mr-2'}`}>Music {isSmall ? '🎶' : ''}</span>
+                <span className={`label-text ${isSmall ? 'text-[14px]' : 'text-md mr-2'}`}>Music {isSmall ? '🎶' : ''}</span>
                 <input type="checkbox" className={`${toggleClass} toggle-warning`} checked={musicEnabled} onChange={handleMusicToggleInternal} />
               </label>
             </div>

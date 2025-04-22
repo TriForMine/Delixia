@@ -31,7 +31,7 @@ const InGameSettingsMenu: React.FC<InGameSettingsMenuProps> = ({ applySettingsCh
             >
               <X size={16} strokeWidth={3} />
             </button>
-            <h2 className="text-base font-bold mb-3 text-center text-primary">Quick Options ☕</h2>
+            <h2 className="text-base font-bold mb-3 text-center text-lg">Quick Options ☕</h2>
 
             <div className="space-y-3">
               <SharedSettingsPanel applySettingsChanges={applySettingsChanges} size="small" />
