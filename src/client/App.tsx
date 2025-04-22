@@ -170,6 +170,9 @@ const App: React.FC = () => {
       <ToasterWithMax
         position="bottom-center"
         reverseOrder={false}
+        containerStyle={{
+          bottom: '96px',
+        }}
         toastOptions={{
           duration: 3000,
           style: { background: '#333', color: '#fff' },
