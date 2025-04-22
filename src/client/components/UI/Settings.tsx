@@ -1,4 +1,5 @@
 import type React from 'react'
+import { useRef } from 'react'
 import { useState, useCallback, useEffect } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useStore } from '@client/store/useStore'
@@ -56,7 +57,6 @@ interface SettingsProps {
 
 const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
   const setMode = useStore((state) => state.setMode)
-  const storeUsername = useStore((state) => state.username)
   const setStoreUsername = useStore((state) => state.setUsername)
 
   // --- States specific to this full settings screen ---
@@ -65,25 +65,34 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
   const [listeningAction, setListeningAction] = useState<GameAction | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const usernameInputRef = useRef<HTMLInputElement>(null)
 
   // --- Handlers specific to this screen ---
   const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputUsername(e.target.value.slice(0, 16))
   }
-  const saveUsername = useCallback(() => {
-    const trimmedUsername = inputUsername.trim()
-    if (trimmedUsername && trimmedUsername.length >= 3) {
-      setStoreUsername(trimmedUsername)
-      toast.success('Nickname saved!')
-    } else {
-      if (!trimmedUsername) {
-        toast.error('Nickname cannot be empty.')
+
+  const saveUsername = useCallback(
+    (event?: React.FormEvent<HTMLFormElement>) => {
+      // Accept optional form event
+      event?.preventDefault() // Prevent default form submission
+      const trimmedUsername = inputUsername.trim()
+      if (trimmedUsername && trimmedUsername.length >= 3) {
+        setStoreUsername(trimmedUsername) // Use the store action
+        toast.success('Nickname saved!')
       } else {
-        toast.error('Nickname must be at least 3 characters.')
+        if (!trimmedUsername) {
+          toast.error('Nickname cannot be empty.')
+        } else {
+          toast.error('Nickname must be at least 3 characters.')
+        }
+        // Revert input to the stored username on error for better UX
+        setInputUsername(settingsStore.getUsername())
+        usernameInputRef.current?.focus() // Refocus on error
       }
-      setInputUsername(storeUsername)
-    }
-  }, [inputUsername])
+    },
+    [inputUsername, setStoreUsername],
+  )
 
   const handleListen = useCallback((action: GameAction) => {
     setListeningAction(action)
@@ -181,8 +190,9 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
                 <label htmlFor="username" className="block text-sm font-medium mb-1 opacity-80">
                   In-game Nickname
                 </label>
-                <div className="flex items-center gap-2">
+                <form onSubmit={saveUsername} className="flex items-center gap-2">
                   <input
+                    ref={usernameInputRef}
                     type="text"
                     id="username"
                     value={inputUsername}
@@ -191,10 +201,10 @@ const Settings: React.FC<SettingsProps> = ({ applySettingsChanges }) => {
                     className="input input-bordered input-primary input-sm flex-grow"
                     placeholder="Your name..."
                   />
-                  <button onClick={saveUsername} className="btn btn-primary btn-sm btn-outline btn-square" aria-label="Save">
+                  <button type="submit" className="btn btn-primary btn-sm btn-outline btn-square" aria-label="Save">
                     <Save size={16} />
                   </button>
-                </div>
+                </form>
                 <p className="text-xs text-base-content/60 mt-1">Visible to other players.</p>
               </div>
             </div>

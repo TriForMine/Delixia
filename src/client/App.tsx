@@ -13,14 +13,22 @@ import { ToasterWithMax } from '@client/components/UI/ToasterWithMax.tsx'
 
 const InitialPseudoSetup: React.FC<{ onPseudoSet: (pseudo: string) => void }> = ({ onPseudoSet }) => {
   const [tempPseudo, setTempPseudo] = useState('')
-  const handleSubmit = () => {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const handleSubmit = (event?: React.FormEvent<HTMLFormElement>) => {
+    event?.preventDefault()
     const finalPseudo = tempPseudo.trim()
     if (finalPseudo && finalPseudo.length >= 3) {
       onPseudoSet(finalPseudo)
     } else {
       toast.error('Your nickname must be at least 3 characters long! 😅')
+      inputRef.current?.focus()
     }
   }
+
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
 
   return (
     <motion.div
@@ -39,23 +47,25 @@ const InitialPseudoSetup: React.FC<{ onPseudoSet: (pseudo: string) => void }> = 
           <CookingPot size={28} /> Welcome Chef ! <Cake size={28} />
         </h2>
         <p className="mb-6 text-base-content/80 text-md">Choose your amazing cooking name !</p>
-        <input
-          type="text"
-          value={tempPseudo}
-          onChange={(e) => setTempPseudo(e.target.value.slice(0, 16))}
-          maxLength={16}
-          className="input input-bordered w-full mb-5 shadow-sm border-rose-50 focus:ring-1"
-          placeholder="SuperChefName..."
-          autoFocus
-        />
-        <motion.button
-          whileHover={{ scale: 1.05, y: -2, transition: { duration: 0.1 } }}
-          whileTap={{ scale: 0.95 }}
-          onClick={handleSubmit}
-          className="btn-dream"
-        >
-          Let's get cooking ! 🎉
-        </motion.button>
+        <form onSubmit={handleSubmit}>
+          <input
+            ref={inputRef}
+            type="text"
+            value={tempPseudo}
+            onChange={(e) => setTempPseudo(e.target.value.slice(0, 16))}
+            maxLength={16}
+            className="input input-bordered w-full mb-5 shadow-sm border-rose-50 focus:ring-1"
+            placeholder="SuperChefName..."
+          />
+          <motion.button
+            type="submit"
+            whileHover={{ scale: 1.05, y: -2, transition: { duration: 0.1 } }}
+            whileTap={{ scale: 0.95 }}
+            className="btn-dream"
+          >
+            Let's get cooking ! 🎉
+          </motion.button>
+        </form>
         <p className="text-xs mt-4 text-base-content/50 flex items-center justify-center gap-1">
           <Ghost size={16} /> You can change it later.
         </p>
