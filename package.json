@@ -62,7 +62,7 @@
     "daisyui": "5.0.27",
     "globals": "16.0.0",
     "mocha": "11.1.0",
-    "postcss": "8.5.3",
+    "postcss": "8.5.18",
     "rimraf": "6.0.1",
     "rollup-plugin-visualizer": "5.14.0",
     "tailwindcss": "4.1.4",
